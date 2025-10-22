@@ -25,17 +25,21 @@
         android:layout_height="wrap_content"
         android:hint="Email"
         android:inputType="textEmailAddress" />
-    <Spinner
-        android:id="@+id/spinnerEditCourses"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"/>
 
+    <!-- RecyclerView for multiple course selection -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerEditCourses"
+        android:layout_width="match_parent"
+        android:layout_height="120dp"
+        android:layout_marginTop="8dp"
+        android:scrollbars="vertical" />
+
+    <!-- RecyclerView for subjects -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerEditSubjects"
         android:layout_width="match_parent"
         android:layout_height="150dp"
-        android:layout_marginTop="8dp"/>
-
+        android:layout_marginTop="8dp"
+        android:scrollbars="vertical" />
 
 </LinearLayout>
