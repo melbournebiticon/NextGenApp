@@ -34,8 +34,8 @@
             android:text="Select Course(s)"
             android:textStyle="bold"
             android:layout_marginTop="12dp"
-            android:layout_height="8dp"
-            android:layout_width="8dp" />
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recyclerCourseSelection"
@@ -46,8 +46,8 @@
             android:text="Subjects"
             android:textStyle="bold"
             android:layout_marginTop="12dp"
-            android:layout_height="8dp"
-            android:layout_width="8dp"/>
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"/>
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recyclerSubjects"
