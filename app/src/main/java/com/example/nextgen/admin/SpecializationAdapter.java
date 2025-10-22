@@ -1,0 +1,81 @@
+package com.example.nextgen.admin;
+
+import android.app.AlertDialog;
+import android.content.Context;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.Button;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.RecyclerView;
+
+import com.example.nextgen.R;
+import com.google.firebase.database.DatabaseReference;
+
+import java.util.ArrayList;
+
+public class SpecializationAdapter extends RecyclerView.Adapter<SpecializationAdapter.ViewHolder> {
+
+    ArrayList<SpecializationModel> list;
+    Context context;
+    DatabaseReference dbRef;
+    // Add a callback for edit
+    SpecializationsActivity activity;
+
+    public SpecializationAdapter(ArrayList<SpecializationModel> list, SpecializationsActivity activity, DatabaseReference dbRef) {
+        this.list = list;
+        this.activity = activity;
+        this.context = activity;
+        this.dbRef = dbRef;
+    }
+
+    @NonNull
+    @Override
+    public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        View view = LayoutInflater.from(context).inflate(R.layout.item_specialization, parent, false);
+        return new ViewHolder(view);
+    }
+
+    @Override
+    public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
+        SpecializationModel model = list.get(position);
+        holder.name.setText(model.getName());
+
+        // Delete button
+        holder.deleteBtn.setOnClickListener(v -> {
+            new AlertDialog.Builder(context)
+                    .setTitle("Delete")
+                    .setMessage("Delete this specialization?")
+                    .setPositiveButton("Yes", (dialog, which) -> {
+                        dbRef.child(model.getId()).removeValue();
+                        Toast.makeText(context, "Deleted", Toast.LENGTH_SHORT).show();
+                    })
+                    .setNegativeButton("No", null)
+                    .show();
+        });
+
+        // Edit button
+        holder.editBtn.setOnClickListener(v -> {
+            // Call the activity's modal dialog for editing
+            activity.showAddEditDialog(model.getId(), model.getName());
+        });
+    }
+
+    @Override
+    public int getItemCount() { return list.size(); }
+
+    public static class ViewHolder extends RecyclerView.ViewHolder {
+        TextView name;
+        Button deleteBtn, editBtn;
+
+        public ViewHolder(@NonNull View itemView) {
+            super(itemView);
+            name = itemView.findViewById(R.id.specializationItemName);
+            deleteBtn = itemView.findViewById(R.id.deleteSpecializationBtn);
+            editBtn = itemView.findViewById(R.id.editSpecializationBtn);
+        }
+    }
+}

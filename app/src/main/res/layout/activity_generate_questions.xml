@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:background="@android:color/white"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:padding="16dp">
+
+        <LinearLayout
+            android:orientation="vertical"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <!-- Exam Info -->
+            <TextView
+                android:id="@+id/tvExamInfo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Exam Information"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:paddingBottom="8dp"
+                android:textColor="@android:color/black"/>
+
+            <!-- Import Questions Button (UNDER Exam Info) -->
+            <Button
+                android:id="@+id/btnImportQuestions"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Import Questions"
+                android:layout_marginBottom="12dp"
+                android:backgroundTint="@color/dark_blue_700"
+                android:textColor="@android:color/white"/>
+
+            <!-- Question Type Selector -->
+            <Spinner
+                android:id="@+id/spQuestionType"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"/>
+
+            <!-- === Multiple Choice Section === -->
+            <LinearLayout
+                android:id="@+id/layoutMultipleChoice"
+                android:orientation="vertical"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:visibility="gone"
+                android:paddingTop="8dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Multiple Choice Questions"
+                    android:textStyle="bold"
+                    android:textSize="16sp"
+                    android:paddingBottom="4dp"/>
+
+                <LinearLayout
+                    android:orientation="horizontal"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <EditText
+                        android:id="@+id/etNumMC"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:hint="Number of MC Questions"
+                        android:inputType="number"/>
+
+                    <CheckBox
+                        android:id="@+id/cbMC"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Generate"/>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/layoutMCFields"
+                    android:orientation="vertical"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"/>
+            </LinearLayout>
+
+            <!-- === True/False Section === -->
+            <LinearLayout
+                android:id="@+id/layoutTrueFalse"
+                android:orientation="vertical"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:visibility="gone"
+                android:paddingTop="8dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="True/False Questions"
+                    android:textStyle="bold"
+                    android:textSize="16sp"
+                    android:paddingBottom="4dp"/>
+
+                <LinearLayout
+                    android:orientation="horizontal"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <EditText
+                        android:id="@+id/etNumTF"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:hint="Number of True/False Questions"
+                        android:inputType="number"/>
+
+                    <CheckBox
+                        android:id="@+id/cbTF"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Generate"/>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/layoutTFFields"
+                    android:orientation="vertical"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"/>
+            </LinearLayout>
+
+            <!-- === Matching Type Section === -->
+            <LinearLayout
+                android:id="@+id/layoutMatching"
+                android:orientation="vertical"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:visibility="gone"
+                android:paddingTop="8dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Matching Type Questions"
+                    android:textStyle="bold"
+                    android:textSize="16sp"
+                    android:paddingBottom="4dp"/>
+
+                <LinearLayout
+                    android:orientation="horizontal"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <EditText
+                        android:id="@+id/etNumMatching"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:hint="Number of Matching Questions"
+                        android:inputType="number"/>
+
+                    <CheckBox
+                        android:id="@+id/cbMatching"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Generate"/>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/layoutMatchingFields"
+                    android:orientation="vertical"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"/>
+            </LinearLayout>
+
+            <!-- Save Questions Button -->
+            <Button
+                android:id="@+id/btnSaveQuestion"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Save Questions"
+                android:layout_marginTop="12dp"
+                android:backgroundTint="@color/teal_700"
+                android:textColor="@android:color/white"/>
+        </LinearLayout>
+    </ScrollView>
+
+    <!-- RecyclerView to show saved questions -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvQuestions"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:padding="16dp"/>
+</LinearLayout>

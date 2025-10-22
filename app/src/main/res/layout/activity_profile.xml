@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#F5F5F5">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/topAppBar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="?attr/colorPrimary"
+        android:theme="@style/ThemeOverlay.MaterialComponents.Dark.ActionBar"
+        app:title="Profile"
+        app:titleTextColor="@android:color/white"
+        app:navigationIcon="?attr/homeAsUpIndicator" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:padding="16dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center_horizontal">
+
+            <!-- Profile Picture -->
+            <ImageView
+                android:id="@+id/profileImage"
+                android:layout_width="110dp"
+                android:layout_height="110dp"
+                android:layout_marginTop="20dp"
+                android:src="@drawable/kc"
+                android:scaleType="centerCrop"
+                android:background="@drawable/profile_circle_bg"
+                android:padding="4dp"
+                android:elevation="4dp"
+                android:contentDescription="Profile Image" />
+
+            <!-- Card Container for User Details -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:layout_marginBottom="16dp"
+                android:padding="20dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="6dp"
+                android:background="@android:color/white">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:divider="@android:color/darker_gray"
+                    android:showDividers="middle"
+                    android:dividerPadding="12dp">
+
+                    <TextView
+                        android:id="@+id/tvUsername"
+                        style="@style/ProfileInfoStyle"
+                        android:drawableStart="@android:drawable/ic_menu_myplaces"
+                        android:text="Username" />
+
+                    <TextView
+                        android:id="@+id/tvBirthday"
+                        style="@style/ProfileInfoStyle"
+                        android:drawableStart="@android:drawable/ic_menu_today"
+                        android:text="Birthday" />
+
+                    <TextView
+                        android:id="@+id/tvAge"
+                        style="@style/ProfileInfoStyle"
+                        android:drawableStart="@android:drawable/ic_menu_recent_history"
+                        android:text="Age" />
+
+                    <TextView
+                        android:id="@+id/tvEmail"
+                        style="@style/ProfileInfoStyle"
+                        android:drawableStart="@android:drawable/ic_dialog_email"
+                        android:text="Email" />
+
+                    <TextView
+                        android:id="@+id/tvPhone"
+                        style="@style/ProfileInfoStyle"
+                        android:drawableStart="@android:drawable/ic_menu_call"
+                        android:text="Phone" />
+
+                    <TextView
+                        android:id="@+id/tvLocation"
+                        style="@style/ProfileInfoStyle"
+                        android:drawableStart="@android:drawable/ic_menu_mylocation"
+                        android:text="Location" />
+
+                </LinearLayout>
+
+            </androidx.cardview.widget.CardView>
+
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

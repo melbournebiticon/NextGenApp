@@ -1,0 +1,33 @@
+<resources>
+    <string name="app_name">NextGen</string>
+    <string name="logo_description">NextGen Online Exam System Logo</string>
+    <string name="app_short_name">NGX</string>
+    <string name="system_title">NextGen Online\nExam System</string>
+    <string name="label_username">Username</string>
+    <string name="hint_username">Enter your username</string>
+    <string name="label_password">Password</string>
+    <string name="hint_password">Enter your password</string>
+    <string name="button_login">LOGIN</string>
+    <string name="forgot_password">Forgot Password?</string>
+    <string name="button_create_account">Create Account</string>
+    <string name="create_account_title">Create a New\nAccount</string>
+    <string name="hint_new_username">Enter a username</string>
+    <string name="hint_new_password">Enter a password</string>
+    <string name="button_createaccount">CreateAccount</string>
+    <string name="button_back_to_login">Already have an account? Login here.</string>
+    <string name="nextgen_logo_description">NextGen Exam System Logo</string>
+    <string name="welcome_message">Welcome to NextGen</string>
+    <string name="announcements_title">Announcements</string>
+    <string name="announcements_content">This is where important announcements will be displayed.</string>
+    <string name="menu_view_results">View Results</string>
+    <string name="menu_view_profile">View Profile</string>
+    <string name="menu_logout">Logout</string>
+    <string name="navigation_drawer_open">Open navigation drawer</string>
+    <string name="navigation_drawer_close">Close navigation drawer</string>
+    <string name="nav_header_image_desc">User profile image</string>
+    <string name="prompt_question_type">Question Type</string>
+    <string name="select_course">Select Course</string>
+
+
+
+</resources>

@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "46758793533",
+    "firebase_url": "https://nextgen-fb48c-default-rtdb.firebaseio.com",
+    "project_id": "nextgen-fb48c",
+    "storage_bucket": "nextgen-fb48c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:46758793533:android:0806f68f15c3561b6b7554",
+        "android_client_info": {
+          "package_name": "com.example.nextgen"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBm5rTQdZFCxveqhtIpIWIEFQK2YVfDPSM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

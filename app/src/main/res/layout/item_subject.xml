@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="12dp">
+
+    <TextView
+        android:id="@+id/tvSubjectCode"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="SUBJ101"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/tvSubjectName"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Introduction to CS" />
+
+    <TextView
+        android:id="@+id/tvSubjectCourseInfo"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="BSIT SD 2B - Cybersecurity - 2nd Year - Section B"
+        android:textColor="#555555"
+        android:textSize="14sp" />
+
+</LinearLayout>

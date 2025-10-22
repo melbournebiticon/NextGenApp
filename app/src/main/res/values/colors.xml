@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Dark blues (can keep for accents or toolbar if needed) -->
+    <color name="dark_blue_900">#0D1B2A</color>
+    <color name="dark_blue_700">#1B263B</color>
+    <color name="dark_blue_500">#415A77</color>
+
+    <!-- Blues / Teals -->
+    <color name="blue_300">#778DA9</color>
+    <color name="blue_500">#1E90FF</color>
+    <color name="teal_200">#64B5F6</color>
+    <color name="teal_700">#1565C0</color>
+
+    <!-- Light / Text colors -->
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+    <color name="light_gray">#B0BEC5</color>
+
+    <!-- Backgrounds -->
+    <color name="background_dark">#FFFFFF</color>  <!-- changed to white -->
+    <color name="surface_dark">#FFFFFF</color>     <!-- changed to white -->
+
+</resources>
