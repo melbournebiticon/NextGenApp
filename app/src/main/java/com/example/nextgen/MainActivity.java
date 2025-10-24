@@ -11,6 +11,7 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.example.nextgen.student.StudentDashboardActivity;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DataSnapshot;
@@ -223,7 +224,7 @@ public class MainActivity extends AppCompatActivity {
                 intent = new Intent(MainActivity.this, com.example.nextgen.teacher.TeacherDashboardActivity.class);
                 break;
             case "student":
-                intent = new Intent(MainActivity.this, com.example.nextgen.admin.StudentDashboardActivity.class);
+                intent = new Intent(MainActivity.this, StudentDashboardActivity.class);
                 break;
             default:
                 Toast.makeText(this, "Unknown role!", Toast.LENGTH_SHORT).show();

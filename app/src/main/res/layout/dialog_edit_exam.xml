@@ -19,15 +19,20 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content" />
 
-        <!-- Subject -->
-        <EditText
-            android:id="@+id/etSubject"
-            android:hint="Subject"
-            android:textColor="@android:color/black"
-            android:textColorHint="@android:color/darker_gray"
+        <!-- Course dropdown -->
+        <Spinner
+            android:id="@+id/spCourse"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp" />
+
+        <!-- Subject dropdown -->
+        <Spinner
+            android:id="@+id/spSubject"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp" />
+
 
         <!-- Section -->
         <EditText

@@ -24,8 +24,11 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.tom_roush.pdfbox.pdmodel.PDDocument;
 import com.tom_roush.pdfbox.text.PDFTextStripper;
 
+
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
 
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -57,10 +60,16 @@ public class GenerateQuestionsActivity extends AppCompatActivity {
     private Question editingQuestion = null;
     private LinearLayout editingContainer = null;
 
+    private DatabaseReference database;
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_generate_questions);
+
+        database = FirebaseDatabase.getInstance().getReference("questions");
+
 
         examId = getIntent().getIntExtra("examId", -1);
         examTitle = getIntent().getStringExtra("examTitle");
@@ -189,8 +198,14 @@ public class GenerateQuestionsActivity extends AppCompatActivity {
         if (!allQuestions.isEmpty()) {
             new Thread(() -> {
                 AppDatabase.getInstance(this).questionDao().insertAll(allQuestions);
+
+                // Sync each question to Firebase
+                for (Question q : allQuestions) {
+                    runOnUiThread(() -> saveQuestionToFirebase(q));
+                }
+
                 runOnUiThread(() -> {
-                    Toast.makeText(this, "Questions saved!", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "Questions saved locally and synced!", Toast.LENGTH_SHORT).show();
                     clearAllFields();
                     loadQuestions();
                 });
@@ -198,7 +213,24 @@ public class GenerateQuestionsActivity extends AppCompatActivity {
         } else {
             Toast.makeText(this, "No questions to save.", Toast.LENGTH_SHORT).show();
         }
+
     }
+
+    private void saveQuestionToFirebase(Question question) {
+        // Generate a unique ID for this question
+        String key = database.push().getKey();
+        if (key != null) {
+            database.child(key).setValue(question)
+                    .addOnSuccessListener(aVoid -> {
+                        Toast.makeText(this, "Question synced to Firebase!", Toast.LENGTH_SHORT).show();
+                    })
+                    .addOnFailureListener(e -> {
+                        Toast.makeText(this, "Failed to sync question", Toast.LENGTH_SHORT).show();
+                        e.printStackTrace();
+                    });
+        }
+    }
+
 
     private void collectQuestionsFromContainer(LinearLayout container, String type, List<Question> allQuestions) {
         for (int i = 0; i < container.getChildCount(); i++) {

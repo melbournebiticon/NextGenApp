@@ -29,6 +29,6 @@ public class CourseOption {
     public String getSpecializationName() { return specializationName; }
 
     public String getDisplayName() {
-        return "Year: " + yearName + ", Section: " + sectionName + ", Spec: " + specializationName;
+        return specializationName + " - " + yearName + sectionName;
     }
 }

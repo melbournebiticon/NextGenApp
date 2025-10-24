@@ -38,7 +38,7 @@
         <activity android:name=".teacher.ProfileActivity" />
         <activity android:name=".teacher.Question" />
         //Student
-        <activity android:name=".admin.StudentDashboardActivity" />
+        <activity android:name=".student.StudentDashboardActivity" />
 
     </application>
 

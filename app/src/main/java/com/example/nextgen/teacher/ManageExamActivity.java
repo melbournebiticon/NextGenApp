@@ -13,6 +13,8 @@ import android.widget.EditText;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.util.Log;
+
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -38,6 +40,8 @@ import java.util.Calendar;
 import java.util.List;
 import java.util.Locale;
 import java.util.HashSet;
+import java.util.HashMap;
+
 
 
 public class ManageExamActivity extends AppCompatActivity {
@@ -46,6 +50,7 @@ public class ManageExamActivity extends AppCompatActivity {
     private ExamAdapter adapter;
     private AppDatabase db;
     private Button btnAddExam;
+    private List<String> courseDisplayList = new ArrayList<>();
 
     private DatabaseReference teachersRef;
     private String teacherId;
@@ -53,6 +58,8 @@ public class ManageExamActivity extends AppCompatActivity {
     private String courseDisplay = "";
 
     private static boolean isFirebaseInitialized = false;
+    private SessionManager sessionManager;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -71,7 +78,8 @@ public class ManageExamActivity extends AppCompatActivity {
         db = AppDatabase.getInstance(this);
         teachersRef = FirebaseDatabase.getInstance().getReference("Teachers");
 
-        SessionManager sessionManager = new SessionManager(this);
+        sessionManager = new SessionManager(this);
+
         teacherId = sessionManager.getUserId();
 
         if (teacherId != null) {
@@ -93,23 +101,19 @@ public class ManageExamActivity extends AppCompatActivity {
 
     // ===== FETCH TEACHER DATA (courseDisplay + assignedSubjects) =====
     private void fetchTeacherData(String teacherId) {
-        teachersRef.child(teacherId).keepSynced(true);
-
         teachersRef.child(teacherId).addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 assignedSubjects.clear();
-
-                // Load multiple courseDisplays if available
-                assignedSubjects.clear();
                 List<String> courseDisplays = new ArrayList<>();
 
+                // 🔹 Fetch assigned subjects
                 for (DataSnapshot subSnap : snapshot.child("assignedSubjects").getChildren()) {
                     String subject = subSnap.getValue(String.class);
                     if (subject != null) assignedSubjects.add(subject);
                 }
 
-// ✅ Fetch all courseDisplays
+                // 🔹 Fetch multiple course displays
                 for (DataSnapshot courseSnap : snapshot.child("courseDisplays").getChildren()) {
                     String course = courseSnap.getValue(String.class);
                     if (course != null) courseDisplays.add(course);
@@ -118,17 +122,16 @@ public class ManageExamActivity extends AppCompatActivity {
                 if (courseDisplays.isEmpty()) {
                     Toast.makeText(ManageExamActivity.this, "No courses assigned.", Toast.LENGTH_SHORT).show();
                 } else {
-                    courseDisplay = String.join(", ", courseDisplays); // Optional, if you still want a single string
+                    Toast.makeText(ManageExamActivity.this,
+                            "Loaded " + courseDisplays.size() + " course(s).", Toast.LENGTH_SHORT).show();
                 }
-
 
                 if (assignedSubjects.isEmpty()) {
                     Toast.makeText(ManageExamActivity.this, "No assigned subjects found.", Toast.LENGTH_SHORT).show();
-                } else {
-                    Toast.makeText(ManageExamActivity.this,
-                            "Loaded " + assignedSubjects.size() + " assigned subjects.",
-                            Toast.LENGTH_SHORT).show();
                 }
+
+                // 🔹 Store courses for dialog use
+                courseDisplayList = courseDisplays; // new field you’ll add below
             }
 
             @Override
@@ -139,6 +142,7 @@ public class ManageExamActivity extends AppCompatActivity {
             }
         });
     }
+
 
     // ===== LOAD LOCAL EXAMS (Room offline support) =====
     private void loadExams() {
@@ -181,9 +185,12 @@ public class ManageExamActivity extends AppCompatActivity {
                     public void onActivate(Exam exam, boolean isActive) {
                         new Thread(() -> {
                             exam.setActive(isActive);
-                            db.examDao().updateExam(exam);
+                            db.examDao().updateExam(exam);   // update local Room DB
+                            syncExamToFirebase(exam);        // update Firebase entry
                         }).start();
                     }
+
+
                 });
 
                 recyclerView.setAdapter(adapter);
@@ -195,18 +202,17 @@ public class ManageExamActivity extends AppCompatActivity {
     private void showAddExamDialog() {
         View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_add_exam, null);
 
-        EditText etExamName = dialogView.findViewById(R.id.etExamName);
-        Spinner spCourse = dialogView.findViewById(R.id.spCourse);
-        Spinner spSubject = dialogView.findViewById(R.id.spSubject);
-        EditText etSection = dialogView.findViewById(R.id.etSection);
-        Spinner spDuration = dialogView.findViewById(R.id.spDuration);
-        TextView tvSchedule = dialogView.findViewById(R.id.tvSchedule);
+        final EditText etExamName = dialogView.findViewById(R.id.etExamName);
+        final Spinner spCourse = dialogView.findViewById(R.id.spCourse);
+        final Spinner spSubject = dialogView.findViewById(R.id.spSubject);
+        final Spinner spDuration = dialogView.findViewById(R.id.spDuration);
+        final TextView tvSchedule = dialogView.findViewById(R.id.tvSchedule);
 
         String[] durations = {"30 minutes", "60 minutes", "120 minutes"};
         spDuration.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, durations));
 
-        Calendar selectedDate = Calendar.getInstance();
-        SimpleDateFormat sdf = new SimpleDateFormat("MMM dd, yyyy hh:mm a", Locale.getDefault());
+        final Calendar selectedDate = Calendar.getInstance();
+        final SimpleDateFormat sdf = new SimpleDateFormat("MMM dd, yyyy hh:mm a", Locale.getDefault());
 
         tvSchedule.setOnClickListener(v -> {
             Calendar now = Calendar.getInstance();
@@ -221,21 +227,58 @@ public class ManageExamActivity extends AppCompatActivity {
             }, now.get(Calendar.YEAR), now.get(Calendar.MONTH), now.get(Calendar.DAY_OF_MONTH)).show();
         });
 
-        // ✅ Load single course and subjects
-        List<String> courseList = new ArrayList<>();
-        if (courseDisplay != null && !courseDisplay.isEmpty()) {
-            courseList.add(courseDisplay);
-        } else {
-            courseList.add("No Course Assigned");
-        }
+        // Course spinner setup
+        List<String> courseList = courseDisplayList.isEmpty()
+                ? List.of("No Course Assigned")
+                : courseDisplayList;
 
-        ArrayAdapter<String> courseAdapter = new ArrayAdapter<>(this,
-                android.R.layout.simple_spinner_dropdown_item, courseList);
-        spCourse.setAdapter(courseAdapter);
+        spCourse.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, courseList));
 
-        ArrayAdapter<String> subjectAdapter = new ArrayAdapter<>(this,
-                android.R.layout.simple_spinner_dropdown_item, assignedSubjects);
+        // Subject spinner
+        ArrayList<String> subjectList = new ArrayList<>();
+        ArrayAdapter<String> subjectAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, subjectList);
         spSubject.setAdapter(subjectAdapter);
+
+        // Update subjects when a course is selected
+        spCourse.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
+                String selectedCourseDisplay = courseList.get(position);
+                DatabaseReference subjectsRef = FirebaseDatabase.getInstance().getReference("Subjects");
+
+                subjectsRef.addListenerForSingleValueEvent(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(@NonNull DataSnapshot snapshot) {
+                        subjectList.clear();
+                        for (DataSnapshot subjectSnap : snapshot.getChildren()) {
+                            String name = subjectSnap.child("name").getValue(String.class);
+                            String courseName = subjectSnap.child("courseName").getValue(String.class);
+                            String specializationName = subjectSnap.child("specializationName").getValue(String.class);
+                            String yearName = subjectSnap.child("yearName").getValue(String.class);
+                            String sectionName = subjectSnap.child("sectionName").getValue(String.class);
+
+
+
+                            String display = courseName + " - " + specializationName + " - " + yearName + " - " + sectionName;
+
+                            if (display.equals(selectedCourseDisplay) && assignedSubjects.contains(name)) {
+                                subjectList.add(name);
+                            }
+                        }
+                        if (subjectList.isEmpty()) subjectList.add("No subjects found for this course");
+                        subjectAdapter.notifyDataSetChanged();
+                    }
+
+                    @Override
+                    public void onCancelled(@NonNull DatabaseError error) {
+                        Toast.makeText(ManageExamActivity.this, "Failed to load subjects", Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+
+            @Override
+            public void onNothingSelected(android.widget.AdapterView<?> parent) {}
+        });
 
         AlertDialog dialog = new AlertDialog.Builder(this)
                 .setTitle("Add Exam")
@@ -244,19 +287,18 @@ public class ManageExamActivity extends AppCompatActivity {
                     String name = etExamName.getText().toString().trim();
                     String course = spCourse.getSelectedItem() != null ? spCourse.getSelectedItem().toString() : "";
                     String subject = spSubject.getSelectedItem() != null ? spSubject.getSelectedItem().toString() : "";
-                    String section = etSection.getText().toString().trim();
                     String selectedDuration = spDuration.getSelectedItem().toString();
+                    long scheduledAt = selectedDate.getTimeInMillis();
 
-                    if (name.isEmpty() || subject.isEmpty() || section.isEmpty() || course.isEmpty()) {
-                        Toast.makeText(ManageExamActivity.this, "Please fill all fields", Toast.LENGTH_SHORT).show();
+                    if (name.isEmpty() || subject.isEmpty() || course.isEmpty() || subject.equals("No subjects found for this course")) {
+                        Toast.makeText(ManageExamActivity.this, "Please fill all fields properly", Toast.LENGTH_SHORT).show();
                         return;
                     }
 
                     int duration = Integer.parseInt(selectedDuration.split(" ")[0]);
-                    long scheduledAt = selectedDate.getTimeInMillis();
 
                     new Thread(() -> {
-                        Exam newExam = new Exam(subject, name, duration, scheduledAt, section);
+                        Exam newExam = new Exam(subject, name, duration, scheduledAt, course);
                         db.examDao().insert(newExam);
                         syncExamToFirebase(newExam);
                         runOnUiThread(() -> {
@@ -271,14 +313,66 @@ public class ManageExamActivity extends AppCompatActivity {
         dialog.show();
     }
 
+
+
     // ===== SYNC EXAM TO FIREBASE =====
     private void syncExamToFirebase(Exam exam) {
         DatabaseReference examsRef = FirebaseDatabase.getInstance().getReference("Exams").child(teacherId);
-        String key = examsRef.push().getKey();
-        if (key != null) {
-            examsRef.child(key).setValue(exam);
+
+        // Generate key if needed
+        String firebaseKey = exam.getFirebaseKey();
+        if (firebaseKey == null || firebaseKey.isEmpty()) {
+            firebaseKey = examsRef.push().getKey();
+            exam.setFirebaseKey(firebaseKey);
+
+            // Update Room DB with the new key
+            new Thread(() -> db.examDao().updateExam(exam)).start();
         }
+
+        // Create ExamModel (for Firebase)
+        String createdAt = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault())
+                .format(new java.util.Date());
+
+        // Example: "BSIT - SD - 1 - A"
+        String[] parts = exam.getSection().split(" - ");
+        String courseName = parts.length > 0 ? parts[0] : "";
+        String specializationName = parts.length > 1 ? parts[1] : "";
+        String yearName = parts.length > 2 ? parts[2] : "";
+        String sectionName = parts.length > 3 ? parts[3] : "";
+        String teacherName = sessionManager.getFullName();
+
+        // Build courseDisplay like student query expects
+        String courseDisplayValue = courseName + " - " + specializationName + " - " + yearName + " - " + sectionName;
+
+
+        ExamModelTeacher examModel = new ExamModelTeacher(
+                firebaseKey,
+                exam.getExamName(),
+                exam.getSubject(),
+                "", // courseId
+                courseName,
+                specializationName,
+                yearName,
+                sectionName,
+                teacherId,
+                teacherName,
+                exam.getDurationMinutes(),
+                exam.getScheduledAt(),
+                exam.isActive(),
+                createdAt,
+                courseDisplayValue  // <-- fix here
+        );
+
+
+
+
+        // Save to Firebase
+        examsRef.child(firebaseKey).setValue(examModel)
+                .addOnSuccessListener(aVoid -> Log.d("FirebaseSync", "Exam synced successfully"))
+                .addOnFailureListener(e -> Log.e("FirebaseSync", "Failed to sync exam", e));
     }
+
+
     private void cacheTeacherData(TeacherModel teacher) {
         SharedPreferences prefs = getSharedPreferences("TeacherPrefs", MODE_PRIVATE);
         SharedPreferences.Editor editor = prefs.edit();
@@ -297,7 +391,7 @@ public class ManageExamActivity extends AppCompatActivity {
 
         EditText etExamName = dialogView.findViewById(R.id.etExamName);
         Spinner spSubject = dialogView.findViewById(R.id.spSubject);
-        EditText etSection = dialogView.findViewById(R.id.etSection);
+
         Spinner spDuration = dialogView.findViewById(R.id.spDuration);
         TextView tvSchedule = dialogView.findViewById(R.id.tvSchedule);
 
@@ -306,7 +400,7 @@ public class ManageExamActivity extends AppCompatActivity {
         spSubject.setAdapter(subjectAdapter);
 
         etExamName.setText(exam.getExamName());
-        etSection.setText(exam.getSection());
+
 
         int subjectIndex = assignedSubjects.indexOf(exam.getSubject());
         if (subjectIndex >= 0) spSubject.setSelection(subjectIndex);
@@ -342,7 +436,6 @@ public class ManageExamActivity extends AppCompatActivity {
                 .setPositiveButton("Save", (d, which) -> {
                     exam.setExamName(etExamName.getText().toString().trim());
                     exam.setSubject(spSubject.getSelectedItem().toString());
-                    exam.setSection(etSection.getText().toString().trim());
                     String selectedDuration = spDuration.getSelectedItem().toString();
                     exam.setDurationMinutes(Integer.parseInt(selectedDuration.split(" ")[0]));
                     exam.setScheduledAt(selectedDate.getTimeInMillis());

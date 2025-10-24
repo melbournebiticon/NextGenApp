@@ -50,7 +50,8 @@ public class ExamAdapter extends RecyclerView.Adapter<ExamAdapter.ExamViewHolder
         holder.tvExamName.setText(exam.getExamName());
         holder.tvSubject.setText("Subject: " + exam.getSubject());
         holder.tvSection.setText("Section: " + exam.getSection());
-        holder.tvSchedule.setText("Schedule: " + exam.getSchedule());
+        holder.tvSchedule.setText("Schedule: " + exam.getFormattedSchedule());
+
 
         // Handle checkbox properly to prevent multiple triggers due to recycling
         holder.checkActivate.setOnCheckedChangeListener(null);

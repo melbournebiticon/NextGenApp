@@ -158,13 +158,14 @@ public class SectionsActivity extends AppCompatActivity {
 
                         // -------- Add to CourseOptions --------
                         CourseOption option = new CourseOption(
-                                sectionId,
-                                sectionName,
-                                specializationId,
-                                specializationName,
-                                yearId,
-                                yearName
+                                yearId,        // keep yearId first
+                                yearName,      // keep yearName second
+                                sectionId,     // sectionId
+                                sectionName,   // sectionName
+                                specializationId,  // specializationId
+                                specializationName // specializationName
                         );
+
                         dbCourseOptions.child(sectionId).setValue(option);
                     })
                     .addOnFailureListener(e ->
@@ -187,7 +188,6 @@ public class SectionsActivity extends AppCompatActivity {
 
         // Prefill fields
         sectionNameEt.setText(section.name);
-
         loadSpecializations(spinnerSpecialization, section.specializationId);
         loadYears(spinnerYear, section.yearId);
 
@@ -210,6 +210,7 @@ public class SectionsActivity extends AppCompatActivity {
             String yearId = yearIdList.get(yearPosition);
             String yearName = yearList.get(yearPosition);
 
+            // Use the existing section.id here
             SectionModel updatedSection = new SectionModel(
                     section.id,
                     sectionName,
@@ -221,17 +222,17 @@ public class SectionsActivity extends AppCompatActivity {
 
             dbSections.child(section.id).setValue(updatedSection)
                     .addOnSuccessListener(aVoid -> {
-                        Toast.makeText(this, "Section updated!", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, "Section updated successfully!", Toast.LENGTH_SHORT).show();
                         dialog.dismiss();
 
-                        // -------- Update CourseOptions --------
+                        // Update CourseOptions
                         CourseOption option = new CourseOption(
+                                yearId,
+                                yearName,
                                 section.id,
                                 sectionName,
                                 specializationId,
-                                specializationName,
-                                yearId,
-                                yearName
+                                specializationName
                         );
                         dbCourseOptions.child(section.id).setValue(option);
                     })
@@ -240,6 +241,7 @@ public class SectionsActivity extends AppCompatActivity {
                     );
         });
     }
+
 
     // ----------------- LOAD SPINNERS -----------------
     private void loadSpecializations(Spinner spinner) {

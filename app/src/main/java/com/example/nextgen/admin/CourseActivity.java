@@ -67,7 +67,8 @@ public class CourseActivity extends AppCompatActivity {
                     CourseOption option = ds.getValue(CourseOption.class);
                     if (option != null) {
                         courseOptionList.add(option);
-                        names.add(option.getSectionName() + " - " + option.getSpecializationName() + " - " + option.getYearName());
+                        names.add(option.getSpecializationName() + " - " + option.getSectionName() + " - " + option.getYearName());
+
                     }
                 }
                 ArrayAdapter<String> adapter = new ArrayAdapter<>(CourseActivity.this,

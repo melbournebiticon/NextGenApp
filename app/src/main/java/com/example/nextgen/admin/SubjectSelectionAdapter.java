@@ -17,6 +17,7 @@ import java.util.List;
 public class SubjectSelectionAdapter extends RecyclerView.Adapter<SubjectSelectionAdapter.SubjectViewHolder> {
 
     private List<SubjectModel> subjectList;
+
     private final List<SubjectModel> selectedSubjects = new ArrayList<>();
 
     public SubjectSelectionAdapter(List<SubjectModel> subjectList) {

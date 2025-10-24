@@ -26,6 +26,8 @@ import com.google.firebase.database.ValueEventListener;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
+
 
 public class TeacherActivity extends AppCompatActivity {
 
@@ -128,14 +130,20 @@ public class TeacherActivity extends AppCompatActivity {
         recyclerCourseDialog.setLayoutManager(new LinearLayoutManager(this));
         recyclerSubjectsDialog.setLayoutManager(new LinearLayoutManager(this));
 
-        CourseSelectionAdapter courseAdapterDialog = new CourseSelectionAdapter(this, courseOptionList);
+        // Clone the course list
+        List<CourseModel> dialogCourses = new ArrayList<>(courseOptionList);
+        CourseSelectionAdapter courseAdapterDialog = new CourseSelectionAdapter(this, dialogCourses);
         recyclerCourseDialog.setAdapter(courseAdapterDialog);
 
-        List<SubjectModel> selectedSubjectsDialog = new ArrayList<>();
-        SubjectSelectionAdapter subjectAdapterDialog = new SubjectSelectionAdapter(selectedSubjectsDialog);
+        // Subject adapter starts empty
+        List<SubjectModel> dialogSubjects = new ArrayList<>();
+        SubjectSelectionAdapter subjectAdapterDialog = new SubjectSelectionAdapter(dialogSubjects);
         recyclerSubjectsDialog.setAdapter(subjectAdapterDialog);
 
-        // Update subjects when courses change
+        // Map to store subjects per selected course
+        Map<String, List<SubjectModel>> courseSubjectsMap = new HashMap<>();
+
+        // Update subjects when course selection changes
         courseAdapterDialog.setOnCourseSelectionChanged(() -> {
             List<CourseModel> selectedCourses = courseAdapterDialog.getSelectedCourses();
             List<SubjectModel> combinedSubjects = new ArrayList<>();
@@ -146,17 +154,29 @@ public class TeacherActivity extends AppCompatActivity {
             }
 
             final int[] loadedCount = {0};
-            for (CourseModel c : selectedCourses) {
-                subjectsRef.orderByChild("courseId").equalTo(c.getId())
+            for (CourseModel course : selectedCourses) {
+                // If subjects already loaded, use cache
+                if (courseSubjectsMap.containsKey(course.getId())) {
+                    combinedSubjects.addAll(courseSubjectsMap.get(course.getId()));
+                    loadedCount[0]++;
+                    if (loadedCount[0] == selectedCourses.size()) {
+                        subjectAdapterDialog.updateSubjects(combinedSubjects);
+                    }
+                    continue;
+                }
+
+                subjectsRef.orderByChild("courseId").equalTo(course.getId())
                         .addListenerForSingleValueEvent(new ValueEventListener() {
                             @Override
                             public void onDataChange(@NonNull DataSnapshot snapshot) {
+                                List<SubjectModel> courseSubjects = new ArrayList<>();
                                 for (DataSnapshot ds : snapshot.getChildren()) {
                                     SubjectModel s = ds.getValue(SubjectModel.class);
-                                    if (s != null && !combinedSubjects.contains(s)) {
-                                        combinedSubjects.add(s);
-                                    }
+                                    if (s != null) courseSubjects.add(s);
                                 }
+                                courseSubjectsMap.put(course.getId(), courseSubjects);
+                                combinedSubjects.addAll(courseSubjects);
+
                                 loadedCount[0]++;
                                 if (loadedCount[0] == selectedCourses.size()) {
                                     subjectAdapterDialog.updateSubjects(combinedSubjects);
@@ -174,7 +194,7 @@ public class TeacherActivity extends AppCompatActivity {
             }
         });
 
-
+        // Show dialog
         new AlertDialog.Builder(this)
                 .setTitle("Add Teacher")
                 .setView(dialogView)
@@ -194,30 +214,38 @@ public class TeacherActivity extends AppCompatActivity {
                         return;
                     }
 
-                    // Get selected subjects from the dialog
                     List<String> assignedSubjects = new ArrayList<>();
                     for (SubjectModel s : subjectAdapterDialog.getSelectedSubjects()) {
                         assignedSubjects.add(s.getName());
                     }
 
-                    // Add teacher as before
+                    // Generate teacher ID and create teacher
                     generateTeacherId(teacherId -> {
                         String password = birthday.replaceAll("[^0-9]", "");
                         List<String> courseIds = new ArrayList<>();
                         List<String> courseDisplays = new ArrayList<>();
                         for (CourseModel c : selectedCourses) {
                             courseIds.add(c.getId());
-                            courseDisplays.add(c.getName() + " - " +
-                                    c.getSpecializationName() + " - " +
-                                    c.getYearName() + " - " +
-                                    c.getSectionName());
+                            courseDisplays.add(
+                                    c.getName() + " - " +
+                                            c.getSpecializationName() + " - " +
+                                            c.getYearName() + " - " +
+                                            c.getSectionName()
+
+                            );
+
                         }
 
                         TeacherModel teacher = new TeacherModel(
-                                teacherId, fullName, getDisplayName(fullName),
-                                birthday, email,
-                                courseIds, courseDisplays,
-                                assignedSubjects, password
+                                teacherId,
+                                fullName,
+                                getDisplayName(fullName),
+                                birthday,
+                                email,
+                                courseIds,
+                                courseDisplays,
+                                assignedSubjects,
+                                password
                         );
 
                         auth.createUserWithEmailAndPassword(email, password)
@@ -236,6 +264,7 @@ public class TeacherActivity extends AppCompatActivity {
                 .setNegativeButton("Cancel", null)
                 .show();
     }
+
 
 
     private void updateSelectedSubjects() {
@@ -314,10 +343,13 @@ public class TeacherActivity extends AppCompatActivity {
             List<String> courseDisplays = new ArrayList<>();
             for (CourseModel c : selectedCourses) {
                 courseIds.add(c.getId());
-                courseDisplays.add(c.getName() + " - " +
-                        c.getSpecializationName() + " - " +
-                        c.getYearName() + " - " +
-                        c.getSectionName());
+                courseDisplays.add(
+                        c.getName() + " - " +
+                                c.getSpecializationName() + " - " +
+                                c.getYearName() + " - " +
+                                c.getSectionName()
+                );
+
             }
 
             TeacherModel teacher = new TeacherModel(
@@ -523,10 +555,13 @@ public class TeacherActivity extends AppCompatActivity {
                     List<String> courseDisplays = new ArrayList<>();
                     for (CourseModel c : updatedCourses) {
                         courseIds.add(c.getId());
-                        courseDisplays.add(c.getName() + " - " +
-                                c.getSpecializationName() + " - " +
-                                c.getYearName() + " - " +
-                                c.getSectionName());
+                        courseDisplays.add(
+                                c.getName() + " - " +
+                                        c.getSpecializationName() + " - " +
+                                        c.getYearName() + " - " +
+                                        c.getSectionName()
+                        );
+
                     }
                     teacher.setCourseIds(courseIds);
                     teacher.setCourseDisplays(courseDisplays);

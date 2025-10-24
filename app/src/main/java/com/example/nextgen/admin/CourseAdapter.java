@@ -47,6 +47,7 @@ public class CourseAdapter extends RecyclerView.Adapter<CourseAdapter.ViewHolder
                 + course.getSpecializationName() + " - "
                 + course.getYearName() + " - "
                 + course.getSectionName();
+
         holder.tvCourseName.setText(display);
 
         // Edit button click
