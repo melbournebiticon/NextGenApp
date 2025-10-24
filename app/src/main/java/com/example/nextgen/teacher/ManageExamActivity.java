@@ -107,6 +107,15 @@ public class ManageExamActivity extends AppCompatActivity {
                 assignedSubjects.clear();
                 List<String> courseDisplays = new ArrayList<>();
 
+                List<String> courseIds = new ArrayList<>();
+                for (DataSnapshot courseSnap : snapshot.child("courseIds").getChildren()) {
+                    String id = courseSnap.getValue(String.class);
+                    if (id != null) courseIds.add(id);
+                }
+// Save course IDs in SessionManager (you’ll need to add methods for this)
+                sessionManager.saveCourseIds(courseIds);
+
+
                 // 🔹 Fetch assigned subjects
                 for (DataSnapshot subSnap : snapshot.child("assignedSubjects").getChildren()) {
                     String subject = subSnap.getValue(String.class);
@@ -117,6 +126,12 @@ public class ManageExamActivity extends AppCompatActivity {
                 for (DataSnapshot courseSnap : snapshot.child("courseDisplays").getChildren()) {
                     String course = courseSnap.getValue(String.class);
                     if (course != null) courseDisplays.add(course);
+                }
+
+                // 🔹 Save teacher full name to SessionManager
+                String fullName = snapshot.child("fullName").getValue(String.class);
+                if (fullName != null && !fullName.isEmpty()) {
+                    sessionManager.saveSession(teacherId, "teacher", fullName);
                 }
 
                 if (courseDisplays.isEmpty()) {
@@ -131,7 +146,7 @@ public class ManageExamActivity extends AppCompatActivity {
                 }
 
                 // 🔹 Store courses for dialog use
-                courseDisplayList = courseDisplays; // new field you’ll add below
+                courseDisplayList = courseDisplays;
             }
 
             @Override
@@ -142,6 +157,7 @@ public class ManageExamActivity extends AppCompatActivity {
             }
         });
     }
+
 
 
     // ===== LOAD LOCAL EXAMS (Room offline support) =====

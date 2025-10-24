@@ -2,6 +2,10 @@ package com.example.nextgen;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.HashSet;
+
 
 public class SessionManager {
 
@@ -44,6 +48,16 @@ public class SessionManager {
     public boolean isLoggedIn() {
         return getUserId() != null;
     }
+
+    public void saveCourseIds(List<String> courseIds) {
+        editor.putStringSet("courseIds", new HashSet<>(courseIds));
+        editor.apply();
+    }
+
+    public List<String> getCourseIds() {
+        return new ArrayList<>(pref.getStringSet("courseIds", new HashSet<>()));
+    }
+
 
     public void clearSession() {
         editor.clear();

@@ -130,8 +130,9 @@ public class StudentDashboardActivity extends AppCompatActivity {
     }
 
     // ===== Fetch exams assigned to this student's course/section =====
+    // ===== Fetch exams assigned to this student's course/section =====
     private void fetchExamsForStudent(StudentModel student) {
-        // Correct order to match Firebase courseDisplay
+        // Build the courseDisplay string to match Firebase
         String studentCourseDisplay = student.getCourseName()
                 + " - " + student.getSpecializationName()
                 + " - " + student.getYearName()
@@ -139,46 +140,32 @@ public class StudentDashboardActivity extends AppCompatActivity {
 
         Log.d("DEBUG_COURSE_DISPLAY", "Querying exams for: " + studentCourseDisplay);
 
-        // Log all existing exams courseDisplay values for debugging
         examsRef.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
-                for (DataSnapshot ds : snapshot.getChildren()) {
-                    String examCourseDisplay = ds.child("courseDisplay").getValue(String.class);
-                    Log.d("DEBUG_EXAMS_RAW", "Exam courseDisplay in DB: " + examCourseDisplay);
+                examList.clear();
+                for (DataSnapshot teacherSnap : snapshot.getChildren()) {
+                    for (DataSnapshot examSnap : teacherSnap.getChildren()) {
+                        ExamModel exam = examSnap.getValue(ExamModel.class);
+                        if (exam != null &&
+                                exam.getCourseDisplay().equals(studentCourseDisplay) &&
+                                exam.isActive()) {
+                            examList.add(exam);
+                        }
+                    }
                 }
+                if (examList.isEmpty()) {
+                    Toast.makeText(StudentDashboardActivity.this, "No exams found for your course.", Toast.LENGTH_SHORT).show();
+                }
+                examAdapter = new ExamAdapter(StudentDashboardActivity.this, examList);
+                rvExams.setAdapter(examAdapter);
             }
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) { }
         });
-
-        examsRef.orderByChild("courseDisplay").equalTo(studentCourseDisplay)
-                .addListenerForSingleValueEvent(new ValueEventListener() {
-                    @Override
-                    public void onDataChange(@NonNull DataSnapshot snapshot) {
-                        examList.clear();
-                        if (snapshot.exists()) {
-                            for (DataSnapshot ds : snapshot.getChildren()) {
-                                ExamModel exam = ds.getValue(ExamModel.class);
-                                if (exam != null) {
-                                    examList.add(exam);
-                                }
-                            }
-                            examAdapter = new ExamAdapter(StudentDashboardActivity.this, examList);
-                            rvExams.setAdapter(examAdapter);
-                        } else {
-                            Toast.makeText(StudentDashboardActivity.this, "No exams found for your course.", Toast.LENGTH_SHORT).show();
-                            Log.d("DEBUG_COURSE_DISPLAY", "Exams snapshot is empty");
-                        }
-                    }
-
-                    @Override
-                    public void onCancelled(@NonNull DatabaseError error) {
-                        Toast.makeText(StudentDashboardActivity.this, "Failed to fetch exams: " + error.getMessage(), Toast.LENGTH_SHORT).show();
-                    }
-                });
     }
+
 
 
 
