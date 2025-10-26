@@ -5,6 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
+    <!-- Exam Title -->
     <TextView
         android:id="@+id/tvExamTitle"
         android:text="Exam Title"
@@ -13,8 +14,20 @@
         android:layout_height="wrap_content"
         android:paddingBottom="16dp"/>
 
+    <!-- RecyclerView for questions -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rvQuestions"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"/>
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:paddingBottom="16dp"/>
+
+    <!-- Submit Button -->
+    <Button
+        android:id="@+id/btnSubmitExam"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Submit Exam"
+        android:textColor="@android:color/white"
+        android:padding="12dp"/>
 </LinearLayout>

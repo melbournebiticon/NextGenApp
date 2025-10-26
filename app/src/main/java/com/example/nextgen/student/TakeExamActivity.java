@@ -2,8 +2,11 @@ package com.example.nextgen.student;
 
 import android.os.Bundle;
 import android.util.Log;
+import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.content.Intent;
+
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -27,8 +30,9 @@ public class TakeExamActivity extends AppCompatActivity {
     private RecyclerView rvQuestions;
     private TakeExamAdapter questionAdapter;
     private List<Question> questionList = new ArrayList<>();
+    private Button btnSubmit;
 
-    private String examId; // string examId from ExamModel
+    private String examId;
     private String examTitle;
     private DatabaseReference questionsRef;
 
@@ -40,6 +44,7 @@ public class TakeExamActivity extends AppCompatActivity {
         tvExamTitle = findViewById(R.id.tvExamTitle);
         rvQuestions = findViewById(R.id.rvQuestions);
         rvQuestions.setLayoutManager(new LinearLayoutManager(this));
+        btnSubmit = findViewById(R.id.btnSubmitExam); // Make sure you have this in your XML
 
         // Get exam info from intent
         examId = getIntent().getStringExtra("examId");
@@ -58,8 +63,10 @@ public class TakeExamActivity extends AppCompatActivity {
         // Reference to questions node
         questionsRef = FirebaseDatabase.getInstance().getReference("Questions").child(examId);
 
-
         loadQuestions();
+
+        // Submit button logic
+        btnSubmit.setOnClickListener(v -> submitExam());
     }
 
     private void loadQuestions() {
@@ -69,10 +76,9 @@ public class TakeExamActivity extends AppCompatActivity {
                 questionList.clear();
                 for (DataSnapshot questionSnap : snapshot.getChildren()) {
                     Question q = questionSnap.getValue(Question.class);
-                    if (q != null) {
-                        questionList.add(q);
-                    }
+                    if (q != null) questionList.add(q);
                 }
+
                 if (questionList.isEmpty()) {
                     Toast.makeText(TakeExamActivity.this, "No questions found for this exam", Toast.LENGTH_SHORT).show();
                 } else {
@@ -86,9 +92,35 @@ public class TakeExamActivity extends AppCompatActivity {
                 Toast.makeText(TakeExamActivity.this, "Error loading questions: " + error.getMessage(), Toast.LENGTH_SHORT).show();
             }
         });
-
     }
 
+    private void submitExam() {
+        if (questionList.isEmpty()) {
+            Toast.makeText(this, "No questions to submit", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
+        int totalQuestions = questionList.size();
+        int correctAnswers = 0;
+
+        for (Question q : questionList) {
+            String studentAns = q.getStudentAnswer();
+            if (studentAns != null && studentAns.equalsIgnoreCase(q.getCorrectAnswer())) {
+                correctAnswers++;
+            }
+        }
+
+        // Launch ResultActivity
+        Intent intent = new Intent(this, ResultActivity.class);
+        intent.putExtra("courseCode", "CS101"); // fetch actual course code
+        intent.putExtra("subjectName", "Introduction to Programming"); // fetch actual
+        intent.putExtra("teacherName", "Mr. Smith"); // fetch actual
+        intent.putExtra("studentName", "Juan Dela Cruz"); // fetch from profile
+        intent.putExtra("studentId", "2025-0001"); // fetch from profile
+        intent.putExtra("totalScore", correctAnswers);
+        intent.putExtra("maxScore", totalQuestions);
+        startActivity(intent);
+        finish();
+    }
 
 }
