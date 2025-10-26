@@ -54,7 +54,8 @@ public class GenerateQuestionsActivity extends AppCompatActivity {
     private QuestionAdapter adapter;
     private List<Question> questionList = new ArrayList<>();
 
-    private int examId;
+    private String examId;
+
     private String examTitle;
 
     private Question editingQuestion = null;
@@ -68,15 +69,19 @@ public class GenerateQuestionsActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_generate_questions);
 
-        database = FirebaseDatabase.getInstance().getReference("questions");
-
-
-        examId = getIntent().getIntExtra("examId", -1);
+        examId = getIntent().getStringExtra("examId");
         examTitle = getIntent().getStringExtra("examTitle");
-        if (examId == -1) {
+
+        if (examId == null || examId.isEmpty()) {
             Toast.makeText(this, "Invalid Exam", Toast.LENGTH_SHORT).show();
             finish();
+            return;
         }
+
+// ✅ Now it’s safe to initialize Firebase
+        database = FirebaseDatabase.getInstance().getReference("Questions").child(examId);
+
+
 
         // ===== Views =====
         tvExamInfo = findViewById(R.id.tvExamInfo);
@@ -195,41 +200,102 @@ public class GenerateQuestionsActivity extends AppCompatActivity {
         collectQuestionsFromContainer(layoutTFFields, "True/False", allQuestions);
         collectQuestionsFromContainer(layoutMatchingFields, "Matching Type", allQuestions);
 
-        if (!allQuestions.isEmpty()) {
-            new Thread(() -> {
-                AppDatabase.getInstance(this).questionDao().insertAll(allQuestions);
-
-                // Sync each question to Firebase
-                for (Question q : allQuestions) {
-                    runOnUiThread(() -> saveQuestionToFirebase(q));
-                }
-
-                runOnUiThread(() -> {
-                    Toast.makeText(this, "Questions saved locally and synced!", Toast.LENGTH_SHORT).show();
-                    clearAllFields();
-                    loadQuestions();
-                });
-            }).start();
-        } else {
+        if (allQuestions.isEmpty()) {
             Toast.makeText(this, "No questions to save.", Toast.LENGTH_SHORT).show();
+            return;
         }
 
+        new Thread(() -> {
+            // ✅ Insert all questions into Room DB in one batch
+            AppDatabase.getInstance(this).questionDao().insertAll(allQuestions);
+
+            // ✅ Sync all questions to Firebase
+            for (Question q : allQuestions) {
+                String key = database.push().getKey();
+                if (key != null) {
+                    q.setFirebaseKey(key); // optional, if you want Firebase key as ID
+                    database.child(key).setValue(q);
+                }
+            }
+
+            // ✅ Update UI on main thread after everything is done
+            runOnUiThread(() -> {
+                Toast.makeText(this,
+                        allQuestions.size() + " questions saved locally and synced to Firebase!",
+                        Toast.LENGTH_SHORT).show();
+                clearAllFields();
+                loadQuestions();
+            });
+        }).start();
     }
 
+
     private void saveQuestionToFirebase(Question question) {
-        // Generate a unique ID for this question
         String key = database.push().getKey();
         if (key != null) {
             database.child(key).setValue(question)
-                    .addOnSuccessListener(aVoid -> {
-                        Toast.makeText(this, "Question synced to Firebase!", Toast.LENGTH_SHORT).show();
-                    })
+                    .addOnSuccessListener(aVoid ->
+                            Toast.makeText(this, "Question saved under exam!", Toast.LENGTH_SHORT).show())
                     .addOnFailureListener(e -> {
                         Toast.makeText(this, "Failed to sync question", Toast.LENGTH_SHORT).show();
                         e.printStackTrace();
                     });
         }
     }
+    private void saveQuestionsSafely(List<Question> questions) {
+        if (questions == null || questions.isEmpty()) {
+            Toast.makeText(this, "No questions to save.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Assign the correct examId to every question
+        for (Question q : questions) {
+            q.setExamId(examId);
+
+            // Basic validation
+            if (q.getQuestionText() == null || q.getQuestionText().trim().isEmpty()) {
+                Toast.makeText(this, "Skipped empty question", Toast.LENGTH_SHORT).show();
+                continue;
+            }
+            if (q.getQuestionType() == null || q.getQuestionType().trim().isEmpty()) {
+                Toast.makeText(this, "Skipped question with no type", Toast.LENGTH_SHORT).show();
+                continue;
+            }
+        }
+
+        new Thread(() -> {
+            try {
+                // ===== Save to Room DB =====
+                AppDatabase.getInstance(this).questionDao().insertAll(questions);
+
+                // ===== Save to Firebase =====
+                for (Question q : questions) {
+                    String key = database.push().getKey();
+                    if (key != null) {
+                        q.setFirebaseKey(key); // save key for future updates
+                        database.child(key).setValue(q);
+                    }
+                }
+
+                // ===== Notify on main thread =====
+                runOnUiThread(() -> {
+                    Toast.makeText(this,
+                            questions.size() + " questions saved and synced successfully!",
+                            Toast.LENGTH_SHORT).show();
+                    clearAllFields();
+                    loadQuestions();
+                });
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                runOnUiThread(() ->
+                        Toast.makeText(this, "Failed to save questions: " + e.getMessage(), Toast.LENGTH_LONG).show()
+                );
+            }
+        }).start();
+    }
+
+
 
 
     private void collectQuestionsFromContainer(LinearLayout container, String type, List<Question> allQuestions) {

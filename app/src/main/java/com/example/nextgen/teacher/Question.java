@@ -9,7 +9,8 @@ public class Question {
     @PrimaryKey(autoGenerate = true)
     public int id;
 
-    public int examId;
+    public String firebaseKey;
+    public String examId;
     public String questionText;
     public String questionType;
     public String optionA;
@@ -22,9 +23,10 @@ public class Question {
     public Question() {}
 
     // ===== Full constructor =====
-    public Question(int examId, String questionText, String questionType,
+    public Question(String examId, String questionText, String questionType,
                     String optionA, String optionB, String optionC, String optionD,
                     String correctAnswer) {
+
         this.examId = examId;
         this.questionText = questionText;
         this.questionType = questionType;
@@ -37,7 +39,7 @@ public class Question {
 
     // ===== Getters =====
     public int getId() { return id; }
-    public int getExamId() { return examId; }
+    public String getExamId() { return examId; }
     public String getQuestionText() { return questionText; }
     public String getQuestionType() { return questionType; }
     public String getOptionA() { return optionA; }
@@ -47,7 +49,7 @@ public class Question {
     public String getCorrectAnswer() { return correctAnswer; }
 
     // ===== Setters =====
-    public void setExamId(int examId) { this.examId = examId; }
+    public void setExamId(String examId) { this.examId = examId; }
     public void setQuestionText(String questionText) { this.questionText = questionText; }
     public void setQuestionType(String questionType) { this.questionType = questionType; }
     public void setOptionA(String optionA) { this.optionA = optionA; }
@@ -86,4 +88,7 @@ public class Question {
         copy.correctAnswer = this.correctAnswer;
         return copy;
     }
+
+    public void setFirebaseKey(String key) { this.firebaseKey = key; }
+    public String getFirebaseKey() { return firebaseKey; }
 }

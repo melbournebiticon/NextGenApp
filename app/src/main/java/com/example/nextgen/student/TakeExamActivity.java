@@ -1,6 +1,7 @@
 package com.example.nextgen.student;
 
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -10,13 +11,12 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.nextgen.R;
+import com.example.nextgen.teacher.Question;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
-import com.example.nextgen.teacher.Question;
-
 
 import java.util.ArrayList;
 import java.util.List;
@@ -28,7 +28,7 @@ public class TakeExamActivity extends AppCompatActivity {
     private TakeExamAdapter questionAdapter;
     private List<Question> questionList = new ArrayList<>();
 
-    private int examId;
+    private String examId; // string examId from ExamModel
     private String examTitle;
     private DatabaseReference questionsRef;
 
@@ -41,42 +41,54 @@ public class TakeExamActivity extends AppCompatActivity {
         rvQuestions = findViewById(R.id.rvQuestions);
         rvQuestions.setLayoutManager(new LinearLayoutManager(this));
 
-        // Get exam data
-        examId = getIntent().getIntExtra("examId", -1);
+        // Get exam info from intent
+        examId = getIntent().getStringExtra("examId");
         examTitle = getIntent().getStringExtra("examTitle");
+
+        Log.d("TakeExam", "ExamID received: " + examId + ", ExamTitle: " + examTitle);
+
+        if (examId == null || examId.isEmpty()) {
+            Toast.makeText(this, "Invalid exam ID", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
 
         tvExamTitle.setText("Exam: " + examTitle);
 
-        // Firebase reference
-        questionsRef = FirebaseDatabase.getInstance().getReference("questions");
+        // Reference to questions node
+        questionsRef = FirebaseDatabase.getInstance().getReference("Questions").child(examId);
+
 
         loadQuestions();
     }
 
     private void loadQuestions() {
-        questionsRef.orderByChild("examId").equalTo(examId)
-                .addListenerForSingleValueEvent(new ValueEventListener() {
-                    @Override
-                    public void onDataChange(@NonNull DataSnapshot snapshot) {
-                        questionList.clear();
-                        if (snapshot.exists()) {
-                            for (DataSnapshot ds : snapshot.getChildren()) {
-                                Question q = ds.getValue(Question.class);
-                                if (q != null) {
-                                    questionList.add(q);
-                                }
-                            }
-                            questionAdapter = new TakeExamAdapter(TakeExamActivity.this, questionList);
-                            rvQuestions.setAdapter(questionAdapter);
-                        } else {
-                            Toast.makeText(TakeExamActivity.this, "No questions found for this exam", Toast.LENGTH_SHORT).show();
-                        }
+        questionsRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                questionList.clear();
+                for (DataSnapshot questionSnap : snapshot.getChildren()) {
+                    Question q = questionSnap.getValue(Question.class);
+                    if (q != null) {
+                        questionList.add(q);
                     }
+                }
+                if (questionList.isEmpty()) {
+                    Toast.makeText(TakeExamActivity.this, "No questions found for this exam", Toast.LENGTH_SHORT).show();
+                } else {
+                    questionAdapter = new TakeExamAdapter(TakeExamActivity.this, questionList);
+                    rvQuestions.setAdapter(questionAdapter);
+                }
+            }
 
-                    @Override
-                    public void onCancelled(@NonNull DatabaseError error) {
-                        Toast.makeText(TakeExamActivity.this, "Failed to load questions: " + error.getMessage(), Toast.LENGTH_SHORT).show();
-                    }
-                });
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                Toast.makeText(TakeExamActivity.this, "Error loading questions: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+            }
+        });
+
     }
+
+
+
 }

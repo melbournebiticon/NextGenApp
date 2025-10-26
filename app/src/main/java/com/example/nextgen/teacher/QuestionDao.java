@@ -20,11 +20,11 @@ public interface QuestionDao {
 
     // ===== Query Operations =====
     @Query("SELECT * FROM questions WHERE examId = :examId")
-    List<Question> getQuestionsByExamId(int examId);
+    List<Question> getQuestionsByExamId(String examId);
 
     // ===== Delete Operations =====
     @Query("DELETE FROM questions WHERE examId = :examId")
-    void deleteByExamId(int examId);  // Delete all questions for a specific exam
+    void deleteByExamId(String examId);  // Delete all questions for a specific exam
 
     @Query("DELETE FROM questions WHERE id = :id")
     void deleteById(int id);  // Delete a single question by its ID

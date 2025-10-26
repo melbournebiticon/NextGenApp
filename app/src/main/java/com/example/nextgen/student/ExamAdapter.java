@@ -18,6 +18,8 @@ public class ExamAdapter extends RecyclerView.Adapter<ExamAdapter.ExamViewHolder
     private Context context;
     private List<ExamModel> examList;
 
+    private int examId;
+
     public ExamAdapter(Context context, List<ExamModel> examList) {
         this.context = context;
         this.examList = examList;
@@ -38,6 +40,7 @@ public class ExamAdapter extends RecyclerView.Adapter<ExamAdapter.ExamViewHolder
         holder.tvTeacherName.setText("Teacher: " + exam.getTeacherName());
 
         holder.itemView.setOnClickListener(v -> {
+            android.util.Log.d("ExamAdapter", "Opening TakeExamActivity with examId=" + exam.getExamId());
             Intent intent = new Intent(context, TakeExamActivity.class);
             intent.putExtra("examId", exam.getExamId());
             intent.putExtra("examTitle", exam.getExamTitle());
@@ -59,5 +62,8 @@ public class ExamAdapter extends RecyclerView.Adapter<ExamAdapter.ExamViewHolder
             tvCourseDisplay = itemView.findViewById(R.id.tvCourseDisplay);
             tvTeacherName = itemView.findViewById(R.id.tvTeacherName);
         }
+    }
+    public int getExamId() {
+        return examId;
     }
 }

@@ -192,10 +192,17 @@ public class ManageExamActivity extends AppCompatActivity {
                     @Override
                     public void onGenerate(Exam exam) {
                         Intent intent = new Intent(ManageExamActivity.this, GenerateQuestionsActivity.class);
-                        intent.putExtra("examId", exam.getId());
+
+                        String examId = exam.getFirebaseKey();
+                        if (examId == null || examId.isEmpty()) {
+                            examId = String.valueOf(exam.getId()); // fallback to local ID
+                        }
+
+                        intent.putExtra("examId", examId);
                         intent.putExtra("examTitle", exam.getExamName());
                         startActivity(intent);
                     }
+
 
                     @Override
                     public void onActivate(Exam exam, boolean isActive) {

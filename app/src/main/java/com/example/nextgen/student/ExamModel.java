@@ -10,6 +10,7 @@ public class ExamModel {
     private String sectionName;
     private String teacherName;
     private String createdAt;
+    private boolean active;
 
     public ExamModel() {}
 
@@ -67,6 +68,9 @@ public class ExamModel {
         }
 
         return display.toString();
+    }
+    public boolean isActive() {
+        return active;
     }
 
 }
