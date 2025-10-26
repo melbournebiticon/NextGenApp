@@ -19,6 +19,9 @@ public class Question {
     public String optionD;
     public String correctAnswer;
 
+    // ===== NEW: store student's answer =====
+    private String studentAnswer;
+
     // ===== Empty constructor (needed for Room & imports) =====
     public Question() {}
 
@@ -47,6 +50,7 @@ public class Question {
     public String getOptionC() { return optionC; }
     public String getOptionD() { return optionD; }
     public String getCorrectAnswer() { return correctAnswer; }
+    public String getStudentAnswer() { return studentAnswer; } // NEW
 
     // ===== Setters =====
     public void setExamId(String examId) { this.examId = examId; }
@@ -57,11 +61,9 @@ public class Question {
     public void setOptionC(String optionC) { this.optionC = optionC; }
     public void setOptionD(String optionD) { this.optionD = optionD; }
     public void setCorrectAnswer(String correctAnswer) { this.correctAnswer = correctAnswer; }
+    public void setStudentAnswer(String studentAnswer) { this.studentAnswer = studentAnswer; } // NEW
 
     // ===== Helper Methods (for Editing Support) =====
-    /**
-     * Updates this Question with another Question's details (used for edit feature)
-     */
     public void updateFrom(Question updated) {
         this.questionText = updated.getQuestionText();
         this.questionType = updated.getQuestionType();
@@ -72,9 +74,6 @@ public class Question {
         this.correctAnswer = updated.getCorrectAnswer();
     }
 
-    /**
-     * Returns a copy of this Question (useful if you want to edit a temporary copy)
-     */
     public Question copy() {
         Question copy = new Question();
         copy.id = this.id;
@@ -86,6 +85,7 @@ public class Question {
         copy.optionC = this.optionC;
         copy.optionD = this.optionD;
         copy.correctAnswer = this.correctAnswer;
+        copy.studentAnswer = this.studentAnswer; // copy student answer too
         return copy;
     }
 
