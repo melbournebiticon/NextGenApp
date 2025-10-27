@@ -41,7 +41,7 @@
         <activity android:name=".student.StudentDashboardActivity" />
         <activity android:name=".student.TakeExamActivity" />
         <activity android:name=".student.ResultActivity" />
-
+        <activity android:name=".student.StudentProfileActivity" />
     </application>
 
 </manifest>
