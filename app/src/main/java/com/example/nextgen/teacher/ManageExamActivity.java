@@ -160,66 +160,117 @@ public class ManageExamActivity extends AppCompatActivity {
 
 
 
-    // ===== LOAD LOCAL EXAMS (Room offline support) =====
     private void loadExams() {
-        new Thread(() -> {
-            List<Exam> examList = db.examDao().getAllExams();
+        List<Exam> examList = new ArrayList<>();
 
-            runOnUiThread(() -> {
-                adapter = new ExamAdapter(this, examList, new ExamAdapter.OnExamActionListener() {
-                    @Override
-                    public void onEdit(Exam exam) {
-                        showEditExamDialog(exam);
-                    }
+        DatabaseReference examsRef = FirebaseDatabase.getInstance()
+                .getReference("Exams")
+                .child(teacherId);
 
-                    @Override
-                    public void onDelete(Exam exam) {
-                        new Thread(() -> {
-                            db.examDao().deleteById(exam.getId());
-                            runOnUiThread(ManageExamActivity.this::loadExams);
-                        }).start();
-                    }
+        examsRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                examList.clear();
 
-                    @Override
-                    public void onReset(Exam exam) {
-                        new Thread(() -> {
-                            exam.setActive(false);
-                            db.examDao().updateExam(exam);
-                            runOnUiThread(ManageExamActivity.this::loadExams);
-                        }).start();
-                    }
+                for (DataSnapshot child : snapshot.getChildren()) {
+                    Exam exam = new Exam();
+                    exam.setFirebaseKey(child.child("examId").getValue(String.class));
+                    exam.setExamName(child.child("examTitle").getValue(String.class));
+                    exam.setSubject(child.child("subjectName").getValue(String.class));
+                    exam.setTeacherId(child.child("teacherId").getValue(String.class));
+                    exam.setDurationMinutes(
+                            child.child("durationMinutes").getValue(Integer.class) != null ?
+                                    child.child("durationMinutes").getValue(Integer.class) : 0
+                    );
+                    exam.setScheduledAt(
+                            child.child("scheduledAt").getValue(Long.class) != null ?
+                                    child.child("scheduledAt").getValue(Long.class) : 0
+                    );
+                    exam.setActive(
+                            child.child("active").getValue(Boolean.class) != null ?
+                                    child.child("active").getValue(Boolean.class) : false
+                    );
+                    exam.setSection(child.child("courseDisplay").getValue(String.class));
 
-                    @Override
-                    public void onGenerate(Exam exam) {
-                        Intent intent = new Intent(ManageExamActivity.this, GenerateQuestionsActivity.class);
+                    examList.add(exam);
 
-                        String examId = exam.getFirebaseKey();
-                        if (examId == null || examId.isEmpty()) {
-                            examId = String.valueOf(exam.getId()); // fallback to local ID
-                        }
+                    // Optional: save to Room for offline support
+                    new Thread(() -> {
+                        db.examDao().insert(exam);
+                    }).start();
+                }
 
-                        intent.putExtra("examId", examId);
-                        intent.putExtra("examTitle", exam.getExamName());
-                        startActivity(intent);
-                    }
+                adapter = new ExamAdapter(ManageExamActivity.this, examList,
+                        new ExamAdapter.OnExamActionListener() {
+                            @Override
+                            public void onEdit(Exam exam) {
+                                showEditExamDialog(exam);
+                            }
 
+                            @Override
+                            public void onDelete(Exam exam) {
+                                new Thread(() -> {
+                                    db.examDao().deleteById(exam.getId());
+                                    deleteExamFromFirebase(exam);
+                                    runOnUiThread(ManageExamActivity.this::loadExams);
+                                }).start();
+                            }
 
-                    @Override
-                    public void onActivate(Exam exam, boolean isActive) {
-                        new Thread(() -> {
-                            exam.setActive(isActive);
-                            db.examDao().updateExam(exam);   // update local Room DB
-                            syncExamToFirebase(exam);        // update Firebase entry
-                        }).start();
-                    }
+                            @Override
+                            public void onReset(Exam exam) {
+                                new Thread(() -> {
+                                    exam.setActive(false);
+                                    db.examDao().updateExam(exam);
+                                    runOnUiThread(ManageExamActivity.this::loadExams);
+                                }).start();
+                            }
 
+                            @Override
+                            public void onGenerate(Exam exam) {
+                                Intent intent = new Intent(ManageExamActivity.this, GenerateQuestionsActivity.class);
+                                String examId = exam.getFirebaseKey();
+                                if (examId == null || examId.isEmpty()) examId = String.valueOf(exam.getId());
+                                intent.putExtra("examId", examId);
+                                intent.putExtra("examTitle", exam.getExamName());
+                                startActivity(intent);
+                            }
 
-                });
+                            @Override
+                            public void onActivate(Exam exam, boolean isActive) {
+                                new Thread(() -> {
+                                    exam.setActive(isActive);
+                                    db.examDao().updateExam(exam);
+                                    syncExamToFirebase(exam);
+                                }).start();
+                            }
+                        });
 
                 recyclerView.setAdapter(adapter);
-            });
-        }).start();
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                Toast.makeText(ManageExamActivity.this,
+                        "Failed to fetch exams: " + error.getMessage(),
+                        Toast.LENGTH_SHORT).show();
+            }
+        });
     }
+
+    private void deleteExamFromFirebase(Exam exam) {
+        if (exam.getFirebaseKey() != null && !exam.getFirebaseKey().isEmpty()) {
+            FirebaseDatabase.getInstance()
+                    .getReference("Exams")
+                    .child(exam.getTeacherId())
+                    .child(exam.getFirebaseKey())
+                    .removeValue()
+                    .addOnSuccessListener(aVoid -> Log.d("FirebaseDelete", "Exam deleted successfully"))
+                    .addOnFailureListener(e -> Log.e("FirebaseDelete", "Failed to delete exam", e));
+        }
+    }
+
+
+
 
     // ===== ADD EXAM DIALOG =====
     private void showAddExamDialog() {
