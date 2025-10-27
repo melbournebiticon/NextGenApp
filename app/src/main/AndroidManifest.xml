@@ -40,8 +40,8 @@
         //Student
         <activity android:name=".student.StudentDashboardActivity" />
         <activity android:name=".student.TakeExamActivity" />
-        <activity android:name=".student.StudentProfileActivity"
-            android:exported="false" />
+        <activity android:name=".student.ResultActivity" />
+
     </application>
 
 </manifest>
