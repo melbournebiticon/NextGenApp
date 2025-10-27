@@ -48,6 +48,9 @@ public class ExamModel {
     public void setTeacherName(String teacherName) { this.teacherName = teacherName; }
     public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }
 
+    // Add setter
+    public void setActive(boolean active) { this.active = active; }
+
     public String getCourseDisplay() {
         StringBuilder display = new StringBuilder();
 

@@ -350,10 +350,12 @@ public class StudentActivity extends AppCompatActivity {
         coursesRef.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
+                courseOptionList.clear(); // <-- important
                 List<String> courseNames = new ArrayList<>();
                 for (DataSnapshot ds : snapshot.getChildren()) {
                     CourseModel c = ds.getValue(CourseModel.class);
                     if (c != null) {
+                        courseOptionList.add(c); // <-- update main list
                         courseNames.add(c.getName() + " - " +
                                 c.getSpecializationName() + " - " +
                                 c.getYearName() + " - " +
@@ -369,12 +371,18 @@ public class StudentActivity extends AppCompatActivity {
                 adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
                 spEditCourse.setAdapter(adapter);
 
-                setSpinnerSelection(spEditCourse, student.getCourseName());
+                // Set selection based on student's current course
+                String displayValue = student.getCourseName() + " - " +
+                        student.getSpecializationName() + " - " +
+                        student.getYearName() + " - " +
+                        student.getSectionName();
+                setSpinnerSelection(spEditCourse, displayValue);
             }
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) {}
         });
+
 
         // Create dialog
         AlertDialog dialog = new AlertDialog.Builder(this)
@@ -400,10 +408,15 @@ public class StudentActivity extends AppCompatActivity {
             student.setEmail(etEditEmail.getText().toString().trim());
             student.setContact(etEditContact.getText().toString().trim());
 
-            Object selectedItem = spEditCourse.getSelectedItem();
-            if (selectedItem != null) {
-                student.setCourseName(selectedItem.toString());
+            int pos = spEditCourse.getSelectedItemPosition();
+            if (pos >= 0 && pos < courseOptionList.size()) {
+                CourseModel selectedCourse = courseOptionList.get(pos);
+                student.setCourseName(selectedCourse.getCourseName());
+                student.setSpecializationName(selectedCourse.getSpecializationName());
+                student.setYearName(selectedCourse.getYearName());
+                student.setSectionName(selectedCourse.getSectionName());
             }
+
 
             if (selectedImageUri != null) {
                 String base64Image = convertImageToBase64(selectedImageUri);

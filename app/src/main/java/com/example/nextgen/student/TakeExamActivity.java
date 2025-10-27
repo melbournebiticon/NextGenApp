@@ -20,6 +20,8 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -110,17 +112,103 @@ public class TakeExamActivity extends AppCompatActivity {
             }
         }
 
-        // Launch ResultActivity
-        Intent intent = new Intent(this, ResultActivity.class);
-        intent.putExtra("courseCode", "CS101"); // fetch actual course code
-        intent.putExtra("subjectName", "Introduction to Programming"); // fetch actual
-        intent.putExtra("teacherName", "Mr. Smith"); // fetch actual
-        intent.putExtra("studentName", "Juan Dela Cruz"); // fetch from profile
-        intent.putExtra("studentId", "2025-0001"); // fetch from profile
-        intent.putExtra("totalScore", correctAnswers);
-        intent.putExtra("maxScore", totalQuestions);
-        startActivity(intent);
-        finish();
+        final int finalTotalQuestions = totalQuestions;
+        final int finalCorrectAnswers = correctAnswers;
+
+        FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
+        if (currentUser == null) {
+            Toast.makeText(this, "User not logged in", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        String uid = currentUser.getUid(); // this matches the "uid" field in Students
+
+        DatabaseReference studentsRef = FirebaseDatabase.getInstance().getReference("Students");
+        studentsRef.orderByChild("uid").equalTo(uid).addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot studentSnap) {
+                if (!studentSnap.exists()) {
+                    Toast.makeText(TakeExamActivity.this, "Student info not found", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+                for (DataSnapshot studentData : studentSnap.getChildren()) {
+                    String studentId = studentData.child("studentId").getValue(String.class);
+                    String fullName = studentData.child("fullName").getValue(String.class);
+                    String profileImage = studentData.child("profileImage").getValue(String.class); // ✅ get profile
+
+                    // 🔹 Get exam info
+                    DatabaseReference examsRef = FirebaseDatabase.getInstance().getReference("Exams");
+                    examsRef.addListenerForSingleValueEvent(new ValueEventListener() {
+                        @Override
+                        public void onDataChange(@NonNull DataSnapshot snapshot) {
+                            boolean found = false;
+
+                            for (DataSnapshot teacherSnap : snapshot.getChildren()) {
+                                if (teacherSnap.hasChild(examId)) {
+                                    found = true;
+                                    DataSnapshot examSnap = teacherSnap.child(examId);
+
+                                    String subjectName = examSnap.child("subjectName").getValue(String.class);
+                                    String teacherName = examSnap.child("teacherName").getValue(String.class);
+
+                                    // 🔹 Now find the subject code in "Subjects"
+                                    DatabaseReference subjectsRef = FirebaseDatabase.getInstance().getReference("Subjects");
+                                    subjectsRef.addListenerForSingleValueEvent(new ValueEventListener() {
+                                        @Override
+                                        public void onDataChange(@NonNull DataSnapshot subjectSnap) {
+                                            String subjectCode = "";
+                                            for (DataSnapshot s : subjectSnap.getChildren()) {
+                                                String sName = s.child("name").getValue(String.class);
+                                                if (sName != null && sName.equals(subjectName)) {
+                                                    subjectCode = s.child("code").getValue(String.class);
+                                                    break;
+                                                }
+                                            }
+
+                                            // 🔹 Launch ResultActivity
+                                            Intent intent = new Intent(TakeExamActivity.this, ResultActivity.class);
+                                            intent.putExtra("courseCode", subjectCode); // subject code shown as courseCode
+                                            intent.putExtra("subjectName", subjectName);
+                                            intent.putExtra("teacherName", teacherName);
+                                            intent.putExtra("studentName", fullName);
+                                            intent.putExtra("studentId", studentId);
+                                            intent.putExtra("profileImage", profileImage); // ✅ send profile image
+                                            intent.putExtra("totalScore", finalCorrectAnswers);
+                                            intent.putExtra("maxScore", finalTotalQuestions);
+
+                                            startActivity(intent);
+                                            finish();
+                                        }
+
+                                        @Override
+                                        public void onCancelled(@NonNull DatabaseError error) {
+                                            Toast.makeText(TakeExamActivity.this, "Error loading subject: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                                        }
+                                    });
+
+                                    break;
+                                }
+                            }
+
+                            if (!found) {
+                                Toast.makeText(TakeExamActivity.this, "Exam not found in any teacher node", Toast.LENGTH_SHORT).show();
+                            }
+                        }
+
+                        @Override
+                        public void onCancelled(@NonNull DatabaseError error) {
+                            Toast.makeText(TakeExamActivity.this, "Error fetching exam data: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                Toast.makeText(TakeExamActivity.this, "Error fetching student info: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
 }

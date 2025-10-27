@@ -37,4 +37,8 @@ public interface ExamDao {
     // ✅ Activate / Deactivate exam
     @Query("UPDATE exams SET active = :isActive WHERE id = :id")
     void updateExamActivation(int id, boolean isActive);
+
+    @Query("SELECT * FROM exams WHERE teacherId = :teacherId ORDER BY scheduledAt DESC")
+    List<Exam> getExamsByTeacher(String teacherId);
+
 }
