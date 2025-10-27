@@ -1,103 +1,128 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="vertical"
-    android:padding="24dp"
-    android:gravity="center_horizontal"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:padding="24dp"
+    android:background="#f4f4f4">
 
-    <!-- Top: Course / Subject / Teacher -->
     <LinearLayout
         android:orientation="vertical"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="16dp">
-
-        <TextView
-            android:id="@+id/tvCourseCode"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="CS101"
-            android:textStyle="bold"
-            android:textSize="16sp"/>
-
-        <TextView
-            android:id="@+id/tvSubjectName"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Introduction to Programming"
-            android:textSize="16sp"
-            android:layout_marginTop="4dp"/>
-
-        <TextView
-            android:id="@+id/tvTeacherName"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Mr. Smith"
-            android:textSize="16sp"
-            android:layout_marginTop="4dp"/>
-    </LinearLayout>
-
-
-
-    <!-- Center: Student ID card style -->
-    <LinearLayout
-        android:orientation="vertical"
-        android:padding="24dp"
-        android:background="@drawable/id_card_background"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
-        android:gravity="center_horizontal">
-
-        <TextView
-            android:id="@+id/tvStudentName"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Juan Dela Cruz"
-            android:textStyle="bold"
-            android:textSize="20sp"
-            android:paddingBottom="8dp"/>
-
-        <TextView
-            android:id="@+id/tvStudentId"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="2025-0001"
-            android:textSize="16sp"/>
-    </LinearLayout>
-
-    <!-- Bottom: Score -->
-    <LinearLayout
-        android:orientation="vertical"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
         android:gravity="center_horizontal"
-        android:layout_marginTop="24dp">
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
 
-        <TextView
-            android:id="@+id/tvScoreRaw"
-            android:layout_width="wrap_content"
+        <!-- Top Info -->
+        <LinearLayout
+            android:orientation="vertical"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="34/50"
-            android:textSize="24sp"
-            android:textStyle="bold"
-            android:paddingBottom="8dp"/>
+            android:layout_marginBottom="16dp">
 
-        <TextView
-            android:id="@+id/tvScorePercent"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="68%"
-            android:textSize="20sp"
-            android:paddingBottom="4dp"/>
+            <TextView
+                android:id="@+id/tvCourseCode"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="CS101"
+                android:textStyle="bold"
+                android:textSize="16sp" />
 
-        <TextView
-            android:id="@+id/tvEquivalentGrade"
-            android:layout_width="wrap_content"
+            <TextView
+                android:id="@+id/tvSubjectName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Introduction to Programming"
+                android:textSize="16sp"
+                android:layout_marginTop="4dp" />
+
+            <TextView
+                android:id="@+id/tvTeacherName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Mr. Smith"
+                android:textSize="16sp"
+                android:layout_marginTop="4dp" />
+        </LinearLayout>
+
+
+        <!-- Student ID Card -->
+        <LinearLayout
+            android:id="@+id/cardStudent"
+            android:orientation="horizontal"
+            android:padding="16dp"
+            android:background="@drawable/id_card_background"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Passed"
-            android:textSize="20sp"
-            android:textStyle="bold"/>
+            android:gravity="center_vertical"
+            android:elevation="4dp">
+
+            <!-- Profile Picture -->
+            <ImageView
+                android:id="@+id/ivProfile"
+                android:layout_width="90dp"
+                android:layout_height="90dp"
+                android:src="@drawable/examinee_default"
+                android:scaleType="centerCrop"
+                android:layout_marginEnd="16dp"
+                android:background="@drawable/image_border"
+                android:contentDescription="Profile Picture" />
+
+            <!-- Student Info -->
+            <LinearLayout
+                android:orientation="vertical"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content">
+
+                <TextView
+                    android:id="@+id/tvStudentName"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Juan Dela Cruz"
+                    android:textStyle="bold"
+                    android:textSize="20sp"
+                    android:paddingBottom="4dp" />
+
+                <TextView
+                    android:id="@+id/tvStudentId"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="STD-0001"
+                    android:textSize="16sp" />
+            </LinearLayout>
+        </LinearLayout>
+
+
+        <!-- Score Section -->
+        <LinearLayout
+            android:orientation="vertical"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_horizontal"
+            android:layout_marginTop="24dp">
+
+            <TextView
+                android:id="@+id/tvScoreRaw"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="34/50"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                android:paddingBottom="8dp" />
+
+            <TextView
+                android:id="@+id/tvScorePercent"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="68%"
+                android:textSize="20sp"
+                android:paddingBottom="4dp" />
+
+            <TextView
+                android:id="@+id/tvEquivalentGrade"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Passed"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+        </LinearLayout>
     </LinearLayout>
-</LinearLayout>
+</ScrollView>

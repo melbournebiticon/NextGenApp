@@ -5,37 +5,21 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
-import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
-import android.widget.Button;
-import android.widget.CheckBox;
-import android.widget.EditText;
-import android.widget.LinearLayout;
-import android.widget.Spinner;
-import android.widget.TextView;
-import android.widget.Toast;
-
+import android.widget.*;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-
-import com.tom_roush.pdfbox.pdmodel.PDDocument;
-import com.tom_roush.pdfbox.text.PDFTextStripper;
-
-
-import org.apache.poi.xwpf.usermodel.XWPFDocument;
-import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
-
-import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import com.tom_roush.pdfbox.pdmodel.PDDocument;
+import com.tom_roush.pdfbox.text.PDFTextStripper;
+import org.apache.poi.xwpf.usermodel.XWPFDocument;
+import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import com.example.nextgen.R;
-
+import java.io.InputStream;
+import java.util.*;
 
 public class GenerateQuestionsActivity extends AppCompatActivity {
 
@@ -45,24 +29,17 @@ public class GenerateQuestionsActivity extends AppCompatActivity {
     private Spinner spQuestionType;
     private LinearLayout layoutMultipleChoice, layoutTrueFalse, layoutMatching;
     private LinearLayout layoutMCFields, layoutTFFields, layoutMatchingFields;
-
     private EditText etNumMC, etNumTF, etNumMatching;
     private CheckBox cbMC, cbTF, cbMatching;
     private Button btnSaveQuestions, btnImportQuestions;
-
     private RecyclerView rvQuestions;
     private QuestionAdapter adapter;
     private List<Question> questionList = new ArrayList<>();
-
     private String examId;
-
     private String examTitle;
-
     private Question editingQuestion = null;
     private LinearLayout editingContainer = null;
-
     private DatabaseReference database;
-
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -78,43 +55,31 @@ public class GenerateQuestionsActivity extends AppCompatActivity {
             return;
         }
 
-// ✅ Now it’s safe to initialize Firebase
         database = FirebaseDatabase.getInstance().getReference("Questions").child(examId);
 
-
-
-        // ===== Views =====
         tvExamInfo = findViewById(R.id.tvExamInfo);
         tvExamInfo.setText("Exam: " + examTitle + " (ID: " + examId + ")");
 
         spQuestionType = findViewById(R.id.spQuestionType);
-
         layoutMultipleChoice = findViewById(R.id.layoutMultipleChoice);
         layoutTrueFalse = findViewById(R.id.layoutTrueFalse);
         layoutMatching = findViewById(R.id.layoutMatching);
-
         layoutMCFields = findViewById(R.id.layoutMCFields);
         layoutTFFields = findViewById(R.id.layoutTFFields);
         layoutMatchingFields = findViewById(R.id.layoutMatchingFields);
-
         etNumMC = findViewById(R.id.etNumMC);
         etNumTF = findViewById(R.id.etNumTF);
         etNumMatching = findViewById(R.id.etNumMatching);
-
         cbMC = findViewById(R.id.cbMC);
         cbTF = findViewById(R.id.cbTF);
         cbMatching = findViewById(R.id.cbMatching);
-
         btnSaveQuestions = findViewById(R.id.btnSaveQuestion);
         btnImportQuestions = findViewById(R.id.btnImportQuestions);
-
         rvQuestions = findViewById(R.id.rvQuestions);
         rvQuestions.setLayoutManager(new LinearLayoutManager(this));
 
-        // ===== Spinner setup =====
         String[] questionTypes = {"Multiple Choice", "True/False", "Matching Type"};
         spQuestionType.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, questionTypes));
-
         spQuestionType.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
@@ -122,32 +87,26 @@ public class GenerateQuestionsActivity extends AppCompatActivity {
                 layoutTrueFalse.setVisibility(position == 1 ? View.VISIBLE : View.GONE);
                 layoutMatching.setVisibility(position == 2 ? View.VISIBLE : View.GONE);
             }
-
             @Override public void onNothingSelected(AdapterView<?> parent) {}
         });
 
-        // ===== Checkbox listeners =====
         cbMC.setOnClickListener(v -> generateDynamicFields(cbMC, etNumMC, layoutMCFields, "MC"));
         cbTF.setOnClickListener(v -> generateDynamicFields(cbTF, etNumTF, layoutTFFields, "TF"));
         cbMatching.setOnClickListener(v -> generateDynamicFields(cbMatching, etNumMatching, layoutMatchingFields, "Matching"));
 
-        // ===== Save Questions Button =====
         btnSaveQuestions.setOnClickListener(v -> {
             if (editingQuestion != null) {
-                // This branch keeps your inline-edit flow alive if you were editing via the dynamic container
                 saveEditedQuestion();
             } else {
                 saveAllQuestions();
             }
         });
 
-        // ===== Import Button =====
         btnImportQuestions.setOnClickListener(v -> openFilePicker());
 
         loadQuestions();
     }
 
-    // ===== Dynamic field generation =====
     private void generateDynamicFields(CheckBox cb, EditText etNum, LinearLayout container, String type) {
         container.removeAllViews();
         if (!cb.isChecked()) return;
@@ -186,117 +145,51 @@ public class GenerateQuestionsActivity extends AppCompatActivity {
     }
 
     private int parseNumber(EditText et) {
-        try {
-            return Integer.parseInt(et.getText().toString());
-        } catch (NumberFormatException e) {
-            return 0;
-        }
+        try { return Integer.parseInt(et.getText().toString()); }
+        catch (NumberFormatException e) { return 0; }
     }
 
-    // ===== Save all questions =====
     private void saveAllQuestions() {
         List<Question> allQuestions = new ArrayList<>();
         collectQuestionsFromContainer(layoutMCFields, "Multiple Choice", allQuestions);
         collectQuestionsFromContainer(layoutTFFields, "True/False", allQuestions);
         collectQuestionsFromContainer(layoutMatchingFields, "Matching Type", allQuestions);
-
-        if (allQuestions.isEmpty()) {
-            Toast.makeText(this, "No questions to save.", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        new Thread(() -> {
-            // ✅ Insert all questions into Room DB in one batch
-            AppDatabase.getInstance(this).questionDao().insertAll(allQuestions);
-
-            // ✅ Sync all questions to Firebase
-            for (Question q : allQuestions) {
-                String key = database.push().getKey();
-                if (key != null) {
-                    q.setFirebaseKey(key); // optional, if you want Firebase key as ID
-                    database.child(key).setValue(q);
-                }
-            }
-
-            // ✅ Update UI on main thread after everything is done
-            runOnUiThread(() -> {
-                Toast.makeText(this,
-                        allQuestions.size() + " questions saved locally and synced to Firebase!",
-                        Toast.LENGTH_SHORT).show();
-                clearAllFields();
-                loadQuestions();
-            });
-        }).start();
+        saveQuestionsSafely(allQuestions);
     }
 
-
-    private void saveQuestionToFirebase(Question question) {
-        String key = database.push().getKey();
-        if (key != null) {
-            database.child(key).setValue(question)
-                    .addOnSuccessListener(aVoid ->
-                            Toast.makeText(this, "Question saved under exam!", Toast.LENGTH_SHORT).show())
-                    .addOnFailureListener(e -> {
-                        Toast.makeText(this, "Failed to sync question", Toast.LENGTH_SHORT).show();
-                        e.printStackTrace();
-                    });
-        }
-    }
     private void saveQuestionsSafely(List<Question> questions) {
         if (questions == null || questions.isEmpty()) {
             Toast.makeText(this, "No questions to save.", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // Assign the correct examId to every question
-        for (Question q : questions) {
-            q.setExamId(examId);
-
-            // Basic validation
-            if (q.getQuestionText() == null || q.getQuestionText().trim().isEmpty()) {
-                Toast.makeText(this, "Skipped empty question", Toast.LENGTH_SHORT).show();
-                continue;
-            }
-            if (q.getQuestionType() == null || q.getQuestionType().trim().isEmpty()) {
-                Toast.makeText(this, "Skipped question with no type", Toast.LENGTH_SHORT).show();
-                continue;
-            }
-        }
+        for (Question q : questions) q.setExamId(examId);
 
         new Thread(() -> {
             try {
-                // ===== Save to Room DB =====
                 AppDatabase.getInstance(this).questionDao().insertAll(questions);
-
-                // ===== Save to Firebase =====
                 for (Question q : questions) {
-                    String key = database.push().getKey();
-                    if (key != null) {
-                        q.setFirebaseKey(key); // save key for future updates
-                        database.child(key).setValue(q);
+                    if (q.getFirebaseKey() == null) {
+                        String key = database.push().getKey();
+                        if (key != null) {
+                            q.setFirebaseKey(key);
+                        }
+                    }
+                    if (q.getFirebaseKey() != null) {
+                        database.child(q.getFirebaseKey()).setValue(q);
                     }
                 }
-
-                // ===== Notify on main thread =====
                 runOnUiThread(() -> {
-                    Toast.makeText(this,
-                            questions.size() + " questions saved and synced successfully!",
-                            Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, questions.size() + " questions saved and synced!", Toast.LENGTH_SHORT).show();
                     clearAllFields();
                     loadQuestions();
                 });
-
             } catch (Exception e) {
                 e.printStackTrace();
-                runOnUiThread(() ->
-                        Toast.makeText(this, "Failed to save questions: " + e.getMessage(), Toast.LENGTH_LONG).show()
-                );
+                runOnUiThread(() -> Toast.makeText(this, "Failed to save: " + e.getMessage(), Toast.LENGTH_LONG).show());
             }
         }).start();
     }
-
-
-
 
     private void collectQuestionsFromContainer(LinearLayout container, String type, List<Question> allQuestions) {
         for (int i = 0; i < container.getChildCount(); i++) {
@@ -304,46 +197,48 @@ public class GenerateQuestionsActivity extends AppCompatActivity {
             String qText = ((EditText) item.getChildAt(0)).getText().toString().trim();
             if (qText.isEmpty()) continue;
 
+            Question q;
             if (type.equals("Multiple Choice")) {
                 String a = ((EditText) item.getChildAt(1)).getText().toString().trim();
                 String b = ((EditText) item.getChildAt(2)).getText().toString().trim();
                 String c = ((EditText) item.getChildAt(3)).getText().toString().trim();
                 String d = ((EditText) item.getChildAt(4)).getText().toString().trim();
                 String answer = ((Spinner) item.getChildAt(5)).getSelectedItem().toString();
-                allQuestions.add(new Question(examId, qText, type, a, b, c, d, answer));
+                q = new Question(examId, qText, type, a, b, c, d, answer);
             } else if (type.equals("True/False")) {
                 String answer = ((Spinner) item.getChildAt(1)).getSelectedItem().toString();
-                allQuestions.add(new Question(examId, qText, type, "", "", "", "", answer));
-            } else if (type.equals("Matching Type")) {
+                q = new Question(examId, qText, type, "", "", "", "", answer);
+            } else {
                 String answer = ((EditText) item.getChildAt(1)).getText().toString().trim();
-                allQuestions.add(new Question(examId, qText, type, "", "", "", "", answer));
+                q = new Question(examId, qText, type, "", "", "", "", answer);
             }
+            allQuestions.add(q);
         }
     }
 
     private void clearAllFields() {
-        layoutMCFields.removeAllViews();
-        layoutTFFields.removeAllViews();
-        layoutMatchingFields.removeAllViews();
+        layoutMCFields.removeAllViews(); layoutTFFields.removeAllViews(); layoutMatchingFields.removeAllViews();
         cbMC.setChecked(false); cbTF.setChecked(false); cbMatching.setChecked(false);
         etNumMC.setText(""); etNumTF.setText(""); etNumMatching.setText("");
-        editingQuestion = null;
-        editingContainer = null;
+        editingQuestion = null; editingContainer = null;
     }
 
-    // ===== Load questions into RecyclerView =====
     private void loadQuestions() {
         new Thread(() -> {
             questionList = AppDatabase.getInstance(this).questionDao().getQuestionsByExamId(examId);
             runOnUiThread(() -> {
                 adapter = new QuestionAdapter(this, questionList, new QuestionAdapter.OnQuestionActionListener() {
-                    @Override public void onEdit(Question question) {
-                        // Use dialog-based edit (keeps your existing inline editing functions intact)
-                        showEditQuestionDialog(question);
-                    }
-                    @Override public void onDelete(Question question) {
+                    @Override
+                    public void onEdit(Question question) { showEditQuestionDialog(question); }
+
+                    @Override
+                    public void onDelete(Question question) {
                         new Thread(() -> {
                             AppDatabase.getInstance(GenerateQuestionsActivity.this).questionDao().deleteById(question.getId());
+                            // Delete from Firebase if firebaseKey exists
+                            if (question.getFirebaseKey() != null) {
+                                database.child(question.getFirebaseKey()).removeValue();
+                            }
                             runOnUiThread(() -> loadQuestions());
                         }).start();
                     }
@@ -353,104 +248,6 @@ public class GenerateQuestionsActivity extends AppCompatActivity {
         }).start();
     }
 
-    // ===== DIALOG for editing a single Question (MC, TF, Matching) =====
-    private void showEditQuestionDialog(Question question) {
-        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_edit_question, null);
-
-        Spinner spType = dialogView.findViewById(R.id.spEditQType);
-        EditText etQ = dialogView.findViewById(R.id.etEditQuestionText);
-
-        LinearLayout layoutMC = dialogView.findViewById(R.id.layoutEditMC);
-        EditText etA = dialogView.findViewById(R.id.etEditOptionA);
-        EditText etB = dialogView.findViewById(R.id.etEditOptionB);
-        EditText etC = dialogView.findViewById(R.id.etEditOptionC);
-        EditText etD = dialogView.findViewById(R.id.etEditOptionD);
-        Spinner spMCAnswer = dialogView.findViewById(R.id.spEditMCAnswer);
-
-        LinearLayout layoutTF = dialogView.findViewById(R.id.layoutEditTF);
-        Spinner spTFAnswer = dialogView.findViewById(R.id.spEditTFAnswer);
-
-        LinearLayout layoutMatching = dialogView.findViewById(R.id.layoutEditMatching);
-        EditText etMatchAnswer = dialogView.findViewById(R.id.etEditMatchAnswer);
-
-        // Setup type spinner and answer spinners
-        List<String> types = Arrays.asList("Multiple Choice","True/False","Matching Type");
-        spType.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, types));
-        spMCAnswer.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, Arrays.asList("A","B","C","D")));
-        spTFAnswer.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, Arrays.asList("True","False")));
-
-        // Prefill data
-        spType.setSelection(types.indexOf(question.getQuestionType()));
-        etQ.setText(question.getQuestionText());
-        etA.setText(question.getOptionA()); etB.setText(question.getOptionB());
-        etC.setText(question.getOptionC()); etD.setText(question.getOptionD());
-        etMatchAnswer.setText(question.getCorrectAnswer());
-
-        // Preselect answer if stored as A/B/C/D or exact text
-        if (question.getCorrectAnswer() != null) {
-            String ans = question.getCorrectAnswer();
-            int idx = Arrays.asList("A","B","C","D").indexOf(ans);
-            if (idx >= 0) spMCAnswer.setSelection(idx);
-            int idxTF = Arrays.asList("True","False").indexOf(ans);
-            if (idxTF >= 0) spTFAnswer.setSelection(idxTF);
-        }
-
-        // Show/hide by type
-        AdapterView.OnItemSelectedListener typeListener = new AdapterView.OnItemSelectedListener() {
-            @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                layoutMC.setVisibility(position==0 ? View.VISIBLE : View.GONE);
-                layoutTF.setVisibility(position==1 ? View.VISIBLE : View.GONE);
-                layoutMatching.setVisibility(position==2 ? View.VISIBLE : View.GONE);
-            }
-            @Override public void onNothingSelected(AdapterView<?> parent) {}
-        };
-        spType.setOnItemSelectedListener(typeListener);
-
-        // Build dialog
-        AlertDialog dialog = new AlertDialog.Builder(this)
-                .setTitle("Edit Question")
-                .setView(dialogView)
-                .setPositiveButton("Save", (d, which) -> {
-                    String selectedType = spType.getSelectedItem().toString();
-                    question.setQuestionType(selectedType);
-                    question.setQuestionText(etQ.getText().toString().trim());
-
-                    if (selectedType.equals("Multiple Choice")) {
-                        question.setOptionA(etA.getText().toString().trim());
-                        question.setOptionB(etB.getText().toString().trim());
-                        question.setOptionC(etC.getText().toString().trim());
-                        question.setOptionD(etD.getText().toString().trim());
-                        question.setCorrectAnswer(spMCAnswer.getSelectedItem().toString());
-                    } else if (selectedType.equals("True/False")) {
-                        question.setCorrectAnswer(spTFAnswer.getSelectedItem().toString());
-                        // Clear options for TF
-                        question.setOptionA(""); question.setOptionB(""); question.setOptionC(""); question.setOptionD("");
-                    } else { // Matching
-                        question.setCorrectAnswer(etMatchAnswer.getText().toString().trim());
-                        // Clear options for matching
-                        question.setOptionA(""); question.setOptionB(""); question.setOptionC(""); question.setOptionD("");
-                    }
-
-                    // Save update in background
-                    new Thread(() -> {
-                        AppDatabase.getInstance(GenerateQuestionsActivity.this).questionDao().updateQuestion(question);
-                        runOnUiThread(() -> {
-                            Toast.makeText(GenerateQuestionsActivity.this, "Question updated!", Toast.LENGTH_SHORT).show();
-                            loadQuestions();
-                        });
-                    }).start();
-                })
-                .setNegativeButton("Cancel", null)
-                .create();
-
-        dialog.show();
-    }
-
-    // ===== Inline-edit helper (keeps previous inline edit behavior) =====
-    // You already had populateFieldsForEdit() & saveEditedQuestion(); keep them if you want the inline flow.
-    // (They are preserved elsewhere in your file — we do not remove them.)
-
-    // ===== FILE IMPORT METHODS =====
     private void openFilePicker() {
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.setType("*/*");
@@ -468,9 +265,7 @@ public class GenerateQuestionsActivity extends AppCompatActivity {
         super.onActivityResult(requestCode, resultCode, data);
         if(requestCode == PICK_FILE_REQUEST && resultCode == RESULT_OK && data != null){
             Uri fileUri = data.getData();
-            if(fileUri != null){
-                importQuestionsFromFile(fileUri);
-            }
+            if(fileUri != null) importQuestionsFromFile(fileUri);
         }
     }
 
@@ -490,22 +285,13 @@ public class GenerateQuestionsActivity extends AppCompatActivity {
                 } else if(path.endsWith(".doc") || path.endsWith(".docx")){
                     InputStream inputStream = getContentResolver().openInputStream(uri);
                     XWPFDocument document = new XWPFDocument(inputStream);
-                    List<XWPFParagraph> paragraphs = document.getParagraphs();
-                    for(XWPFParagraph para : paragraphs){
-                        lines.add(para.getText());
-                    }
+                    for(XWPFParagraph para : document.getParagraphs()) lines.add(para.getText());
                     document.close();
                 }
 
                 List<Question> importedQuestions = parseTextSmart(lines);
+                saveQuestionsSafely(importedQuestions);
 
-                if(!importedQuestions.isEmpty()){
-                    AppDatabase.getInstance(this).questionDao().insertAll(importedQuestions);
-                    runOnUiThread(() -> {
-                        Toast.makeText(this,"Questions imported successfully!",Toast.LENGTH_SHORT).show();
-                        loadQuestions();
-                    });
-                }
             } catch (Exception e){
                 e.printStackTrace();
                 runOnUiThread(() -> Toast.makeText(this,"Failed to import questions",Toast.LENGTH_SHORT).show());
@@ -513,43 +299,34 @@ public class GenerateQuestionsActivity extends AppCompatActivity {
         }).start();
     }
 
-    // ===== SMART PARSER =====
     private List<Question> parseTextSmart(List<String> lines) {
         List<Question> questions = new ArrayList<>();
         Question current = null;
         List<String> options = new ArrayList<>();
 
         for(String line : lines){
-            line = line.trim();
-            if(line.isEmpty()) continue;
+            line = line.trim(); if(line.isEmpty()) continue;
 
             if(line.startsWith("(MC)")){
                 if(current != null) questions.add(current);
-                current = new Question();
-                current.setExamId(examId);
-                current.setQuestionType("Multiple Choice");
-                current.setQuestionText(line.substring(4).trim());
+                current = new Question(); current.setExamId(examId);
+                current.setQuestionType("Multiple Choice"); current.setQuestionText(line.substring(4).trim());
                 options.clear();
             } else if(line.startsWith("(TF)")){
                 if(current != null) questions.add(current);
-                current = new Question();
-                current.setExamId(examId);
-                current.setQuestionType("True/False");
-                current.setQuestionText(line.substring(4).trim());
+                current = new Question(); current.setExamId(examId);
+                current.setQuestionType("True/False"); current.setQuestionText(line.substring(4).trim());
             } else if(line.startsWith("(Match)")){
                 if(current != null) questions.add(current);
-                current = new Question();
-                current.setExamId(examId);
+                current = new Question(); current.setExamId(examId);
                 current.setQuestionType("Matching Type");
             } else if(line.matches("[A-D]\\.\\s.*")){
                 options.add(line.substring(3).trim());
             } else if(line.startsWith("Answer:")){
                 String ans = line.substring(7).trim();
                 if(current.getQuestionType().equals("Multiple Choice") && options.size() == 4){
-                    current.setOptionA(options.get(0));
-                    current.setOptionB(options.get(1));
-                    current.setOptionC(options.get(2));
-                    current.setOptionD(options.get(3));
+                    current.setOptionA(options.get(0)); current.setOptionB(options.get(1));
+                    current.setOptionC(options.get(2)); current.setOptionD(options.get(3));
                     current.setCorrectAnswer(ans);
                 } else if(current.getQuestionType().equals("True/False")){
                     current.setCorrectAnswer(ans);
@@ -557,8 +334,7 @@ public class GenerateQuestionsActivity extends AppCompatActivity {
                     current.setCorrectAnswer(ans);
                 }
                 if(current.getQuestionType().equals("Multiple Choice") || current.getQuestionType().equals("True/False")){
-                    questions.add(current);
-                    current = null;
+                    questions.add(current); current = null;
                 }
             } else if(current != null && current.getQuestionType().equals("Matching Type")){
                 if(line.contains("→")){
@@ -566,8 +342,7 @@ public class GenerateQuestionsActivity extends AppCompatActivity {
                     if(parts.length == 2){
                         current.setQuestionText(parts[0].trim());
                         current.setCorrectAnswer(parts[1].trim());
-                        questions.add(current);
-                        current = null;
+                        questions.add(current); current = null;
                     }
                 }
             }
@@ -575,17 +350,12 @@ public class GenerateQuestionsActivity extends AppCompatActivity {
         if(current != null) questions.add(current);
         return questions;
     }
-    // ===== Save Edited Question =====
+
     private void saveEditedQuestion() {
         if (editingQuestion == null || editingContainer == null) return;
-
         LinearLayout item = (LinearLayout) editingContainer.getChildAt(0);
         String qText = ((EditText) item.getChildAt(0)).getText().toString().trim();
-        if (qText.isEmpty()) {
-            Toast.makeText(this, "Question cannot be empty", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
+        if (qText.isEmpty()) { Toast.makeText(this, "Question cannot be empty", Toast.LENGTH_SHORT).show(); return; }
         editingQuestion.setQuestionText(qText);
 
         if (editingQuestion.getQuestionType().equals("Multiple Choice")) {
@@ -602,6 +372,9 @@ public class GenerateQuestionsActivity extends AppCompatActivity {
 
         new Thread(() -> {
             AppDatabase.getInstance(this).questionDao().updateQuestion(editingQuestion);
+            if (editingQuestion.getFirebaseKey() != null) {
+                database.child(editingQuestion.getFirebaseKey()).setValue(editingQuestion);
+            }
             runOnUiThread(() -> {
                 Toast.makeText(this, "Question updated successfully!", Toast.LENGTH_SHORT).show();
                 clearAllFields();
@@ -610,6 +383,75 @@ public class GenerateQuestionsActivity extends AppCompatActivity {
         }).start();
     }
 
-    // Keep your inline populateFieldsForEdit() and saveEditedQuestion() if you still want that flow.
-    // (They were in your previous file. This dialog is added in addition — nothing removed.)
+    private void showEditQuestionDialog(Question question) {
+        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_edit_question, null);
+
+        Spinner spType = dialogView.findViewById(R.id.spEditQType);
+        EditText etQ = dialogView.findViewById(R.id.etEditQuestionText);
+
+        LinearLayout layoutMC = dialogView.findViewById(R.id.layoutEditMC);
+        EditText etA = dialogView.findViewById(R.id.etEditOptionA);
+        EditText etB = dialogView.findViewById(R.id.etEditOptionB);
+        EditText etC = dialogView.findViewById(R.id.etEditOptionC);
+        EditText etD = dialogView.findViewById(R.id.etEditOptionD);
+        Spinner spMCAnswer = dialogView.findViewById(R.id.spEditMCAnswer);
+
+        LinearLayout layoutTF = dialogView.findViewById(R.id.layoutEditTF);
+        Spinner spTFAnswer = dialogView.findViewById(R.id.spEditTFAnswer);
+
+        LinearLayout layoutMatching = dialogView.findViewById(R.id.layoutEditMatching);
+        EditText etMatchAnswer = dialogView.findViewById(R.id.etEditMatchAnswer);
+
+        List<String> types = Arrays.asList("Multiple Choice", "True/False", "Matching Type");
+        spType.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, types));
+        spMCAnswer.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, Arrays.asList("A","B","C","D")));
+        spTFAnswer.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, Arrays.asList("True","False")));
+
+        spType.setSelection(types.indexOf(question.getQuestionType()));
+        etQ.setText(question.getQuestionText());
+        etA.setText(question.getOptionA()); etB.setText(question.getOptionB());
+        etC.setText(question.getOptionC()); etD.setText(question.getOptionD());
+        etMatchAnswer.setText(question.getCorrectAnswer());
+
+        AdapterView.OnItemSelectedListener typeListener = new AdapterView.OnItemSelectedListener() {
+            @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                layoutMC.setVisibility(position==0 ? View.VISIBLE : View.GONE);
+                layoutTF.setVisibility(position==1 ? View.VISIBLE : View.GONE);
+                layoutMatching.setVisibility(position==2 ? View.VISIBLE : View.GONE);
+            }
+            @Override public void onNothingSelected(AdapterView<?> parent) {}
+        };
+        spType.setOnItemSelectedListener(typeListener);
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle("Edit Question")
+                .setView(dialogView)
+                .setPositiveButton("Save", (d, w) -> {
+                    question.setQuestionType(spType.getSelectedItem().toString());
+                    question.setQuestionText(etQ.getText().toString().trim());
+                    if (question.getQuestionType().equals("Multiple Choice")) {
+                        question.setOptionA(etA.getText().toString().trim());
+                        question.setOptionB(etB.getText().toString().trim());
+                        question.setOptionC(etC.getText().toString().trim());
+                        question.setOptionD(etD.getText().toString().trim());
+                        question.setCorrectAnswer(spMCAnswer.getSelectedItem().toString());
+                    } else if (question.getQuestionType().equals("True/False")) {
+                        question.setCorrectAnswer(spTFAnswer.getSelectedItem().toString());
+                        question.setOptionA(""); question.setOptionB(""); question.setOptionC(""); question.setOptionD("");
+                    } else {
+                        question.setCorrectAnswer(etMatchAnswer.getText().toString().trim());
+                        question.setOptionA(""); question.setOptionB(""); question.setOptionC(""); question.setOptionD("");
+                    }
+
+                    new Thread(() -> {
+                        AppDatabase.getInstance(this).questionDao().updateQuestion(question);
+                        if (question.getFirebaseKey() != null) database.child(question.getFirebaseKey()).setValue(question);
+                        runOnUiThread(() -> loadQuestions());
+                    }).start();
+                })
+                .setNegativeButton("Cancel", null)
+                .create();
+        dialog.show();
+    }
+
 }

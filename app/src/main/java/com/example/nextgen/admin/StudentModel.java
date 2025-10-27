@@ -77,7 +77,13 @@ public class StudentModel {
     public String getUid() { return uid; }
     public void setUid(String uid) { this.uid = uid; }
 
+
     public String getSectionName() {
         return sectionName;
     }
+
+    public void setSectionName(String sectionName) {
+        this.sectionName = sectionName;
+    }
+
 }
