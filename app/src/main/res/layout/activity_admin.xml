@@ -1,66 +1,418 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="vertical"
-    android:padding="16dp"
+<androidx.drawerlayout.widget.DrawerLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/drawerLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <Button
-        android:id="@+id/btnManageSpecializations"
+    <!-- Main content with sticky header -->
+    <RelativeLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Manage Specializations"
-        android:layout_marginBottom="12dp"/>
+        android:layout_height="match_parent">
 
-    <Button
-        android:id="@+id/btnManageYears"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Manage Years"
-        android:layout_marginBottom="12dp"/>
+        <!-- Dashboard Header (Sticky Blue Bar) -->
+        <LinearLayout
+            android:id="@+id/headerLayout"
+            android:orientation="horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:background="#1E88E5"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:gravity="center_vertical"
+            android:layout_alignParentTop="true">
 
-    <Button
-        android:id="@+id/btnManageSections"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Manage Sections"
-        android:layout_marginBottom="12dp"/>
+            <!-- Hamburger button inside header -->
+            <ImageButton
+                android:id="@+id/btnOpenSidebar"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@android:drawable/ic_menu_sort_by_size"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Open Menu"
+                android:tint="#FFFFFF"/>
 
-    <Button
-        android:id="@+id/btnManageCourse"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Manage Departments"
-        android:layout_marginBottom="12dp"/>
+            <!-- Header title -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Admin Dashboard"
+                android:textColor="#FFFFFF"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:layout_marginStart="16dp"/>
+        </LinearLayout>
 
-    <Button
-        android:id="@+id/btnManageSubjects"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Manage Subjects"
-        android:layout_marginBottom="12dp" />
+        <!-- Scrollable main content below header -->
+        <ScrollView
+            android:id="@+id/mainContent"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_below="@id/headerLayout"
+            android:background="#FFFFFF"
+            android:padding="16dp">
 
-    <Button
-        android:id="@+id/btnManageTeachers"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Manage Teachers"
-        android:layout_marginBottom="12dp" />
+            <LinearLayout
+                android:orientation="vertical"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
 
-    <Button
-        android:id="@+id/btnManageStudents"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Manage Students"
-        android:layout_marginBottom="12dp" />
+                <!-- Dashboard Summary Text -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Dashboard Summary"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:textColor="#000000"
+                    android:layout_marginBottom="12dp"/>
 
-    <Button
-        android:id="@+id/logoutBtn"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
-        android:backgroundTint="@android:color/holo_red_light"
-        android:text="Logout"
-        android:textColor="@android:color/white" />
+                <!-- Dashboard Cards Grid -->
+                <GridLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:columnCount="2"
+                    android:rowCount="2"
+                    android:layout_marginBottom="16dp"
+                    android:orientation="horizontal"
+                    android:useDefaultMargins="true">
 
-</LinearLayout>
+                    <!-- Total Courses -->
+                    <androidx.cardview.widget.CardView
+                        android:layout_width="0dp"
+                        android:layout_height="160dp"
+                        android:layout_columnWeight="1"
+                        android:layout_rowWeight="1"
+                        app:cardCornerRadius="8dp"
+                        app:cardElevation="4dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:orientation="vertical"
+                            android:gravity="center"
+                            android:padding="16dp">
+
+                            <ImageView
+                                android:layout_width="40dp"
+                                android:layout_height="40dp"
+                                android:src="@drawable/ic_courses"
+                                android:contentDescription="Courses Icon"/>
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Total Courses"
+                                android:textSize="16sp"
+                                android:textStyle="bold"
+                                android:layout_marginTop="8dp"/>
+
+                            <TextView
+                                android:id="@+id/tvTotalCourses"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="12"
+                                android:textSize="20sp"
+                                android:textStyle="bold"
+                                android:textColor="#1E88E5"
+                                android:layout_marginTop="4dp"/>
+                        </LinearLayout>
+                    </androidx.cardview.widget.CardView>
+
+                    <!-- Total Exams -->
+                    <androidx.cardview.widget.CardView
+                        android:layout_width="0dp"
+                        android:layout_height="160dp"
+                        android:layout_columnWeight="1"
+                        android:layout_rowWeight="1"
+                        app:cardCornerRadius="8dp"
+                        app:cardElevation="4dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:orientation="vertical"
+                            android:gravity="center"
+                            android:padding="16dp">
+
+                            <ImageView
+                                android:layout_width="40dp"
+                                android:layout_height="40dp"
+                                android:src="@drawable/ic_exams"
+                                android:contentDescription="Exams Icon"/>
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Total Exams"
+                                android:textSize="16sp"
+                                android:textStyle="bold"
+                                android:layout_marginTop="8dp"/>
+
+                            <TextView
+                                android:id="@+id/tvTotalExams"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="8"
+                                android:textSize="20sp"
+                                android:textStyle="bold"
+                                android:textColor="#1E88E5"
+                                android:layout_marginTop="4dp"/>
+                        </LinearLayout>
+                    </androidx.cardview.widget.CardView>
+
+                    <!-- Total Examinees -->
+                    <androidx.cardview.widget.CardView
+                        android:layout_width="0dp"
+                        android:layout_height="160dp"
+                        android:layout_columnWeight="1"
+                        android:layout_rowWeight="1"
+                        app:cardCornerRadius="8dp"
+                        app:cardElevation="4dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:orientation="vertical"
+                            android:gravity="center"
+                            android:padding="16dp">
+
+                            <ImageView
+                                android:layout_width="40dp"
+                                android:layout_height="40dp"
+                                android:src="@drawable/ic_students"
+                                android:contentDescription="Examinees Icon"/>
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Total Examinees"
+                                android:textSize="16sp"
+                                android:textStyle="bold"
+                                android:layout_marginTop="8dp"/>
+
+                            <TextView
+                                android:id="@+id/tvTotalExaminees"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="120"
+                                android:textSize="20sp"
+                                android:textStyle="bold"
+                                android:textColor="#1E88E5"
+                                android:layout_marginTop="4dp"/>
+                        </LinearLayout>
+                    </androidx.cardview.widget.CardView>
+
+                    <!-- Total Teachers -->
+                    <androidx.cardview.widget.CardView
+                        android:layout_width="0dp"
+                        android:layout_height="120dp"
+                        android:layout_columnWeight="1"
+                        android:layout_rowWeight="1"
+                        app:cardCornerRadius="8dp"
+                        app:cardElevation="4dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:orientation="vertical"
+                            android:gravity="center"
+                            android:padding="16dp">
+
+                            <ImageView
+                                android:layout_width="40dp"
+                                android:layout_height="40dp"
+                                android:src="@drawable/ic_teacher"
+                                android:contentDescription="Teacher Icon"/>
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Total Teachers"
+                                android:textSize="16sp"
+                                android:textStyle="bold"
+                                android:layout_marginTop="8dp"/>
+
+                            <TextView
+                                android:id="@+id/tvTotalTeachers"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="10"
+                                android:textSize="20sp"
+                                android:textStyle="bold"
+                                android:textColor="#1E88E5"
+                                android:layout_marginTop="4dp"/>
+                        </LinearLayout>
+                    </androidx.cardview.widget.CardView>
+
+                </GridLayout>
+
+                <!-- Charts Grid (Side by Side) -->
+                <GridLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:columnCount="2"
+                    android:layout_marginBottom="16dp"
+                    android:useDefaultMargins="true">
+
+                    <!-- Exam Performance Chart -->
+                    <androidx.cardview.widget.CardView
+                        android:layout_width="0dp"
+                        android:layout_height="200dp"
+                        android:layout_columnWeight="1"
+                        app:cardCornerRadius="8dp"
+                        app:cardElevation="4dp">
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:text="Exam Performance Chart Placeholder"
+                            android:gravity="center"
+                            android:textSize="16sp"
+                            android:textStyle="bold"/>
+                    </androidx.cardview.widget.CardView>
+
+                    <!-- App Summary Chart -->
+                    <androidx.cardview.widget.CardView
+                        android:layout_width="0dp"
+                        android:layout_height="200dp"
+                        android:layout_columnWeight="1"
+                        app:cardCornerRadius="8dp"
+                        app:cardElevation="4dp">
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:text="App Summary Chart Placeholder"
+                            android:gravity="center"
+                            android:textSize="16sp"
+                            android:textStyle="bold"/>
+                    </androidx.cardview.widget.CardView>
+
+                </GridLayout>
+
+            </LinearLayout>
+        </ScrollView>
+
+    </RelativeLayout>
+
+    <!-- Sidebar -->
+    <LinearLayout
+        android:id="@+id/sidebarLayout"
+        android:orientation="vertical"
+        android:layout_width="280dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="start"
+        android:background="#F5F5F5"
+        android:padding="16dp">
+
+        <!-- Profile Section -->
+        <LinearLayout
+            android:orientation="vertical"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_horizontal"
+            android:paddingBottom="24dp">
+
+            <ImageView
+                android:id="@+id/profileImage"
+                android:layout_width="80dp"
+                android:layout_height="80dp"
+                android:src="@drawable/ic_profile"
+                android:scaleType="centerCrop"
+                android:background="@drawable/circle_background"
+                android:contentDescription="Profile Image"/>
+
+            <TextView
+                android:id="@+id/tvUserRole"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Admin"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginTop="8dp"/>
+        </LinearLayout>
+
+        <!-- Manage Curriculum Header -->
+        <Button
+            android:id="@+id/btnManageCurriculumHeader"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Manage Curriculum"/>
+
+        <!-- Curriculum Dropdown -->
+        <LinearLayout
+            android:id="@+id/curriculumDropdown"
+            android:orientation="vertical"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="gone"
+            android:paddingStart="16dp">
+            <Button
+                android:id="@+id/btnManageSpecializations"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Specializations"/>
+            <Button
+                android:id="@+id/btnManageYears"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Years"/>
+            <Button
+                android:id="@+id/btnManageSections"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Sections"/>
+            <Button
+                android:id="@+id/btnManageCourse"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Departments"/>
+            <Button
+                android:id="@+id/btnManageSubjects"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Subjects"/>
+        </LinearLayout>
+
+        <!-- Manage Accounts Header -->
+        <Button
+            android:id="@+id/btnManageAccountsHeader"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="Manage Accounts"/>
+
+        <!-- Accounts Dropdown -->
+        <LinearLayout
+            android:id="@+id/accountsDropdown"
+            android:orientation="vertical"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="gone"
+            android:paddingStart="16dp">
+            <Button
+                android:id="@+id/btnManageTeachers"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Teachers"/>
+            <Button
+                android:id="@+id/btnManageStudents"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Students"/>
+        </LinearLayout>
+
+        <!-- Logout -->
+        <Button
+            android:id="@+id/logoutBtn"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:backgroundTint="@android:color/holo_red_light"
+            android:text="Logout"
+            android:textColor="@android:color/white"/>
+    </LinearLayout>
+
+</androidx.drawerlayout.widget.DrawerLayout>
