@@ -9,7 +9,11 @@ import androidx.room.RoomDatabase;
 import androidx.room.migration.Migration;
 import androidx.sqlite.db.SupportSQLiteDatabase;
 
-@Database(entities = { Exam.class, Question.class }, version = 9, exportSchema = false)
+/**
+ * Central Room database for the teacher module.
+ * Handles Exam and Question tables with migration support.
+ */
+@Database(entities = { Exam.class, Question.class }, version = 10, exportSchema = false)
 public abstract class AppDatabase extends RoomDatabase {
 
     private static final String DB_NAME = "app_database.db";
@@ -18,10 +22,6 @@ public abstract class AppDatabase extends RoomDatabase {
     // === DAO Access ===
     public abstract ExamDao examDao();
     public abstract QuestionDao questionDao();
-    // Keep your other 6 DAOs here if you have them
-    // public abstract OtherDao1 otherDao1();
-    // public abstract OtherDao2 otherDao2();
-    // ...
 
     // === Singleton Instance ===
     public static AppDatabase getInstance(Context context) {
@@ -29,23 +29,33 @@ public abstract class AppDatabase extends RoomDatabase {
             synchronized (AppDatabase.class) {
                 if (INSTANCE == null) {
 
-                    // Example Migration from version 7 -> 8
-                    Migration MIGRATION_7_8 = new Migration(7, 8) {
+                    // ✅ Migration from version 9 → 10
+                    Migration MIGRATION_9_10 = new Migration(9, 10) {
                         @Override
                         public void migrate(@NonNull SupportSQLiteDatabase database) {
-                            // For example, if you added a column to Exam table:
-                            // database.execSQL("ALTER TABLE Exam ADD COLUMN newColumn TEXT");
-                            // Keep empty if you want destructive migration instead
+                            // 🔹 Add displayNumber column if it doesn’t exist yet
+                            database.execSQL(
+                                    "ALTER TABLE questions ADD COLUMN displayNumber INTEGER NOT NULL DEFAULT 0"
+                            );
+
+                            // 🔹 Optional future-proofing for Exam table
+                            database.execSQL(
+                                    "ALTER TABLE exams ADD COLUMN durationMinutes INTEGER NOT NULL DEFAULT 0"
+                            );
                         }
                     };
 
-                    INSTANCE = Room.databaseBuilder(context.getApplicationContext(),
-                                    AppDatabase.class, DB_NAME)
-                            // Fallback if no migration is provided
+                    INSTANCE = Room.databaseBuilder(
+                                    context.getApplicationContext(),
+                                    AppDatabase.class,
+                                    DB_NAME
+                            )
+                            // 🚀 Automatically reset if no valid migration found
                             .fallbackToDestructiveMigration()
-                            // Allows queries on main thread; remove in production
+                            // ⚠️ For dev/testing only (safe here)
                             .allowMainThreadQueries()
-                            .addMigrations(MIGRATION_7_8) // Add any future migrations here
+                            // ✅ Migration support
+                            .addMigrations(MIGRATION_9_10)
                             .build();
                 }
             }
