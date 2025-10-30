@@ -12,11 +12,33 @@ public class ExamModel {
     private String createdAt;
     private boolean active;
 
+    // 🏆 NEW FIELDS FOR SCHEDULING AND STATUS
+    private int durationMinutes = 0;
+    private long scheduledAt = 0;
+    private String scheduledDateDisplay;
+    private String status;
+    private boolean isAvailable;
+    // ----------------------------------------
+
+
     public ExamModel() {}
 
-    public ExamModel(String examId, String examTitle, String courseId, String courseName,
-                     String specializationName, String yearName, String sectionName,
-                     String teacherName, String createdAt) {
+    // ===== Full constructor (Updated to include NEW fields) =====
+    public ExamModel(
+            String examId,
+            String examTitle,
+            String courseId,
+            String courseName,
+            String specializationName,
+            String yearName,
+            String sectionName,
+            String teacherName,
+            String createdAt,
+            int durationMinutes, // 🏆 NEW
+            long scheduledAt, // 🏆 NEW
+            String scheduledDateDisplay, // 🏆 NEW
+            boolean active // Active is now part of the constructor for consistency
+    ) {
         this.examId = examId;
         this.examTitle = examTitle;
         this.courseId = courseId;
@@ -26,8 +48,18 @@ public class ExamModel {
         this.sectionName = sectionName;
         this.teacherName = teacherName;
         this.createdAt = createdAt;
-    }
+        this.active = active;
 
+        // 🏆 NEW Field Assignments
+        this.durationMinutes = durationMinutes;
+        this.scheduledAt = scheduledAt;
+        this.scheduledDateDisplay = scheduledDateDisplay;
+        // Status and isAvailable are typically set after fetching in the Activity/Adapter logic
+    }
+    // Note: Since ExamModel is used for fetching, the simpler constructor will suffice,
+    // but adding the fields and their getters/setters is crucial.
+
+    // ===== Existing Getters and Setters =====
     public String getExamId() { return examId; }
     public String getExamTitle() { return examTitle; }
     public String getCourseId() { return courseId; }
@@ -37,6 +69,7 @@ public class ExamModel {
     public String getSectionName() { return sectionName; }
     public String getTeacherName() { return teacherName; }
     public String getCreatedAt() { return createdAt; }
+    public boolean isActive() { return active; }
 
     public void setExamId(String examId) { this.examId = examId; }
     public void setExamTitle(String examTitle) { this.examTitle = examTitle; }
@@ -47,10 +80,51 @@ public class ExamModel {
     public void setSectionName(String sectionName) { this.sectionName = sectionName; }
     public void setTeacherName(String teacherName) { this.teacherName = teacherName; }
     public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }
-
-    // Add setter
     public void setActive(boolean active) { this.active = active; }
 
+    // 🏆 NEW Getters and Setters
+    public int getDurationMinutes() {
+        return durationMinutes;
+    }
+
+    public void setDurationMinutes(int durationMinutes) {
+        this.durationMinutes = durationMinutes;
+    }
+
+    public long getScheduledAt() {
+        return scheduledAt;
+    }
+
+    public void setScheduledAt(long scheduledAt) {
+        this.scheduledAt = scheduledAt;
+    }
+
+    public String getScheduledDateDisplay() {
+        return scheduledDateDisplay;
+    }
+
+    public void setScheduledDateDisplay(String scheduledDateDisplay) {
+        this.scheduledDateDisplay = scheduledDateDisplay;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public boolean isAvailable() {
+        return isAvailable;
+    }
+
+    public void setAvailable(boolean available) {
+        isAvailable = available;
+    }
+    // ----------------------------
+
+    // ===== Existing getCourseDisplay() method (No change) =====
     public String getCourseDisplay() {
         StringBuilder display = new StringBuilder();
 
@@ -72,8 +146,4 @@ public class ExamModel {
 
         return display.toString();
     }
-    public boolean isActive() {
-        return active;
-    }
-
 }

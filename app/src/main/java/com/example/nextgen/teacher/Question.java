@@ -22,6 +22,9 @@ public class Question {
     // ===== NEW: store student's answer =====
     private String studentAnswer;
 
+    // ===== NEW: store display number (for numbering per type) =====
+    private int displayNumber;
+
     // ===== Empty constructor (needed for Room & imports) =====
     public Question() {}
 
@@ -51,6 +54,7 @@ public class Question {
     public String getOptionD() { return optionD; }
     public String getCorrectAnswer() { return correctAnswer; }
     public String getStudentAnswer() { return studentAnswer; } // NEW
+    public int getDisplayNumber() { return displayNumber; } // ✅ NEW Getter
 
     // ===== Setters =====
     public void setExamId(String examId) { this.examId = examId; }
@@ -62,6 +66,7 @@ public class Question {
     public void setOptionD(String optionD) { this.optionD = optionD; }
     public void setCorrectAnswer(String correctAnswer) { this.correctAnswer = correctAnswer; }
     public void setStudentAnswer(String studentAnswer) { this.studentAnswer = studentAnswer; } // NEW
+    public void setDisplayNumber(int displayNumber) { this.displayNumber = displayNumber; } // ✅ NEW Setter
 
     // ===== Helper Methods (for Editing Support) =====
     public void updateFrom(Question updated) {
@@ -86,6 +91,7 @@ public class Question {
         copy.optionD = this.optionD;
         copy.correctAnswer = this.correctAnswer;
         copy.studentAnswer = this.studentAnswer; // copy student answer too
+        copy.displayNumber = this.displayNumber; // ✅ also copy display number
         return copy;
     }
 
