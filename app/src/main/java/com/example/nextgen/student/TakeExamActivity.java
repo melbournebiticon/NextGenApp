@@ -3,21 +3,20 @@ package com.example.nextgen.student;
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.media.AudioRecord;
+import android.media.MediaRecorder;
 import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.os.Handler;
 import android.util.Log;
-import android.view.MenuItem;
+import android.view.MenuItem; // 🛑 NEW IMPORT: Para sa onOptionsItemSelected
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.app.AlertDialog; // 🛑 NEW IMPORT: Para sa Exam Rules Alert
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -32,23 +31,12 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
-
-import org.tensorflow.lite.support.audio.TensorAudio;
-import org.tensorflow.lite.support.label.Category;
-import org.tensorflow.lite.task.audio.classifier.AudioClassifier;
-import org.tensorflow.lite.task.audio.classifier.AudioClassifier.AudioClassifierOptions;
-import org.tensorflow.lite.task.audio.classifier.Classifications;
-
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-// ----------------------------------
 
 public class TakeExamActivity extends AppCompatActivity {
-
-    private static final String TAG = "TakeExamActivity";
 
     private TextView tvExamTitle;
     private RecyclerView rvQuestions;
@@ -91,30 +79,16 @@ public class TakeExamActivity extends AppCompatActivity {
     private int totalDeductions = 0;
     private final int DEDUCTION_PER_STRIKE = 1; // 1 point deduction per violation
 
-    // 🛑 AUDIO DETECTION VARIABLES (OLD MediaRecorder variables are REMOVED)
-
-    // 🏆 TFLITE INTEGRATION: NEW AUDIO DETECTION VARIABLES
-    private AudioClassifier classifier = null;
-    private AudioRecord audioRecord = null;
-    private Handler audioHandler = new Handler(); // Gagamitin pa rin ang Handler para sa loop
-    private Runnable audioMonitorRunnable;
-    private static final int CLASSIFICATION_INTERVAL = 1000; // Check every 1 second (1000ms)
-
-    private final String MODEL_FILE = "yamnet.tflite";
-    private final float SPEECH_CONFIDENCE_THRESHOLD = 0.70f;
-    private final float MUSIC_CONFIDENCE_THRESHOLD = 0.65f;
-    private final float NOISE_CONFIDENCE_THRESHOLD = 0.70f;
-    private int speechStreak = 0;
-    private int musicStreak = 0;
-    private int noiseStreak = 0;
-    private static final int MAX_HIGH_VOLUME_TIME_COUNT = 3; // 3 seconds count (3 * 1s interval)
-    // -----------------------------------------------------------
+    // 🛑 NEW AUDIO DETECTION VARIABLES
+    private MediaRecorder mediaRecorder = null;
+    private Handler audioHandler = new Handler();
+    private static final int AUDIO_DETECTION_INTERVAL = 500; // Check every 0.5 seconds
+    private static final int VOLUME_THRESHOLD = 5000; // Needs testing and adjustment
+    private int highVolumeCount = 0;
+    private static final int MAX_HIGH_VOLUME_TIME_COUNT = 6; // 6 * 0.5s = 3 seconds
 
     // 🛑 NEW: Request code for audio permission
     private static final int REQUEST_RECORD_AUDIO_PERMISSION = 200;
-
-    // 🏆 TFLITE INTEGRATION: Constant for permission
-    private static final int RECORD_AUDIO_PERMISSION_CODE = 200;
 
 
     @Override
@@ -145,7 +119,7 @@ public class TakeExamActivity extends AppCompatActivity {
         examId = getIntent().getStringExtra("examId");
         examTitle = getIntent().getStringExtra("examTitle");
 
-        Log.d(TAG, "ExamID received: " + examId + ", ExamTitle: " + examTitle);
+        Log.d("TakeExam", "ExamID received: " + examId + ", ExamTitle: " + examTitle);
 
         if (examId == null || examId.isEmpty()) {
             Toast.makeText(this, "Invalid exam ID", Toast.LENGTH_SHORT).show();
@@ -187,7 +161,7 @@ public class TakeExamActivity extends AppCompatActivity {
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
-                Log.e(TAG, "Database error during score check: " + error.getMessage());
+                Log.e("TakeExam", "Database error during score check: " + error.getMessage());
                 Toast.makeText(TakeExamActivity.this, "Failed to verify exam status.", Toast.LENGTH_SHORT).show();
                 // Safety first: Allow user to proceed if check fails
                 showExamRulesAlert();
@@ -204,11 +178,11 @@ public class TakeExamActivity extends AppCompatActivity {
                         "2. DO NOT USE SPLIT-SCREEN or MULTI-WINDOW mode.\n" +
                         "3. The PHONE'S BACK BUTTON is DISABLED.\n" +
                         "4. The In-App Back Arrow will deduct " + DEDUCTION_PER_STRIKE + " point(s) upon press.\n" +
-                        "5. Your microphone will be monitored for human speech (voices) and excessive noise.\n\n" +
+                        "5. Your microphone will be monitored for excessive noise or voices.\n\n" +
                         "Exceeding " + MAX_SWITCHES + " violations will result in automatic submission with a score of zero (0)."
                 )
                 .setPositiveButton("START EXAM", (dialog, which) -> {
-                    // Pagkatapos pindutin ang START EXAM, saka tuluyang simulan ang paglo-loading
+                    // Pagkatapos pindutin ang START EXAM, saka tuluyang simulan ang paglo-load
                     startExamLoadingProcessContinued();
                 })
                 .setCancelable(false) // Bawal i-dismiss ng back button
@@ -246,13 +220,12 @@ public class TakeExamActivity extends AppCompatActivity {
         btnSubmit.setOnClickListener(v -> submitExam());
     }
 
-    // 🛑 NEW FUNCTION: I-check at hiningi ang Audio Permission (UPDATED)
+    // 🛑 NEW FUNCTION: I-check at hiningi ang Audio Permission
     private void checkAndRequestAudioPermission() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECORD_AUDIO}, RECORD_AUDIO_PERMISSION_CODE);
+            requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, REQUEST_RECORD_AUDIO_PERMISSION);
         } else {
-            // 🏆 TFLITE INTEGRATION: Call the new start function
-            startAudioClassification();
+            startAudioMonitoring();
         }
     }
 
@@ -260,10 +233,9 @@ public class TakeExamActivity extends AppCompatActivity {
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == RECORD_AUDIO_PERMISSION_CODE) {
+        if (requestCode == REQUEST_RECORD_AUDIO_PERMISSION) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                // 🏆 TFLITE INTEGRATION: Call the new start function
-                startAudioClassification();
+                startAudioMonitoring();
             } else {
                 Toast.makeText(this, "Warning: Audio monitoring is disabled. Microphone permission denied.", Toast.LENGTH_LONG).show();
             }
@@ -277,17 +249,13 @@ public class TakeExamActivity extends AppCompatActivity {
         if (countDownTimer != null) {
             countDownTimer.cancel();
         }
-        // 🏆 TFLITE INTEGRATION: Call the new stop function
-        stopAudioClassification();
+        stopAudioMonitoring();
     }
 
     // 🛑 LIFECYCLE METHOD: Detect App Switch/Tab Change (WITH DEDUCTION/STRIKE)
     @Override
     protected void onPause() {
         super.onPause();
-
-        // 🏆 TFLITE INTEGRATION: Stop monitoring on pause
-        stopAudioClassification();
 
         if (isFinishing()) { return; }
 
@@ -309,17 +277,12 @@ public class TakeExamActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
 
-        // 🏆 TFLITE INTEGRATION: Restart monitoring on resume
-        if (checkAudioPermission()) { // Added checkAudioPermission helper
-            startAudioClassification();
-        }
-
         if (isFinishing()) return;
 
         // 🛑 NEW ANTI-CHEATING: RE-CHECK SPLIT-SCREEN
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N && isInMultiWindowMode()) {
             if (countDownTimer != null) countDownTimer.cancel();
-            stopAudioClassification(); // TFLite stop
+            stopAudioMonitoring();
 
             Toast.makeText(this, "CHEATING DETECTED: Split-screen mode activated during exam. Auto-submitting.", Toast.LENGTH_LONG).show();
             submitExamWithZeroScore();
@@ -415,22 +378,22 @@ public class TakeExamActivity extends AppCompatActivity {
                         Long durationLong = examSnap.child("durationMinutes").getValue(Long.class);
                         if (durationLong != null) {
                             durationMinutes = durationLong.intValue();
-                            Log.d(TAG, "Duration loaded from Firebase: " + durationMinutes + " minutes. Starting Timer.");
+                            Log.d("TakeExam", "Duration loaded from Firebase: " + durationMinutes + " minutes. Starting Timer.");
                             startTimer();
                         } else {
-                            Log.d(TAG, "durationMinutes not found in Firebase. Timer will not start.");
+                            Log.d("TakeExam", "durationMinutes not found in Firebase. Timer will not start.");
                         }
                         break;
                     }
                 }
                 if (!found) {
-                    Log.e(TAG, "Exam details not found in Firebase under any teacher node.");
+                    Log.e("TakeExam", "Exam details not found in Firebase under any teacher node.");
                 }
             }
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
-                Log.e(TAG, "Error fetching exam details from Firebase: " + error.getMessage());
+                Log.e("TakeExam", "Error fetching exam details from Firebase: " + error.getMessage());
                 Toast.makeText(TakeExamActivity.this, "Error fetching exam details.", Toast.LENGTH_SHORT).show();
             }
         });
@@ -478,7 +441,7 @@ public class TakeExamActivity extends AppCompatActivity {
 
         typeQuestionNumber = 1;
         currentIndex = 0;
-        Log.d(TAG, "Loaded " + currentTypeQuestions.size() + " questions for type: " + type);
+        Log.d("TakeExam", "Loaded " + currentTypeQuestions.size() + " questions for type: " + type);
     }
 
     private void showNextQuestion() {
@@ -542,8 +505,7 @@ public class TakeExamActivity extends AppCompatActivity {
         if (countDownTimer != null) {
             countDownTimer.cancel();
         }
-        // 🏆 TFLITE INTEGRATION: Call the new stop function
-        stopAudioClassification();
+        stopAudioMonitoring();
 
         if (questionList.isEmpty()) {
             Toast.makeText(this, "No questions to submit", Toast.LENGTH_SHORT).show();
@@ -580,8 +542,7 @@ public class TakeExamActivity extends AppCompatActivity {
         if (countDownTimer != null) {
             countDownTimer.cancel();
         }
-        // 🏆 TFLITE INTEGRATION: Call the new stop function
-        stopAudioClassification();
+        stopAudioMonitoring();
 
         final int finalTotalQuestions = questionList.size();
         final int finalCorrectAnswers = 0; // Set to zero (auto-fail)
@@ -702,261 +663,99 @@ public class TakeExamActivity extends AppCompatActivity {
         scoreEntryRef.child("deductions").setValue(totalDeductions);
 
 
-        Log.d(TAG, "Score saved to Firebase: " + score + "/" + maxScore + ", Deductions: " + totalDeductions);
+        Log.d("TakeExam", "Score saved to Firebase: " + score + "/" + maxScore + ", Deductions: " + totalDeductions);
         Toast.makeText(this, "Score successfully recorded!", Toast.LENGTH_SHORT).show();
     }
 
-    // 🏆 NEW HELPER METHOD: Check audio permission
-    private boolean checkAudioPermission() {
-        return ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED;
-    }
+    // 🛑 NEW: Runnable para i-check ang volume (UNCHANGED)
+    private Runnable audioRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (mediaRecorder != null) {
+                try {
+                    int amplitude = mediaRecorder.getMaxAmplitude();
 
-    // ===============================================
-    // 🏆 TFLITE AUDIO CLASSIFICATION LOGIC (ADVANCED)
-    // ===============================================
+                    if (amplitude > VOLUME_THRESHOLD) {
+                        highVolumeCount++;
+                        Log.w("AUDIO_CHEAT", "High volume detected! Count: " + highVolumeCount + ", Amplitude: " + amplitude);
 
-    private void startAudioClassification() {
-        if (classifier != null) {
+                        if (highVolumeCount >= MAX_HIGH_VOLUME_TIME_COUNT) {
+                            stopAudioMonitoring();
+                            Toast.makeText(TakeExamActivity.this, "AUDIO CHEATING DETECTED: Unnecessary noise/voice detected. Submitting exam.", Toast.LENGTH_LONG).show();
+                            submitExamWithZeroScore();
+                            return;
+                        }
+                    } else {
+                        if (highVolumeCount > 0) {
+                            highVolumeCount = 0;
+                        }
+                    }
+
+                } catch (IllegalStateException e) {
+                    Log.e("AUDIO_CHECK", "MediaRecorder not ready: " + e.getMessage());
+                }
+            }
+            audioHandler.postDelayed(this, AUDIO_DETECTION_INTERVAL);
+        }
+    };
+
+    // 🛑 CRITICAL FIX: startAudioMonitoring
+    private void startAudioMonitoring() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            Log.e("AUDIO_CHECK", "Attempted to start monitoring without permission. Exiting.");
             return;
         }
 
-        try {
-            AudioClassifierOptions options = AudioClassifierOptions.builder().setMaxResults(5).build();
-            classifier = AudioClassifier.createFromFileAndOptions(this, MODEL_FILE, options);
-            audioRecord = classifier.createAudioRecord();
-            audioRecord.startRecording();
-            speechStreak = 0;
+        if (mediaRecorder == null) {
+            mediaRecorder = new MediaRecorder();
+            mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+            mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
+            mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
 
-            audioMonitorRunnable = new Runnable() {
-                @Override
-                public void run() {
-                    if (classifier != null && audioRecord != null &&
-                            audioRecord.getRecordingState() == AudioRecord.RECORDSTATE_RECORDING) {
+            String tempFilePath = getCacheDir().getAbsolutePath() + "/temp_audio_monitor.3gp";
+            mediaRecorder.setOutputFile(tempFilePath);
 
-                        TensorAudio tensorAudio = classifier.createInputTensorAudio();
-                        tensorAudio.load(audioRecord);
-                        List<Classifications> classifications = classifier.classify(tensorAudio);
-
-                        boolean detectedSpeech = false;
-                        for (Classifications c : classifications) {
-                            for (Category cat : c.getCategories()) {
-                                String label = cat.getLabel().toLowerCase();
-                                float score = cat.getScore();
-                                if ((label.contains("speech") || label.contains("talking") || label.contains("conversation")) && score >= SPEECH_CONFIDENCE_THRESHOLD) {
-                                    detectedSpeech = true;
-                                    break;
-                                }
-                            }
-                            if (detectedSpeech) break;
-                        }
-
-                        if (detectedSpeech) {
-                            speechStreak++;
-                            if (speechStreak >= MAX_HIGH_VOLUME_TIME_COUNT) {
-                                speechStreak = 0;
-                                switchCount++;
-                                totalDeductions += DEDUCTION_PER_STRIKE;
-
-                                runOnUiThread(() -> Toast.makeText(TakeExamActivity.this, "⛔ WARNING: Sustained human speech detected. " + DEDUCTION_PER_STRIKE + " point deducted.", Toast.LENGTH_LONG).show());
-
-                                if (switchCount >= MAX_SWITCHES) {
-                                    runOnUiThread(() -> Toast.makeText(TakeExamActivity.this, "CHEATING DETECTED: Exceeded max strikes! Auto-submitting.", Toast.LENGTH_LONG).show());
-                                    submitExamWithZeroScore();
-                                    return;
-                                }
-                            }
-                        } else {
-                            speechStreak = 0;
-                        }
-                    }
-                    audioHandler.postDelayed(this, CLASSIFICATION_INTERVAL);
-                }
-            };
-            audioHandler.post(audioMonitorRunnable);
-            runOnUiThread(() -> Toast.makeText(this, "Audio monitoring started.", Toast.LENGTH_SHORT).show());
-        } catch (IOException e) {
-            classifier = null;
-            Toast.makeText(this, "Proctoring error: Model failed to load.", Toast.LENGTH_LONG).show();
-        } catch (SecurityException se) {
-            Toast.makeText(this, "Microphone permission required.", Toast.LENGTH_LONG).show();
-        }
-    }
-
-    private void startClassificationLoop() {
-        // Remove previous runnable if any
-        if (audioHandler != null && audioMonitorRunnable != null) {
-            audioHandler.removeCallbacks(audioMonitorRunnable);
-        }
-
-        audioMonitorRunnable = new Runnable() {
-            @Override
-            public void run() {
-                if (classifier != null && audioRecord != null &&
-                        audioRecord.getRecordingState() == AudioRecord.RECORDSTATE_RECORDING) {
-
-                    TensorAudio tensorAudio = classifier.createInputTensorAudio();
-                    tensorAudio.load(audioRecord);
-                    List<Classifications> classifications = classifier.classify(tensorAudio);
-
-
-                    // Process advanced classification
-                    processAudioClassification(classifications);
-                }
-
-                // Schedule next check
-                audioHandler.postDelayed(this, CLASSIFICATION_INTERVAL);
-            }
-        };
-
-        audioHandler.post(audioMonitorRunnable);
-        Log.d(TAG, "TFLite Classification Loop started.");
-    }
-
-    /**
-     * Advanced audio classification processing:
-     * - Detects speech (human voice), music, and loud noise categories (applause/laughter/vehicle/etc.)
-     * - Maintains per-category streak counters to only penalize sustained events (e.g., 3s)
-     * - On sustained violation: increments strike (switchCount), applies deduction, issues warning, and may auto-submit.
-     */
-    private void processAudioClassification(List<Classifications> classifications) {
-        boolean localSpeechDetected = false;
-        boolean localMusicDetected = false;
-        boolean localNoiseDetected = false;
-
-        // Determine top categories across all returned Classifications
-        for (Classifications classification : classifications) {
-            for (Category category : classification.getCategories()) {
-                String label = category.getLabel().toLowerCase(Locale.getDefault());
-                float score = category.getScore();
-
-                // Speech / Talking / Voice detection
-                if ((label.contains("speech") || label.contains("talking") || label.contains("voice") || label.contains("conversation"))
-                        && score >= SPEECH_CONFIDENCE_THRESHOLD) {
-                    localSpeechDetected = true;
-                    Log.i("AUDIO_ADV", "Speech: " + label + " (" + String.format(Locale.getDefault(), "%.2f", score * 100) + "%)");
-                    break; // speech found in this classification block
-                }
-
-                // Music detection (music, singing)
-                if ((label.contains("music") || label.contains("singing") || label.contains("singer"))
-                        && score >= MUSIC_CONFIDENCE_THRESHOLD) {
-                    localMusicDetected = true;
-                    Log.i("AUDIO_ADV", "Music: " + label + " (" + String.format(Locale.getDefault(), "%.2f", score * 100) + "%)");
-                    // don't break here; we want to give priority to speech detection earlier
-                }
-
-                // Loud noise / applause / laughter / vehicle / siren / engine / construction / dog barking etc.
-                if ((label.contains("applause") || label.contains("laughter") || label.contains("engine") ||
-                        label.contains("vehicle") || label.contains("siren") || label.contains("construction") ||
-                        label.contains("bark") || label.contains("dog") || label.contains("noise") || label.contains("alarm"))
-                        && score >= NOISE_CONFIDENCE_THRESHOLD) {
-                    localNoiseDetected = true;
-                    Log.i("AUDIO_ADV", "Noise: " + label + " (" + String.format(Locale.getDefault(), "%.2f", score * 100) + "%)");
-                }
-            }
-            if (localSpeechDetected) break; // speech has highest priority
-        }
-
-        // Update streaks (sustained detection across consecutive intervals)
-        if (localSpeechDetected) {
-            speechStreak++;
-            musicStreak = 0;
-            noiseStreak = 0;
-        } else if (localMusicDetected) {
-            musicStreak++;
-            speechStreak = 0;
-            noiseStreak = 0;
-        } else if (localNoiseDetected) {
-            noiseStreak++;
-            speechStreak = 0;
-            musicStreak = 0;
-        } else {
-            // no relevant detection -> reset all
-            speechStreak = 0;
-            musicStreak = 0;
-            noiseStreak = 0;
-        }
-
-        // Check sustained speech violation
-        if (speechStreak >= MAX_HIGH_VOLUME_TIME_COUNT) {
-            // sustained speech -> treat as cheating indicator
-            speechStreak = 0; // reset after handling
-            switchCount++;
-            totalDeductions += DEDUCTION_PER_STRIKE;
-
-            Toast.makeText(this, "⛔ WARNING: Sustained human speech detected. " + DEDUCTION_PER_STRIKE + " point deducted.", Toast.LENGTH_LONG).show();
-            Log.w("AUDIO_ADV", "Sustained speech strike. Total Deductions: " + totalDeductions + ", Strikes: " + switchCount);
-
-            if (switchCount >= MAX_SWITCHES) {
-                Toast.makeText(this, "CHEATING DETECTED: Exceeded max allowed strikes (Audio/Switching)! Auto-submitting.", Toast.LENGTH_LONG).show();
-                submitExamWithZeroScore();
-                return;
-            }
-        }
-
-        // Check sustained music violation (student might be playing music)
-        if (musicStreak >= MAX_HIGH_VOLUME_TIME_COUNT) {
-            musicStreak = 0;
-            switchCount++;
-            totalDeductions += DEDUCTION_PER_STRIKE;
-
-            Toast.makeText(this, "⛔ WARNING: Sustained music detected near your device. " + DEDUCTION_PER_STRIKE + " point deducted.", Toast.LENGTH_LONG).show();
-            Log.w("AUDIO_ADV", "Sustained music strike. Total Deductions: " + totalDeductions + ", Strikes: " + switchCount);
-
-            if (switchCount >= MAX_SWITCHES) {
-                Toast.makeText(this, "CHEATING DETECTED: Exceeded max allowed strikes (Audio/Switching)! Auto-submitting.", Toast.LENGTH_LONG).show();
-                submitExamWithZeroScore();
-                return;
-            }
-        }
-
-        // Check sustained loud noise violation (applause, laughter, siren, engine)
-        if (noiseStreak >= MAX_HIGH_VOLUME_TIME_COUNT) {
-            noiseStreak = 0;
-            switchCount++;
-            totalDeductions += DEDUCTION_PER_STRIKE;
-
-            Toast.makeText(this, "⛔ WARNING: Sustained loud noise detected around you. " + DEDUCTION_PER_STRIKE + " point deducted.", Toast.LENGTH_LONG).show();
-            Log.w("AUDIO_ADV", "Sustained noise strike. Total Deductions: " + totalDeductions + ", Strikes: " + switchCount);
-
-            if (switchCount >= MAX_SWITCHES) {
-                Toast.makeText(this, "CHEATING DETECTED: Exceeded max allowed strikes (Audio/Switching)! Auto-submitting.", Toast.LENGTH_LONG).show();
-                submitExamWithZeroScore();
-                return;
-            }
-        }
-
-        // otherwise continue monitoring
-    }
-
-    private void stopAudioClassification() {
-        if (audioHandler != null && audioMonitorRunnable != null) {
-            audioHandler.removeCallbacks(audioMonitorRunnable);
-        }
-        if (audioRecord != null) {
             try {
-                if (audioRecord.getRecordingState() == AudioRecord.RECORDSTATE_RECORDING) {
-                    audioRecord.stop();
-                }
+                mediaRecorder.prepare();
+                mediaRecorder.start();
+                Log.d("AUDIO_CHECK", "MediaRecorder started successfully.");
+
+                highVolumeCount = 0;
+                audioHandler.post(audioRunnable);
+            } catch (IOException e) {
+                Log.e("AUDIO_CHECK", "Failed to prepare MediaRecorder (IOException): " + e.getMessage());
+                stopAudioMonitoring();
+                submitExamWithZeroScore();
             } catch (IllegalStateException e) {
-                Log.e(TAG, "Error stopping AudioRecord: " + e.getMessage());
-            } finally {
-                try {
-                    audioRecord.release();
-                } catch (Exception ex) {
-                    Log.e(TAG, "Error releasing AudioRecord: " + ex.getMessage());
-                }
-                audioRecord = null;
+                Log.e("AUDIO_CHECK", "Failed to start MediaRecorder (IllegalStateException): " + e.getMessage());
+                stopAudioMonitoring();
+                submitExamWithZeroScore();
+            } catch (RuntimeException e) {
+                Log.e("AUDIO_CHECK", "MediaRecorder failed to start (Generic Runtime/ -1004): " + e.getMessage());
+                stopAudioMonitoring();
+                submitExamWithZeroScore();
             }
         }
-        if (classifier != null) {
+    }
+
+    // 🛑 CRITICAL FIX: stopAudioMonitoring
+    private void stopAudioMonitoring() {
+        audioHandler.removeCallbacks(audioRunnable);
+        if (mediaRecorder != null) {
             try {
-                classifier.close();
+                try {
+                    mediaRecorder.stop();
+                } catch (IllegalStateException e) {
+                    Log.w("AUDIO_CHECK", "MediaRecorder was not in a recording state to stop.");
+                }
+
+                mediaRecorder.release();
             } catch (Exception e) {
-                Log.e(TAG, "Error closing classifier: " + e.getMessage());
+                Log.e("AUDIO_CHECK", "Error during MediaRecorder stop/release: " + e.getMessage());
+            } finally {
+                mediaRecorder = null;
+                Log.d("AUDIO_CHECK", "MediaRecorder stopped and released.");
             }
-            classifier = null;
         }
-        Log.i(TAG, "TFLite Audio Classification stopped.");
     }
 }

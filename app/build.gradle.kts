@@ -70,10 +70,6 @@ dependencies {
     implementation("org.apache.poi:poi-ooxml:5.2.3")
     implementation("com.tom-roush:pdfbox-android:2.0.27.0")
 
-    implementation("org.tensorflow:tensorflow-lite:2.14.0")
-    implementation("org.tensorflow:tensorflow-lite-support:0.4.4")
-    implementation("org.tensorflow:tensorflow-lite-task-audio:0.4.4")
-
     // ✅ AndroidX UI
     implementation(libs.appcompat)
     implementation(libs.material)
