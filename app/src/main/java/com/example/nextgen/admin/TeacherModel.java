@@ -12,6 +12,8 @@ public class TeacherModel {
     private List<String> courseDisplays;
     private List<String> assignedSubjects;
     private String password;
+    private String profileImage; // base64 string for teacher's profile picture
+
 
     // Empty constructor required for Firebase
     public TeacherModel() { }
@@ -51,4 +53,12 @@ public class TeacherModel {
     public void setCourseDisplays(List<String> courseDisplays) { this.courseDisplays = courseDisplays; }
     public void setAssignedSubjects(List<String> assignedSubjects) { this.assignedSubjects = assignedSubjects; }
     public void setPassword(String password) { this.password = password; }
+    public String getProfileImage() {
+        return profileImage;
+    }
+
+    public void setProfileImage(String profileImage) {
+        this.profileImage = profileImage;
+    }
+
 }

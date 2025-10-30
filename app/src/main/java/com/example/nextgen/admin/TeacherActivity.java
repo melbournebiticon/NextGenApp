@@ -7,6 +7,23 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
+import android.net.Uri;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.provider.MediaStore;
+import android.util.Base64;
+import android.widget.ImageView;
+import android.content.Intent;
+import android.provider.MediaStore;
+import androidx.annotation.Nullable;
+import android.widget.ProgressBar;
+import android.widget.ImageView;
+import android.widget.ProgressBar;
+import android.widget.TextView;   // ← add this
+import java.io.ByteArrayOutputStream;
+import android.graphics.Bitmap;
+import android.util.Base64;
+
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
@@ -45,6 +62,11 @@ public class TeacherActivity extends AppCompatActivity {
     private SubjectSelectionAdapter subjectAdapter;
     private TeacherAdapter teacherAdapter;
     private CourseSelectionAdapter courseSelectionAdapter;
+
+    private Uri selectedImageUri;
+    private ImageView currentEditProfileView;
+    private String profileImage; // Base64-encoded profile picture
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -476,7 +498,7 @@ public class TeacherActivity extends AppCompatActivity {
         void onGenerated(String teacherId);
     }
 
-    // Teacher edit dialog
+
     private void showTeacherDialog(TeacherModel teacher) {
         View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_teacher_edit, null);
 
@@ -485,16 +507,41 @@ public class TeacherActivity extends AppCompatActivity {
         EditText etEditEmail = dialogView.findViewById(R.id.etEditEmail);
         RecyclerView recyclerEditCourses = dialogView.findViewById(R.id.recyclerEditCourses);
         RecyclerView recyclerEditSubjects = dialogView.findViewById(R.id.recyclerEditSubjects);
+        ImageView ivEditProfile = dialogView.findViewById(R.id.ivEditProfile);
+        ProgressBar progressBar = dialogView.findViewById(R.id.progressBarUpload);
+        TextView tvProgress = dialogView.findViewById(R.id.tvUploadProgress);
 
         etEditFullName.setText(teacher.getFullName());
         etEditBirthday.setText(teacher.getBirthday());
         etEditEmail.setText(teacher.getEmail());
 
+        // Load profile image
+        if (teacher.getProfileImage() != null && !teacher.getProfileImage().isEmpty()) {
+            byte[] decodedBytes = Base64.decode(teacher.getProfileImage(), Base64.DEFAULT);
+            Bitmap bitmap = BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.length);
+            ivEditProfile.setImageBitmap(bitmap);
+        } else {
+            ivEditProfile.setImageResource(R.drawable.examinee_default);
+        }
+
+        currentEditProfileView = ivEditProfile;
+
+        ivEditProfile.setOnClickListener(v -> {
+            Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+            startActivityForResult(intent, 202);
+        });
+
+        // Setup recycler views
         List<CourseModel> editCourseList = new ArrayList<>();
         CourseSelectionAdapter editCourseAdapter = new CourseSelectionAdapter(this, editCourseList);
         recyclerEditCourses.setLayoutManager(new LinearLayoutManager(this));
         recyclerEditCourses.setAdapter(editCourseAdapter);
 
+        SubjectSelectionAdapter editSubjectAdapter = new SubjectSelectionAdapter(new ArrayList<>());
+        recyclerEditSubjects.setLayoutManager(new LinearLayoutManager(this));
+        recyclerEditSubjects.setAdapter(editSubjectAdapter);
+
+        // Load all courses first
         coursesRef.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
@@ -505,102 +552,163 @@ public class TeacherActivity extends AppCompatActivity {
                 }
                 editCourseAdapter.notifyDataSetChanged();
 
-                // Preselect teacher courses
-                if (teacher.getCourseIds() != null) {
+                if (teacher.getCourseIds() != null)
                     editCourseAdapter.setPreselectedCoursesById(teacher.getCourseIds());
-                }
 
-                // Subjects adapter
-                SubjectSelectionAdapter editSubjectAdapter = new SubjectSelectionAdapter(new ArrayList<>());
-                recyclerEditSubjects.setLayoutManager(new LinearLayoutManager(TeacherActivity.this));
-                recyclerEditSubjects.setAdapter(editSubjectAdapter);
+                // Load subjects of existing courses
+                if (teacher.getCourseIds() != null && !teacher.getCourseIds().isEmpty()) {
+                    final List<SubjectModel> loadedSubjects = new ArrayList<>();
+                    final int[] loadedCount = {0};
 
-                // Preselect subjects
-                editSubjectAdapter.setPreselectedSubjects(teacher.getAssignedSubjects());
+                    for (String courseId : teacher.getCourseIds()) {
+                        subjectsRef.orderByChild("courseId").equalTo(courseId)
+                                .addListenerForSingleValueEvent(new ValueEventListener() {
+                                    @Override
+                                    public void onDataChange(@NonNull DataSnapshot snapshot) {
+                                        for (DataSnapshot ds : snapshot.getChildren()) {
+                                            SubjectModel s = ds.getValue(SubjectModel.class);
+                                            if (s != null && !loadedSubjects.contains(s))
+                                                loadedSubjects.add(s);
+                                        }
+                                        loadedCount[0]++;
+                                        if (loadedCount[0] == teacher.getCourseIds().size()) {
+                                            editSubjectAdapter.updateSubjects(loadedSubjects);
+                                            editSubjectAdapter.setPreselectedSubjects(teacher.getAssignedSubjects());
+                                        }
+                                    }
 
-                // Update subjects when courses change
-                editCourseAdapter.setOnCourseSelectionChanged(() -> {
-                    Map<String, List<SubjectModel>> selectedCoursesWithSubjects = editCourseAdapter.getSelectedCoursesWithSubjects();
-                    List<SubjectModel> combinedSubjects = new ArrayList<>();
-                    for (List<SubjectModel> subjects : selectedCoursesWithSubjects.values()) {
-                        for (SubjectModel s : subjects) {
-                            if (!combinedSubjects.contains(s)) combinedSubjects.add(s);
-                        }
+                                    @Override
+                                    public void onCancelled(@NonNull DatabaseError error) {}
+                                });
                     }
-                    editSubjectAdapter.updateSubjects(combinedSubjects);
-                });
-
-                editCourseAdapter.notifySelectionChanged();
+                }
             }
 
             @Override
-            public void onCancelled(@NonNull DatabaseError error) { }
+            public void onCancelled(@NonNull DatabaseError error) {}
         });
 
+        // 🔹 Course selection listener (dynamically update subjects)
+        editCourseAdapter.setOnCourseSelectionChanged(() -> {
+            List<CourseModel> selectedCourses = editCourseAdapter.getSelectedCourses();
+            List<SubjectModel> combinedSubjects = new ArrayList<>();
+            final int[] loadedCount = {0};
+
+            if (selectedCourses.isEmpty()) {
+                editSubjectAdapter.updateSubjects(new ArrayList<>());
+                return;
+            }
+
+            for (CourseModel c : selectedCourses) {
+                subjectsRef.orderByChild("courseId").equalTo(c.getId())
+                        .addListenerForSingleValueEvent(new ValueEventListener() {
+                            @Override
+                            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                                for (DataSnapshot ds : snapshot.getChildren()) {
+                                    SubjectModel s = ds.getValue(SubjectModel.class);
+                                    if (s != null && !combinedSubjects.contains(s))
+                                        combinedSubjects.add(s);
+                                }
+                                loadedCount[0]++;
+                                if (loadedCount[0] == selectedCourses.size()) {
+                                    editSubjectAdapter.updateSubjects(combinedSubjects);
+                                    editSubjectAdapter.setPreselectedSubjects(teacher.getAssignedSubjects());
+                                }
+                            }
+
+                            @Override
+                            public void onCancelled(@NonNull DatabaseError error) {}
+                        });
+            }
+        });
+
+        // ✅ Show the actual dialog here
         new AlertDialog.Builder(this)
                 .setTitle("Update Teacher")
                 .setView(dialogView)
                 .setPositiveButton("Update", (dialog, which) -> {
-                    String oldEmail = teacher.getEmail();
-                    String oldBirthdayPassword = teacher.getBirthday().replaceAll("[^0-9]", "");
-
-                    teacher.setFullName(etEditFullName.getText().toString().trim());
-                    teacher.setBirthday(etEditBirthday.getText().toString().trim());
-                    teacher.setEmail(etEditEmail.getText().toString().trim());
-                    teacher.setDisplayName(getDisplayName(teacher.getFullName()));
-
-                    // Courses
-                    List<CourseModel> updatedCourses = editCourseAdapter.getSelectedCourses();
-                    List<String> courseIds = new ArrayList<>();
-                    List<String> courseDisplays = new ArrayList<>();
-                    for (CourseModel c : updatedCourses) {
-                        courseIds.add(c.getId());
-                        courseDisplays.add(
-                                c.getName() + " - " +
-                                        c.getSpecializationName() + " - " +
-                                        c.getYearName() + " - " +
-                                        c.getSectionName()
-                        );
-
-                    }
-                    teacher.setCourseIds(courseIds);
-                    teacher.setCourseDisplays(courseDisplays);
-
-                    // Subjects
-                    List<String> updatedSubjects = new ArrayList<>();
-                    RecyclerView.Adapter<?> adapter = recyclerEditSubjects.getAdapter();
-                    if (adapter instanceof SubjectSelectionAdapter) {
-                        SubjectSelectionAdapter editSubjectAdapter = (SubjectSelectionAdapter) adapter;
-                        for (SubjectModel s : editSubjectAdapter.getSelectedSubjects()) {
-                            updatedSubjects.add(s.getName());
-                        }
-                    }
-                    teacher.setAssignedSubjects(updatedSubjects);
-
-                    // Save to Firebase
-                    teachersRef.child(teacher.getId()).setValue(teacher)
-                            .addOnSuccessListener(aVoid -> {
-                                Toast.makeText(this, "Teacher updated", Toast.LENGTH_SHORT).show();
-
-                                // Update Auth email/password if changed
-                                if (!oldEmail.equals(teacher.getEmail()) || !oldBirthdayPassword.equals(teacher.getBirthday().replaceAll("[^0-9]", ""))) {
-                                    auth.signInWithEmailAndPassword(oldEmail, oldBirthdayPassword)
-                                            .addOnCompleteListener(signInTask -> {
-                                                if (signInTask.isSuccessful()) {
-                                                    FirebaseUser user = auth.getCurrentUser();
-                                                    if (user != null) {
-                                                        if (!oldEmail.equals(teacher.getEmail()))
-                                                            user.updateEmail(teacher.getEmail());
-                                                        if (!oldBirthdayPassword.equals(teacher.getBirthday().replaceAll("[^0-9]", "")))
-                                                            user.updatePassword(teacher.getBirthday().replaceAll("[^0-9]", ""));
-                                                    }
-                                                }
-                                            });
-                                }
-                            });
+                    updateTeacherData(teacher, etEditFullName, etEditBirthday, etEditEmail, editCourseAdapter, editSubjectAdapter);
                 })
                 .setNegativeButton("Cancel", null)
                 .show();
     }
+
+
+
+    private void updateTeacherData(
+            TeacherModel teacher,
+            EditText etEditFullName,
+            EditText etEditBirthday,
+            EditText etEditEmail,
+            CourseSelectionAdapter editCourseAdapter,
+            SubjectSelectionAdapter editSubjectAdapter
+    ) {
+        String oldEmail = teacher.getEmail();
+        String oldPassword = teacher.getBirthday().replaceAll("[^0-9]", "");
+
+        teacher.setFullName(etEditFullName.getText().toString().trim());
+        teacher.setBirthday(etEditBirthday.getText().toString().trim());
+        teacher.setEmail(etEditEmail.getText().toString().trim());
+        teacher.setDisplayName(getDisplayName(teacher.getFullName()));
+
+        if (selectedImageUri != null) {
+            String base64Image = convertImageToBase64(selectedImageUri);
+            if (base64Image != null)
+                teacher.setProfileImage(base64Image);
+        }
+
+        List<CourseModel> updatedCourses = editCourseAdapter.getSelectedCourses();
+        List<String> courseIds = new ArrayList<>();
+        List<String> courseDisplays = new ArrayList<>();
+        for (CourseModel c : updatedCourses) {
+            courseIds.add(c.getId());
+            courseDisplays.add(c.getName() + " - " + c.getSpecializationName() + " - " + c.getYearName() + " - " + c.getSectionName());
+        }
+        teacher.setCourseIds(courseIds);
+        teacher.setCourseDisplays(courseDisplays);
+
+        List<String> updatedSubjects = new ArrayList<>();
+        for (SubjectModel s : editSubjectAdapter.getSelectedSubjects()) {
+            updatedSubjects.add(s.getName());
+        }
+        teacher.setAssignedSubjects(updatedSubjects);
+
+        teachersRef.child(teacher.getId()).setValue(teacher)
+                .addOnSuccessListener(aVoid -> Toast.makeText(this, "Teacher updated", Toast.LENGTH_SHORT).show());
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == 202 && resultCode == RESULT_OK && data != null && data.getData() != null) {
+            selectedImageUri = data.getData();
+            if (currentEditProfileView != null) {
+                currentEditProfileView.setImageURI(selectedImageUri);
+            }
+        }
+    }
+    private String convertImageToBase64(Uri imageUri) {
+        try {
+            Bitmap original = MediaStore.Images.Media.getBitmap(getContentResolver(), imageUri);
+            int maxSize = 400;
+            int width = original.getWidth();
+            int height = original.getHeight();
+            float scale = Math.min((float) maxSize / width, (float) maxSize / height);
+            int newWidth = Math.round(width * scale);
+            int newHeight = Math.round(height * scale);
+            Bitmap resized = Bitmap.createScaledBitmap(original, newWidth, newHeight, true);
+
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            resized.compress(Bitmap.CompressFormat.JPEG, 60, baos);
+            byte[] imageBytes = baos.toByteArray();
+            return Base64.encodeToString(imageBytes, Base64.DEFAULT);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+
+
 }
 
