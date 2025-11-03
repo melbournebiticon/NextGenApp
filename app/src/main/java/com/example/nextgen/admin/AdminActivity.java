@@ -1,15 +1,16 @@
 package com.example.nextgen.admin;
 
-import android.animation.Animator;
-import android.animation.AnimatorListenerAdapter;
-import android.animation.ValueAnimator;
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.DisplayMetrics;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
+import android.widget.Toast;
 
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.drawerlayout.widget.DrawerLayout;
 
@@ -22,16 +23,18 @@ public class AdminActivity extends AppCompatActivity {
 
     private DrawerLayout drawerLayout;
     private LinearLayout curriculumDropdown, accountsDropdown;
+    private FirebaseAuth auth;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_admin);
 
-        // Sidebar toggle (hamburger button)
-        ImageButton btnOpenSidebar = findViewById(R.id.btnOpenSidebar);
-        drawerLayout = findViewById(R.id.drawerLayout);
+        auth = FirebaseAuth.getInstance();
 
+        // Drawer (hamburger menu)
+        drawerLayout = findViewById(R.id.drawerLayout);
+        ImageButton btnOpenSidebar = findViewById(R.id.btnOpenSidebar);
         btnOpenSidebar.setOnClickListener(v -> toggleSidebar());
 
         // Dropdown headers
@@ -42,9 +45,24 @@ public class AdminActivity extends AppCompatActivity {
         curriculumDropdown = findViewById(R.id.curriculumDropdown);
         accountsDropdown = findViewById(R.id.accountsDropdown);
 
-        // Toggle dropdowns with smooth animation
-        btnManageCurriculumHeader.setOnClickListener(v -> toggleDropdownSmooth(curriculumDropdown));
-        btnManageAccountsHeader.setOnClickListener(v -> toggleDropdownSmooth(accountsDropdown));
+        // Toggle dropdowns (simple visibility toggle)
+        btnManageCurriculumHeader.setOnClickListener(v -> {
+            if (curriculumDropdown.getVisibility() == View.VISIBLE) {
+                curriculumDropdown.setVisibility(View.GONE);
+            } else {
+                curriculumDropdown.setVisibility(View.VISIBLE);
+                accountsDropdown.setVisibility(View.GONE); // close other dropdown
+            }
+        });
+
+        btnManageAccountsHeader.setOnClickListener(v -> {
+            if (accountsDropdown.getVisibility() == View.VISIBLE) {
+                accountsDropdown.setVisibility(View.GONE);
+            } else {
+                accountsDropdown.setVisibility(View.VISIBLE);
+                curriculumDropdown.setVisibility(View.GONE); // close other dropdown
+            }
+        });
 
         // Buttons inside Curriculum dropdown
         setupButton(R.id.btnManageSpecializations, SpecializationsActivity.class);
@@ -62,7 +80,32 @@ public class AdminActivity extends AppCompatActivity {
         logoutBtn.setOnClickListener(v -> logout());
     }
 
-    // Toggle sidebar open/close
+    @Override
+    protected void onPostCreate(@Nullable Bundle savedInstanceState) {
+        super.onPostCreate(savedInstanceState);
+        fixSidebarHeight();
+    }
+
+    private void fixSidebarHeight() {
+        View sidebarLayout = findViewById(R.id.sidebarLayout);
+        if (sidebarLayout != null) {
+            sidebarLayout.post(new Runnable() {
+                @Override
+                public void run() {
+                    DisplayMetrics displayMetrics = new DisplayMetrics();
+                    getWindowManager().getDefaultDisplay().getMetrics(displayMetrics);
+                    int screenHeight = displayMetrics.heightPixels;
+
+                    ViewGroup.LayoutParams params = sidebarLayout.getLayoutParams();
+                    params.height = screenHeight;
+                    sidebarLayout.setLayoutParams(params);
+                    sidebarLayout.requestLayout();
+                }
+            });
+        }
+    }
+
+    // Open or close the drawer
     private void toggleSidebar() {
         if (drawerLayout.isDrawerOpen(android.view.Gravity.START)) {
             drawerLayout.closeDrawer(android.view.Gravity.START);
@@ -71,53 +114,27 @@ public class AdminActivity extends AppCompatActivity {
         }
     }
 
-    // Smooth dropdown animation
-    private void toggleDropdownSmooth(LinearLayout dropdown) {
-        if (dropdown.getVisibility() == View.VISIBLE) {
-            int initialHeight = dropdown.getHeight();
-            ValueAnimator animator = ValueAnimator.ofInt(initialHeight, 0);
-            animator.addUpdateListener(animation -> {
-                int value = (int) animation.getAnimatedValue();
-                dropdown.getLayoutParams().height = value;
-                dropdown.requestLayout();
-            });
-            animator.setDuration(300);
-            animator.start();
-            animator.addListener(new AnimatorListenerAdapter() {
-                @Override
-                public void onAnimationEnd(Animator animation) {
-                    dropdown.setVisibility(View.GONE);
-                }
-            });
-        } else {
-            dropdown.setVisibility(View.VISIBLE);
-            dropdown.measure(View.MeasureSpec.makeMeasureSpec(dropdown.getWidth(), View.MeasureSpec.EXACTLY),
-                    View.MeasureSpec.UNSPECIFIED);
-            int targetHeight = dropdown.getMeasuredHeight();
-            dropdown.getLayoutParams().height = 0;
-            ValueAnimator animator = ValueAnimator.ofInt(0, targetHeight);
-            animator.addUpdateListener(animation -> {
-                int value = (int) animation.getAnimatedValue();
-                dropdown.getLayoutParams().height = value;
-                dropdown.requestLayout();
-            });
-            animator.setDuration(300);
-            animator.start();
-        }
-    }
-
-    // Helper to setup button click to open activity
+    // Helper method to open another activity
     private void setupButton(int buttonId, Class<?> activityClass) {
         Button button = findViewById(buttonId);
         button.setOnClickListener(v -> startActivity(new Intent(AdminActivity.this, activityClass)));
     }
 
-    // Logout logic
+    // Logout
     private void logout() {
+        // Close sidebar first
+        if (drawerLayout.isDrawerOpen(android.view.Gravity.START)) {
+            drawerLayout.closeDrawer(android.view.Gravity.START);
+        }
+
+        // Clear session AND sign out from Firebase
         SessionManager sessionManager = new SessionManager(this);
         sessionManager.clearSession();
-        FirebaseAuth.getInstance().signOut();
+        auth.signOut();
 
+        Toast.makeText(this, "Logged out successfully", Toast.LENGTH_SHORT).show();
+
+        // Redirect to login screen
         Intent intent = new Intent(this, MainActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);

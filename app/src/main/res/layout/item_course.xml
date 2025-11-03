@@ -1,31 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
-    android:padding="8dp">
+    android:padding="16dp"
+    android:background="@drawable/item_background"
+    android:layout_margin="8dp">
 
-    <TextView
-        android:id="@+id/tvCourseName"
+    <!-- Course Info -->
+    <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:text="Course Name"
-        android:textSize="18sp" />
+        android:orientation="vertical">
 
-    <ImageButton
-        android:id="@+id/btnEditCourse"
+        <TextView
+            android:id="@+id/tvCourseName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Course Name"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="#003366" />
+
+        <TextView
+            android:id="@+id/tvCourseDetails"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Specialization - Year - Section"
+            android:textSize="12sp"
+            android:textColor="#666666"
+            android:layout_marginTop="4dp" />
+
+    </LinearLayout>
+
+    <!-- Action Buttons -->
+    <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:src="@android:drawable/ic_menu_edit"
-        android:contentDescription="Edit"
-        android:background="@null" />
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
 
-    <ImageButton
-        android:id="@+id/btnDeleteCourse"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:src="@android:drawable/ic_menu_delete"
-        android:contentDescription="Delete"
-        android:background="@null" />
+        <ImageButton
+            android:id="@+id/btnEditCourse"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@android:drawable/ic_menu_edit"
+            android:contentDescription="Edit Course"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:layout_marginEnd="8dp"
+            android:tint="#2196F3" />
+
+        <ImageButton
+            android:id="@+id/btnDeleteCourse"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@android:drawable/ic_menu_delete"
+            android:contentDescription="Delete Course"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:tint="#F44336" />
+
+    </LinearLayout>
 
 </LinearLayout>

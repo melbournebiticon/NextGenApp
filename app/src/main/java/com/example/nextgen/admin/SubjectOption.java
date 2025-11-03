@@ -7,7 +7,9 @@ public class SubjectOption {
     private String yearName;
     private String sectionName;
 
-    public SubjectOption() { }
+    public SubjectOption() {
+        // Default constructor required for Firebase
+    }
 
     public SubjectOption(String courseId, String courseName, String specializationName,
                          String yearName, String sectionName) {

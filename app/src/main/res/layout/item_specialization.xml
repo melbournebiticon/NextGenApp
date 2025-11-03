@@ -17,12 +17,16 @@
         android:id="@+id/editSpecializationBtn"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Edit" />
+        android:text="Edit"
+        android:backgroundTint="#1E88E5"
+        android:textColor="#FFFFFF"/>
 
     <Button
         android:id="@+id/deleteSpecializationBtn"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Delete"
-        android:layout_marginStart="8dp"/>
+        android:layout_marginStart="8dp"
+        android:backgroundTint="#FF5252"
+        android:textColor="#FFFFFF"/>
 </LinearLayout>

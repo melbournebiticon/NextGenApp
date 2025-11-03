@@ -5,20 +5,38 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
+    <!-- Course Name Input -->
+    <EditText
+        android:id="@+id/etCourseName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Enter Course Name"
+        android:padding="12dp"/>
+
+    <!-- Course Options Spinner -->
+    <Spinner
+        android:id="@+id/spinnerSection"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:spinnerMode="dropdown" />
+
     <!-- Add Course Button -->
     <Button
         android:id="@+id/btnAddCourse"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="12dp"
-        android:text="Add Course" />
+        android:text="Add Course"
+        android:layout_marginTop="12dp"
+        android:textColor="@android:color/white"
+        android:padding="12dp" />
 
     <!-- Divider -->
     <View
         android:layout_width="match_parent"
         android:layout_height="1dp"
         android:background="@android:color/darker_gray"
-        android:layout_marginBottom="12dp"/>
+        android:layout_marginVertical="12dp"/>
 
     <!-- Courses RecyclerView -->
     <androidx.recyclerview.widget.RecyclerView
@@ -28,4 +46,3 @@
         android:layout_weight="1" />
 
 </LinearLayout>
-

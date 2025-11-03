@@ -18,15 +18,10 @@
 
         <EditText
             android:id="@+id/etBirthday"
+            android:hint="Birthday (MM/DD/YYYY)"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Select Birthday"
-            android:focusable="false"
-            android:clickable="true"
-            android:inputType="none"
-            android:drawableEnd="@android:drawable/ic_menu_today"
-            android:paddingEnd="12dp" />
-
+            android:inputType="date"/>
 
         <EditText
             android:id="@+id/etEmail"

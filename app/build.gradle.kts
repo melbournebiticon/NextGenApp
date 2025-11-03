@@ -58,6 +58,7 @@ dependencies {
     implementation("com.google.firebase:firebase-firestore")
     implementation("com.google.firebase:firebase-storage")
     implementation("com.google.firebase:firebase-database")
+    implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
 
     // ✅ Room (for local database)
     implementation("androidx.room:room-runtime:2.6.1")

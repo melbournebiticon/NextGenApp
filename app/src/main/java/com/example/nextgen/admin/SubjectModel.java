@@ -1,10 +1,14 @@
 package com.example.nextgen.admin;
 
 public class SubjectModel {
-    private String id, code, name, courseId, courseName, specializationName, yearName, sectionName;
-
-    // 🔹 Add this field
-    private boolean selected = false;
+    public String id;
+    public String code;
+    public String name;
+    public String courseId;
+    public String courseName;
+    public String specializationName;
+    public String yearName;
+    public String sectionName;
 
     public SubjectModel() {}
 
@@ -18,7 +22,6 @@ public class SubjectModel {
         this.specializationName = specializationName;
         this.yearName = yearName;
         this.sectionName = sectionName;
-        this.selected = false; // default
     }
 
     public String getId() { return id; }
@@ -30,7 +33,11 @@ public class SubjectModel {
     public String getYearName() { return yearName; }
     public String getSectionName() { return sectionName; }
 
-    // 🔹 Add these for selection
-    public boolean isSelected() { return selected; }
-    public void setSelected(boolean selected) { this.selected = selected; }
+    public void setCode(String code) { this.code = code; }
+    public void setName(String name) { this.name = name; }
+    public void setCourseId(String courseId) { this.courseId = courseId; }
+    public void setCourseName(String courseName) { this.courseName = courseName; }
+    public void setSpecializationName(String specializationName) { this.specializationName = specializationName; }
+    public void setYearName(String yearName) { this.yearName = yearName; }
+    public void setSectionName(String sectionName) { this.sectionName = sectionName; }
 }

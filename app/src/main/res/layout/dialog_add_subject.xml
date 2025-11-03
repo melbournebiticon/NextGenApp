@@ -1,27 +1,86 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="vertical"
-    android:padding="16dp"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content">
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="20dp"
+    android:background="#FFFFFF">
 
+    <!-- Dialog Title -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Add New Subject"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:textColor="#003366"
+        android:gravity="center"
+        android:layout_marginBottom="16dp" />
+
+    <!-- Subject Code Input -->
     <EditText
         android:id="@+id/etSubjectCode"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Subject Code"/>
+        android:hint="Subject Code"
+        android:padding="12dp"
+        android:background="@android:drawable/edit_text"
+        android:layout_marginBottom="16dp" />
 
+    <!-- Subject Name Input -->
     <EditText
         android:id="@+id/etSubjectName"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="Subject Name"
-        android:layout_marginTop="8dp"/>
+        android:padding="12dp"
+        android:background="@android:drawable/edit_text"
+        android:layout_marginBottom="16dp" />
+
+    <!-- Course Options Spinner -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Select Course:"
+        android:textSize="14sp"
+        android:textColor="#333333"
+        android:layout_marginBottom="8dp" />
 
     <Spinner
         android:id="@+id/spinnerCourseOption"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"/>
+        android:layout_marginBottom="20dp"
+        android:spinnerMode="dropdown" />
+
+    <!-- Buttons -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="end">
+
+        <Button
+            android:id="@+id/btnCancelSubject"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Cancel"
+            android:textColor="#666666"
+            android:background="@android:color/transparent"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:layout_marginEnd="8dp" />
+
+        <Button
+            android:id="@+id/btnSaveSubject"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Save"
+            android:backgroundTint="#003366"
+            android:textColor="#FFFFFF"
+            android:paddingStart="24dp"
+            android:paddingEnd="24dp" />
+
+    </LinearLayout>
 
 </LinearLayout>

@@ -1,75 +1,67 @@
-package com.example.nextgen.admin;
+package com.example.nextgen.adapter;
 
-import android.app.AlertDialog;
-import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.TextView;
-import android.widget.Toast;
-
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
-
 import com.example.nextgen.R;
+import com.example.nextgen.model.YearModel;
+import com.example.nextgen.admin.YearsActivity;
 import com.google.firebase.database.DatabaseReference;
-
 import java.util.ArrayList;
 
 public class YearsAdapter extends RecyclerView.Adapter<YearsAdapter.ViewHolder> {
 
-    ArrayList<YearModel> list;
-    Context context;
-    DatabaseReference dbRef;
-    YearsActivity activity;
+    private ArrayList<YearModel> list;
+    private YearsActivity activity;
+    private DatabaseReference dbRef;
 
     public YearsAdapter(ArrayList<YearModel> list, YearsActivity activity, DatabaseReference dbRef) {
         this.list = list;
         this.activity = activity;
-        this.context = activity;
         this.dbRef = dbRef;
     }
 
     @NonNull
     @Override
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View view = LayoutInflater.from(context).inflate(R.layout.item_year, parent, false);
+        View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_year, parent, false);
         return new ViewHolder(view);
     }
 
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         YearModel model = list.get(position);
-        holder.name.setText(model.getName());
+        holder.yearName.setText(model.getName());
 
-        holder.deleteBtn.setOnClickListener(v -> {
-            new AlertDialog.Builder(context)
-                    .setTitle("Delete")
-                    .setMessage("Delete this year?")
-                    .setPositiveButton("Yes", (dialog, which) -> {
-                        dbRef.child(model.getId()).removeValue();
-                        Toast.makeText(context, "Deleted", Toast.LENGTH_SHORT).show();
-                    })
-                    .setNegativeButton("No", null)
-                    .show();
+        holder.editBtn.setOnClickListener(v -> {
+            activity.showAddEditDialog(model.getId(), model.getName());
         });
 
-        holder.editBtn.setOnClickListener(v -> activity.showAddEditDialog(model.getId(), model.getName()));
+        holder.deleteBtn.setOnClickListener(v -> {
+            if (model.getId() != null) {
+                dbRef.child(model.getId()).removeValue();
+            }
+        });
     }
 
     @Override
-    public int getItemCount() { return list.size(); }
+    public int getItemCount() {
+        return list.size();
+    }
 
     public static class ViewHolder extends RecyclerView.ViewHolder {
-        TextView name;
-        Button deleteBtn, editBtn;
+        TextView yearName;
+        Button editBtn, deleteBtn;
 
         public ViewHolder(@NonNull View itemView) {
             super(itemView);
-            name = itemView.findViewById(R.id.yearItemName);
-            deleteBtn = itemView.findViewById(R.id.deleteYearBtn);
+            yearName = itemView.findViewById(R.id.yearItemName);
             editBtn = itemView.findViewById(R.id.editYearBtn);
+            deleteBtn = itemView.findViewById(R.id.deleteYearBtn);
         }
     }
 }
