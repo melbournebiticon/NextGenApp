@@ -30,6 +30,24 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+
+    // ✅ Ensure .tflite model is not excluded or compressed
+    packaging {
+        resources {
+            // Remove exclude if you want to use yamnet.tflite or other models
+            excludes -= "**/yamnet.tflite"
+        }
+    }
+
+    // ✅ Allow .tflite to be packed properly
+    aaptOptions {
+        noCompress += "tflite"
+    }
+
+    // ✅ Keep model binding for ML models
+    buildFeatures {
+        mlModelBinding = true
+    }
 }
 
 dependencies {
@@ -43,6 +61,7 @@ dependencies {
 
     // ✅ Room (for local database)
     implementation("androidx.room:room-runtime:2.6.1")
+    implementation(libs.tensorflow.lite.metadata)
     annotationProcessor("androidx.room:room-compiler:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
 
@@ -66,4 +85,9 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
+
+    // ✅ Add TensorFlow Lite dependencies
+    implementation("org.tensorflow:tensorflow-lite:2.12.0")
+    implementation("org.tensorflow:tensorflow-lite-support:0.4.0")
+    implementation("org.tensorflow:tensorflow-lite-task-audio:0.4.0")
 }

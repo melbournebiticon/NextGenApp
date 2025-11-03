@@ -20,8 +20,10 @@
             android:id="@+id/etEditBirthday"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Birthday (YYYY-MM-DD)"
-            android:inputType="date" />
+            android:hint="Birthday (MM/DD/YY)"
+            android:focusable="false"
+            android:clickable="true"
+            android:inputType="none" />
 
         <EditText
             android:id="@+id/etEditEmail"
