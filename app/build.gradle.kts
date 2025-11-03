@@ -31,16 +31,23 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
 
-
+    // ✅ Ensure .tflite model is not excluded or compressed
     packaging {
         resources {
-            excludes += "**/yamnet.tflite"
+            // Remove exclude if you want to use yamnet.tflite or other models
+            excludes -= "**/yamnet.tflite"
         }
     }
+
+    // ✅ Allow .tflite to be packed properly
+    aaptOptions {
+        noCompress += "tflite"
+    }
+
+    // ✅ Keep model binding for ML models
     buildFeatures {
         mlModelBinding = true
     }
-
 }
 
 dependencies {
@@ -70,10 +77,6 @@ dependencies {
     implementation("org.apache.poi:poi-ooxml:5.2.3")
     implementation("com.tom-roush:pdfbox-android:2.0.27.0")
 
-    implementation("org.tensorflow:tensorflow-lite:2.14.0")
-    implementation("org.tensorflow:tensorflow-lite-support:0.4.4")
-    implementation("org.tensorflow:tensorflow-lite-task-audio:0.4.4")
-
     // ✅ AndroidX UI
     implementation(libs.appcompat)
     implementation(libs.material)
@@ -82,4 +85,9 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
+
+    // ✅ Add TensorFlow Lite dependencies
+    implementation("org.tensorflow:tensorflow-lite:2.12.0")
+    implementation("org.tensorflow:tensorflow-lite-support:0.4.0")
+    implementation("org.tensorflow:tensorflow-lite-task-audio:0.4.0")
 }
