@@ -30,6 +30,17 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+
+
+    packaging {
+        resources {
+            excludes += "**/yamnet.tflite"
+        }
+    }
+    buildFeatures {
+        mlModelBinding = true
+    }
+
 }
 
 dependencies {
@@ -43,6 +54,7 @@ dependencies {
 
     // ✅ Room (for local database)
     implementation("androidx.room:room-runtime:2.6.1")
+    implementation(libs.tensorflow.lite.metadata)
     annotationProcessor("androidx.room:room-compiler:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
 
@@ -57,6 +69,10 @@ dependencies {
     implementation("org.apache.poi:poi:5.2.3")
     implementation("org.apache.poi:poi-ooxml:5.2.3")
     implementation("com.tom-roush:pdfbox-android:2.0.27.0")
+
+    implementation("org.tensorflow:tensorflow-lite:2.14.0")
+    implementation("org.tensorflow:tensorflow-lite-support:0.4.4")
+    implementation("org.tensorflow:tensorflow-lite-task-audio:0.4.4")
 
     // ✅ AndroidX UI
     implementation(libs.appcompat)

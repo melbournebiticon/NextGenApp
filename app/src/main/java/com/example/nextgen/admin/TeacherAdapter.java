@@ -1,14 +1,19 @@
 package com.example.nextgen.admin;
 
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.util.Base64;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.ImageButton;
+
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
-
 
 import com.example.nextgen.R;
 
@@ -18,7 +23,7 @@ import java.util.List;
 public class TeacherAdapter extends RecyclerView.Adapter<TeacherAdapter.TeacherViewHolder> {
 
     private final List<TeacherModel> teacherList;
-    private final OnTeacherActionListener actionListener; // 🔹 Callback for Update/Delete
+    private final OnTeacherActionListener actionListener;
 
     public TeacherAdapter(List<TeacherModel> teacherList, OnTeacherActionListener actionListener) {
         this.teacherList = teacherList != null ? teacherList : new ArrayList<>();
@@ -40,33 +45,38 @@ public class TeacherAdapter extends RecyclerView.Adapter<TeacherAdapter.TeacherV
         holder.tvTeacherId.setText(teacher.getId() != null ? teacher.getId() : "N/A");
         holder.tvDisplayName.setText(teacher.getDisplayName() != null ? teacher.getDisplayName() : "N/A");
         holder.tvFullName.setText(teacher.getFullName() != null ? teacher.getFullName() : "N/A");
-        List<String> courses = teacher.getCourseDisplays();
-        if (courses != null && !courses.isEmpty()) {
-            holder.tvCourse.setText(String.join("\n", courses));
-        } else {
-            holder.tvCourse.setText("No courses assigned");
-        }
-
         holder.tvEmail.setText(teacher.getEmail() != null ? teacher.getEmail() : "N/A");
 
+        List<String> courses = teacher.getCourseDisplays();
+        holder.tvCourse.setText((courses != null && !courses.isEmpty())
+                ? String.join("\n", courses)
+                : "No courses assigned");
+
         List<String> subjects = teacher.getAssignedSubjects();
-        if (subjects != null && !subjects.isEmpty()) {
-            holder.tvSubjects.setText(String.join(", ", subjects));
+        holder.tvSubjects.setText((subjects != null && !subjects.isEmpty())
+                ? String.join(", ", subjects)
+                : "No subjects assigned");
+
+        // ✅ Load profile image
+        if (teacher.getProfileImage() != null && !teacher.getProfileImage().isEmpty()) {
+            try {
+                byte[] decodedBytes = Base64.decode(teacher.getProfileImage(), Base64.DEFAULT);
+                Bitmap bitmap = BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.length);
+                holder.ivProfile.setImageBitmap(bitmap);
+            } catch (Exception e) {
+                holder.ivProfile.setImageResource(R.drawable.examinee_default); // fallback
+            }
         } else {
-            holder.tvSubjects.setText("No subjects assigned");
+            holder.ivProfile.setImageResource(R.drawable.examinee_default);
         }
 
         // 🔹 Button click listeners
         holder.btnUpdate.setOnClickListener(v -> {
-            if (actionListener != null) {
-                actionListener.onUpdate(teacher);
-            }
+            if (actionListener != null) actionListener.onUpdate(teacher);
         });
 
         holder.btnDelete.setOnClickListener(v -> {
-            if (actionListener != null) {
-                actionListener.onDelete(teacher);
-            }
+            if (actionListener != null) actionListener.onDelete(teacher);
         });
     }
 
@@ -77,7 +87,8 @@ public class TeacherAdapter extends RecyclerView.Adapter<TeacherAdapter.TeacherV
 
     public static class TeacherViewHolder extends RecyclerView.ViewHolder {
         TextView tvTeacherId, tvDisplayName, tvFullName, tvCourse, tvEmail, tvSubjects;
-        Button btnUpdate, btnDelete;
+        ImageView ivProfile;
+        ImageButton btnUpdate, btnDelete;
 
         public TeacherViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -87,6 +98,7 @@ public class TeacherAdapter extends RecyclerView.Adapter<TeacherAdapter.TeacherV
             tvCourse = itemView.findViewById(R.id.tvCourse);
             tvEmail = itemView.findViewById(R.id.tvEmail);
             tvSubjects = itemView.findViewById(R.id.tvSubjects);
+            ivProfile = itemView.findViewById(R.id.ivProfile); // 👈 Make sure this exists in XML
             btnUpdate = itemView.findViewById(R.id.btnUpdateTeacher);
             btnDelete = itemView.findViewById(R.id.btnDeleteTeacher);
         }
@@ -97,5 +109,4 @@ public class TeacherAdapter extends RecyclerView.Adapter<TeacherAdapter.TeacherV
         void onUpdate(TeacherModel teacher);
         void onDelete(TeacherModel teacher);
     }
-
 }

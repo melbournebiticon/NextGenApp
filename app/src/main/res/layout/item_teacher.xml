@@ -1,67 +1,103 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="vertical"
-    android:padding="12dp"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:elevation="2dp">
+    android:orientation="horizontal"
+    android:padding="12dp"
+    android:gravity="center_vertical"
+    android:background="@android:color/white"
+    android:elevation="2dp"
+    android:layout_marginBottom="8dp">
 
-    <TextView
-        android:id="@+id/tvTeacherId"
-        android:textStyle="bold"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content" />
+    <!-- 👤 Profile Image -->
+    <ImageView
+        android:id="@+id/ivProfile"
+        android:layout_width="60dp"
+        android:layout_height="60dp"
+        android:layout_marginEnd="12dp"
+        android:src="@drawable/examinee_default"
+        android:scaleType="centerCrop"
+        android:background="@drawable/profile_circle_background"
+        android:contentDescription="Teacher profile image" />
 
-    <TextView
-        android:id="@+id/tvDisplayName"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content" />
-
-    <TextView
-        android:id="@+id/tvFullName"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content" />
-
-    <TextView
-        android:id="@+id/tvEmail"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content" />
-
-    <TextView
-        android:id="@+id/tvCourse"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content" />
-
-    <TextView
-        android:id="@+id/tvSubjects"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp" />
-
-    <!-- 🔹 Action buttons for Update/Delete -->
+    <!-- 📄 Info section -->
     <LinearLayout
-        android:layout_width="match_parent"
+        android:orientation="vertical"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="end"
-        android:layout_marginTop="8dp">
+        android:layout_weight="1">
 
-        <Button
-            android:id="@+id/btnUpdateTeacher"
+        <TextView
+            android:id="@+id/tvTeacherId"
+            android:text="Teacher ID"
+            android:textStyle="bold"
+            android:textSize="13sp"
+            android:textColor="#000000"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+
+        <TextView
+            android:id="@+id/tvDisplayName"
+            android:text="Display Name"
+            android:textSize="14sp"
+            android:textColor="#333333"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+
+        <TextView
+            android:id="@+id/tvFullName"
+            android:text="Full Name"
+            android:textSize="14sp"
+            android:textColor="#333333"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+
+        <TextView
+            android:id="@+id/tvEmail"
+            android:text="Email"
+            android:textSize="13sp"
+            android:textColor="#555555"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Update"
-            android:textSize="12sp"
-            android:padding="6dp" />
+            android:layout_marginTop="2dp" />
 
-        <Button
-            android:id="@+id/btnDeleteTeacher"
+        <TextView
+            android:id="@+id/tvCourse"
+            android:text="Course"
+            android:textSize="13sp"
+            android:textColor="#444444"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Delete"
-            android:textSize="12sp"
-            android:padding="6dp"
-            android:layout_marginStart="8dp" />
+            android:layout_marginTop="2dp" />
+
+        <TextView
+            android:id="@+id/tvSubjects"
+            android:text="Subjects"
+            android:textSize="13sp"
+            android:textColor="#444444"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp" />
+
     </LinearLayout>
+
+    <!-- ✏️ Update Button -->
+    <ImageButton
+        android:id="@+id/btnUpdateTeacher"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:src="@android:drawable/ic_menu_edit"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="Update Teacher" />
+
+    <!-- ❌ Delete Button -->
+    <ImageButton
+        android:id="@+id/btnDeleteTeacher"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:src="@android:drawable/ic_menu_delete"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="Delete Teacher"
+        android:layout_marginStart="4dp" />
 
 </LinearLayout>
