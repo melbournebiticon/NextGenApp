@@ -79,11 +79,13 @@ public class StudentActivity extends AppCompatActivity {
 
             DatePickerDialog datePicker = new DatePickerDialog(StudentActivity.this,
                     (view, selectedYear, selectedMonth, selectedDay) -> {
-                        // Month is 0-based in Calendar
-                        String formattedDate = String.format("%04d-%02d-%02d", selectedYear, selectedMonth + 1, selectedDay);
+                        // Format MM/DD/YYYY
+                        String formattedDate = String.format("%02d/%02d/%04d",
+                                selectedMonth + 1, selectedDay, selectedYear);
                         etBirthday.setText(formattedDate);
                     }, year, month, day);
             datePicker.show();
+
         });
 
 
@@ -208,7 +210,32 @@ public class StudentActivity extends AppCompatActivity {
 
         generateStudentId(studentId -> {
             // Auto password from birthday: YYYYMMDD
-            String password = birthday.replaceAll("[^0-9]", "");
+            // Accept both MM/DD/YYYY or YYYY-MM-DD formats
+            String cleanedBirthday = birthday.replace("-", "/");
+            String[] parts = cleanedBirthday.split("/");
+
+            String month = "";
+            String day = "";
+            String year = "";
+
+            if (parts.length == 3) {
+                // detect format
+                if (birthday.contains("-")) {
+                    // YYYY-MM-DD
+                    year = parts[0];
+                    month = parts[1];
+                    day = parts[2];
+                } else {
+                    // MM/DD/YYYY
+                    month = parts[0];
+                    day = parts[1];
+                    year = parts[2];
+                }
+            }
+
+// Format password as MMDDYYYY
+            String password = month + day + year;
+
 
             StudentModel student = new StudentModel(
                     studentId,
@@ -317,6 +344,31 @@ public class StudentActivity extends AppCompatActivity {
 
         EditText etEditFullName = dialogView.findViewById(R.id.etEditFullName);
         EditText etEditBirthday = dialogView.findViewById(R.id.etEditBirthday);
+        etEditBirthday.setOnClickListener(v -> {
+            Calendar calendar = Calendar.getInstance();
+            if (!TextUtils.isEmpty(etEditBirthday.getText().toString())) {
+                try {
+                    String[] parts = etEditBirthday.getText().toString().split("-");
+                    int y = Integer.parseInt(parts[0]);
+                    int m = Integer.parseInt(parts[1]) - 1;
+                    int d = Integer.parseInt(parts[2]);
+                    calendar.set(y, m, d);
+                } catch (Exception ignored) {}
+            }
+            int year = calendar.get(Calendar.YEAR);
+            int month = calendar.get(Calendar.MONTH);
+            int day = calendar.get(Calendar.DAY_OF_MONTH);
+
+            DatePickerDialog datePicker = new DatePickerDialog(StudentActivity.this,
+                    (view, selectedYear, selectedMonth, selectedDay) -> {
+                        String formattedDate = String.format("%04d-%02d-%02d",
+                                selectedYear, selectedMonth + 1, selectedDay);
+                        etEditBirthday.setText(formattedDate);
+                    }, year, month, day);
+            datePicker.show();
+        });
+
+
         EditText etEditEmail = dialogView.findViewById(R.id.etEditEmail);
         EditText etEditContact = dialogView.findViewById(R.id.etEditContact);
         Spinner spEditCourse = dialogView.findViewById(R.id.spinnerEditCourses);

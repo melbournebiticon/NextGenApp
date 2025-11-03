@@ -23,6 +23,9 @@ import android.widget.TextView;   // ← add this
 import java.io.ByteArrayOutputStream;
 import android.graphics.Bitmap;
 import android.util.Base64;
+import android.app.DatePickerDialog;
+import java.util.Calendar;
+
 
 
 import androidx.annotation.NonNull;
@@ -59,6 +62,7 @@ public class TeacherActivity extends AppCompatActivity {
     private DatabaseReference teachersRef, coursesRef, subjectsRef, usersRef;
     private FirebaseAuth auth;
 
+
     private SubjectSelectionAdapter subjectAdapter;
     private TeacherAdapter teacherAdapter;
     private CourseSelectionAdapter courseSelectionAdapter;
@@ -94,10 +98,34 @@ public class TeacherActivity extends AppCompatActivity {
 
             @Override
             public void onDelete(TeacherModel teacher) {
-                teachersRef.child(teacher.getId()).removeValue()
-                        .addOnSuccessListener(aVoid -> Toast.makeText(TeacherActivity.this, "Teacher deleted", Toast.LENGTH_SHORT).show())
-                        .addOnFailureListener(e -> Toast.makeText(TeacherActivity.this, "Delete failed: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+                new AlertDialog.Builder(TeacherActivity.this)
+                        .setTitle("Delete Teacher")
+                        .setMessage("Are you sure you want to delete " + teacher.getFullName() + "?")
+                        .setPositiveButton("Yes", (dialog, which) -> {
+                            // Delete from "Users"
+                            if (teacher.getUid() != null && !teacher.getUid().isEmpty()) {
+                                usersRef.child(teacher.getUid()).removeValue()
+                                        .addOnSuccessListener(aVoid -> {
+                                            // Delete from "Teachers"
+                                            teachersRef.child(teacher.getId()).removeValue()
+                                                    .addOnSuccessListener(aVoid2 ->
+                                                            Toast.makeText(TeacherActivity.this, "Teacher deleted", Toast.LENGTH_SHORT).show()
+                                                    )
+                                                    .addOnFailureListener(e ->
+                                                            Toast.makeText(TeacherActivity.this, "Failed to delete teacher record: " + e.getMessage(), Toast.LENGTH_SHORT).show()
+                                                    );
+                                        })
+                                        .addOnFailureListener(e ->
+                                                Toast.makeText(TeacherActivity.this, "Failed to delete user record: " + e.getMessage(), Toast.LENGTH_SHORT).show()
+                                        );
+                            }
+                        })
+                        .setNegativeButton("Cancel", null)
+                        .show();
             }
+
+
+
         });
         recyclerTeachers.setAdapter(teacherAdapter);
 
@@ -144,6 +172,21 @@ public class TeacherActivity extends AppCompatActivity {
 
         EditText etFullNameDialog = dialogView.findViewById(R.id.etFullName);
         EditText etBirthdayDialog = dialogView.findViewById(R.id.etBirthday);
+        etBirthdayDialog.setOnClickListener(v -> {
+            Calendar calendar = Calendar.getInstance();
+            int year = calendar.get(Calendar.YEAR);
+            int month = calendar.get(Calendar.MONTH);
+            int day = calendar.get(Calendar.DAY_OF_MONTH);
+
+            DatePickerDialog datePicker = new DatePickerDialog(TeacherActivity.this,
+                    (view, selectedYear, selectedMonth, selectedDay) -> {
+                        String formattedDate = String.format("%04d-%02d-%02d",
+                                selectedYear, selectedMonth + 1, selectedDay);
+                        etBirthdayDialog.setText(formattedDate);
+                    }, year, month, day);
+
+            datePicker.show();
+        });
         EditText etEmailDialog = dialogView.findViewById(R.id.etEmail);
         RecyclerView recyclerCourseDialog = dialogView.findViewById(R.id.recyclerCourseSelection);
         RecyclerView recyclerSubjectsDialog = dialogView.findViewById(R.id.recyclerSubjects);
@@ -243,7 +286,12 @@ public class TeacherActivity extends AppCompatActivity {
 
                     // Generate teacher ID and create teacher
                     generateTeacherId(teacherId -> {
-                        String password = birthday.replaceAll("[^0-9]", "");
+                        String[] parts = birthday.split("-"); // [YYYY, MM, DD]
+                        String year = parts[0];  // kunin last 2 digits ng year
+                        String month = parts[1];
+                        String day = parts[2];
+                        String password = month + day + year; // MMDDYY format
+
                         List<String> courseIds = new ArrayList<>();
                         List<String> courseDisplays = new ArrayList<>();
                         for (CourseModel c : selectedCourses) {
@@ -267,20 +315,33 @@ public class TeacherActivity extends AppCompatActivity {
                                 courseIds,
                                 courseDisplays,
                                 assignedSubjects,
-                                password
+                                password,
+                                null
                         );
 
                         auth.createUserWithEmailAndPassword(email, password)
                                 .addOnCompleteListener(authTask -> {
                                     if (authTask.isSuccessful()) {
                                         FirebaseUser firebaseUser = authTask.getResult().getUser();
-                                        usersRef.child(firebaseUser.getUid()).child("role").setValue("teacher");
+                                        String uid = firebaseUser.getUid(); // ✅ get actual UID
+                                        teacher.setUid(uid); // ✅ assign UID to the object
+
+                                        // Save role under "Users"
+                                        usersRef.child(uid).child("role").setValue("teacher");
+
+                                        // Save full teacher record
                                         teachersRef.child(teacherId).setValue(teacher)
-                                                .addOnSuccessListener(aVoid -> Toast.makeText(this, "Teacher added", Toast.LENGTH_SHORT).show());
+                                                .addOnSuccessListener(aVoid ->
+                                                        Toast.makeText(this, "Teacher added successfully", Toast.LENGTH_SHORT).show()
+                                                )
+                                                .addOnFailureListener(e ->
+                                                        Toast.makeText(this, "Failed to save teacher: " + e.getMessage(), Toast.LENGTH_SHORT).show()
+                                                );
                                     } else {
                                         Toast.makeText(this, "Auth failed: " + authTask.getException().getMessage(), Toast.LENGTH_SHORT).show();
                                     }
                                 });
+
                     });
                 })
                 .setNegativeButton("Cancel", null)
@@ -383,7 +444,8 @@ public class TeacherActivity extends AppCompatActivity {
                     courseIds,
                     courseDisplays,
                     assignedSubjects,
-                    password
+                    password,
+                    null
             );
 
             auth.createUserWithEmailAndPassword(email, password)
@@ -504,6 +566,33 @@ public class TeacherActivity extends AppCompatActivity {
 
         EditText etEditFullName = dialogView.findViewById(R.id.etEditFullName);
         EditText etEditBirthday = dialogView.findViewById(R.id.etEditBirthday);
+        etEditBirthday.setOnClickListener(v -> {
+            Calendar calendar = Calendar.getInstance();
+
+            // Preload current birthday if available
+            if (!TextUtils.isEmpty(etEditBirthday.getText().toString())) {
+                try {
+                    String[] parts = etEditBirthday.getText().toString().split("-");
+                    int y = Integer.parseInt(parts[0]);
+                    int m = Integer.parseInt(parts[1]) - 1; // months start at 0
+                    int d = Integer.parseInt(parts[2]);
+                    calendar.set(y, m, d);
+                } catch (Exception ignored) {}
+            }
+
+            int year = calendar.get(Calendar.YEAR);
+            int month = calendar.get(Calendar.MONTH);
+            int day = calendar.get(Calendar.DAY_OF_MONTH);
+
+            DatePickerDialog datePicker = new DatePickerDialog(TeacherActivity.this,
+                    (view, selectedYear, selectedMonth, selectedDay) -> {
+                        String formattedDate = String.format("%04d-%02d-%02d", selectedYear, selectedMonth + 1, selectedDay);
+                        etEditBirthday.setText(formattedDate);
+                    }, year, month, day);
+
+            datePicker.show();
+        });
+
         EditText etEditEmail = dialogView.findViewById(R.id.etEditEmail);
         RecyclerView recyclerEditCourses = dialogView.findViewById(R.id.recyclerEditCourses);
         RecyclerView recyclerEditSubjects = dialogView.findViewById(R.id.recyclerEditSubjects);
