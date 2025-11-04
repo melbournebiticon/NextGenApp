@@ -38,6 +38,7 @@ public class CourseModel {
     public String getYearId() { return yearId; }
     public void setYearId(String yearId) { this.yearId = yearId; }
 
+
     public String getSectionId() { return sectionId; }
     public void setSectionId(String sectionId) { this.sectionId = sectionId; }
 
@@ -45,6 +46,10 @@ public class CourseModel {
     public String getSpecializationName() { return specializationName; }
     public String getYearName() { return yearName; }
     public String getSectionName() { return sectionName; }
+
+    public void setYearName(String yearName) { this.yearName = yearName; }
+    public void setSpecializationName(String specializationName) { this.specializationName = specializationName; }
+    public void setSectionName(String sectionName) { this.sectionName = sectionName; }
 
     // Optional: add getters/setters if needed
 }

@@ -51,6 +51,7 @@ android {
 }
 
 dependencies {
+    implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
     // ✅ Firebase BOM - ensures consistent versions
     implementation(platform("com.google.firebase:firebase-bom:34.4.0"))
     implementation("com.google.firebase:firebase-analytics")

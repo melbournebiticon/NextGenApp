@@ -45,7 +45,7 @@ public class StudentActivity extends AppCompatActivity {
 
 
     private EditText etFullName, etBirthday, etEmail, etContact;
-    private Spinner spinnerCourses;
+
     private RecyclerView recyclerStudents;
     private Button btnAddStudent;
 
@@ -62,31 +62,10 @@ public class StudentActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_student);
 
-        // UI
-        etFullName = findViewById(R.id.etFullName);
-        etBirthday = findViewById(R.id.etBirthday);
-        etEmail = findViewById(R.id.etEmail);
-        etContact = findViewById(R.id.etContact);
-        spinnerCourses = findViewById(R.id.spinnerCourses);
         recyclerStudents = findViewById(R.id.recyclerStudents);
         btnAddStudent = findViewById(R.id.btnAddStudent);
 
-        etBirthday.setOnClickListener(v -> {
-            Calendar calendar = Calendar.getInstance();
-            int year = calendar.get(Calendar.YEAR);
-            int month = calendar.get(Calendar.MONTH);
-            int day = calendar.get(Calendar.DAY_OF_MONTH);
 
-            DatePickerDialog datePicker = new DatePickerDialog(StudentActivity.this,
-                    (view, selectedYear, selectedMonth, selectedDay) -> {
-                        // Format MM/DD/YYYY
-                        String formattedDate = String.format("%02d/%02d/%04d",
-                                selectedMonth + 1, selectedDay, selectedYear);
-                        etBirthday.setText(formattedDate);
-                    }, year, month, day);
-            datePicker.show();
-
-        });
 
 
         recyclerStudents.setLayoutManager(new LinearLayoutManager(this));
@@ -160,9 +139,9 @@ public class StudentActivity extends AppCompatActivity {
             public void onCancelled(@NonNull DatabaseError error) {}
         });
 
-        loadCourses();
 
-        btnAddStudent.setOnClickListener(v -> addStudent());
+        btnAddStudent.setOnClickListener(v -> addStudentDialog());
+
     }
 
     private void loadCourses() {
@@ -185,7 +164,6 @@ public class StudentActivity extends AppCompatActivity {
                 ArrayAdapter<String> adapter = new ArrayAdapter<>(StudentActivity.this,
                         android.R.layout.simple_spinner_item, displayNames);
                 adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-                spinnerCourses.setAdapter(adapter);
             }
 
             @Override
@@ -193,99 +171,132 @@ public class StudentActivity extends AppCompatActivity {
         });
     }
 
-    private void addStudent() {
-        String fullName = etFullName.getText().toString().trim();
-        String birthday = etBirthday.getText().toString().trim();
-        String email = etEmail.getText().toString().trim();
-        String contact = etContact.getText().toString().trim();
-        int coursePos = spinnerCourses.getSelectedItemPosition();
+    private void addStudentDialog() {
+        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_student_add, null);
 
-        if (TextUtils.isEmpty(fullName) || TextUtils.isEmpty(birthday) ||
-                TextUtils.isEmpty(email) || TextUtils.isEmpty(contact) || coursePos < 0) {
-            Toast.makeText(this, "Complete all fields", Toast.LENGTH_SHORT).show();
-            return;
-        }
+        EditText etFullName = dialogView.findViewById(R.id.etFullName);
+        EditText etBirthday = dialogView.findViewById(R.id.etBirthday);
+        EditText etEmail = dialogView.findViewById(R.id.etEmail);
+        EditText etContact = dialogView.findViewById(R.id.etContact);
+        Spinner spCourse = dialogView.findViewById(R.id.spinnerCourses);
+        ImageView ivProfile = dialogView.findViewById(R.id.ivProfile);
 
-        CourseModel selectedCourse = courseOptionList.get(coursePos);
+        // Birthday picker
+        etBirthday.setOnClickListener(v -> {
+            Calendar calendar = Calendar.getInstance();
+            int year = calendar.get(Calendar.YEAR);
+            int month = calendar.get(Calendar.MONTH);
+            int day = calendar.get(Calendar.DAY_OF_MONTH);
 
-        generateStudentId(studentId -> {
-            // Auto password from birthday: YYYYMMDD
-            // Accept both MM/DD/YYYY or YYYY-MM-DD formats
-            String cleanedBirthday = birthday.replace("-", "/");
-            String[] parts = cleanedBirthday.split("/");
+            DatePickerDialog picker = new DatePickerDialog(this, (view, y, m, d) -> {
+                etBirthday.setText(String.format("%04d-%02d-%02d", y, m+1, d));
+            }, year, month, day);
+            picker.show();
+        });
 
-            String month = "";
-            String day = "";
-            String year = "";
-
-            if (parts.length == 3) {
-                // detect format
-                if (birthday.contains("-")) {
-                    // YYYY-MM-DD
-                    year = parts[0];
-                    month = parts[1];
-                    day = parts[2];
-                } else {
-                    // MM/DD/YYYY
-                    month = parts[0];
-                    day = parts[1];
-                    year = parts[2];
+        // Load courses dynamically from Firebase
+        coursesRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                courseOptionList.clear();
+                List<String> courseNames = new ArrayList<>();
+                for (DataSnapshot ds : snapshot.getChildren()) {
+                    CourseModel c = ds.getValue(CourseModel.class);
+                    if (c != null) {
+                        courseOptionList.add(c);
+                        courseNames.add(c.getCourseName() + " - " +
+                                c.getSpecializationName() + " - " +
+                                c.getYearName() + " - " +
+                                c.getSectionName());
+                    }
                 }
+
+                ArrayAdapter<String> adapter = new ArrayAdapter<>(
+                        StudentActivity.this,
+                        android.R.layout.simple_spinner_item,
+                        courseNames
+                );
+                adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                spCourse.setAdapter(adapter);
             }
 
-// Format password as MMDDYYYY
-            String password = month + day + year;
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {}
+        });
 
 
-            StudentModel student = new StudentModel(
-                    studentId,
-                    fullName,
-                    birthday,
-                    email,
-                    contact,
-                    selectedCourse.getId(),
-                    selectedCourse.getCourseName(),
-                    selectedCourse.getSpecializationName(),
-                    selectedCourse.getYearName(),
-                    selectedCourse.getSectionName(),
-                    "",            // profileImage
-                    password,
-                    ""             // uid
-            );
+        // Create AlertDialog
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setView(dialogView)
+                .setTitle("Add Student")
+                .setPositiveButton("Add", null)
+                .setNegativeButton("Cancel", (d, which) -> d.dismiss())
+                .create();
 
+        dialog.show();
 
-            auth.createUserWithEmailAndPassword(email, password)
-                    .addOnCompleteListener(authTask -> {
-                        if (authTask.isSuccessful()) {
-                            FirebaseUser firebaseUser = authTask.getResult().getUser();
-                            String uid = firebaseUser.getUid();
+        // Override positive button to prevent auto-dismiss
+        Button btnAdd = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+        btnAdd.setOnClickListener(v -> {
+            String fullName = etFullName.getText().toString().trim();
+            String birthday = etBirthday.getText().toString().trim();
+            String email = etEmail.getText().toString().trim();
+            String contact = etContact.getText().toString().trim();
+            int coursePos = spCourse.getSelectedItemPosition();
 
-                            // Save role in Users node
-                            usersRef.child(uid).child("role").setValue("student");
-                            usersRef.child(uid).child("studentId").setValue(studentId);
+            if (fullName.isEmpty() || birthday.isEmpty() || email.isEmpty() || contact.isEmpty() || coursePos < 0) {
+                Toast.makeText(this, "Complete all fields", Toast.LENGTH_SHORT).show();
+                return;
+            }
 
-                            // Attach UID to student model
-                            student.setUid(uid);
+            CourseModel selectedCourse = courseOptionList.get(coursePos);
 
-                            // Save student in Students node
-                            studentsRef.child(studentId).setValue(student)
-                                    .addOnSuccessListener(aVoid -> {
-                                        Toast.makeText(this, "Student added", Toast.LENGTH_SHORT).show();
-                                        etFullName.setText("");
-                                        etBirthday.setText("");
-                                        etEmail.setText("");
-                                        etContact.setText("");
-                                    })
-                                    .addOnFailureListener(e ->
-                                            Toast.makeText(this, "Failed: " + e.getMessage(), Toast.LENGTH_SHORT).show()
-                                    );
-                        } else {
-                            Toast.makeText(this, "Auth failed: " + authTask.getException().getMessage(), Toast.LENGTH_SHORT).show();
-                        }
-                    });
+            // Generate student ID and password
+            generateStudentId(studentId -> {
+                String[] parts = birthday.split("-");
+                String password = parts.length == 3 ? parts[1] + parts[2] + parts[0] : "123456"; // MMDDYYYY fallback
 
+                StudentModel student = new StudentModel(
+                        studentId,
+                        fullName,
+                        birthday,
+                        email,
+                        contact,
+                        selectedCourse.getId(),
+                        selectedCourse.getCourseName(),
+                        selectedCourse.getSpecializationName(),
+                        selectedCourse.getYearName(),
+                        selectedCourse.getSectionName(),
+                        "", // profileImage
+                        password,
+                        ""  // uid
+                );
+
+                auth.createUserWithEmailAndPassword(email, password)
+                        .addOnCompleteListener(authTask -> {
+                            if (authTask.isSuccessful()) {
+                                FirebaseUser firebaseUser = authTask.getResult().getUser();
+                                String uid = firebaseUser.getUid();
+                                student.setUid(uid);
+
+                                usersRef.child(uid).child("role").setValue("student");
+                                usersRef.child(uid).child("studentId").setValue(studentId);
+
+                                studentsRef.child(studentId).setValue(student)
+                                        .addOnSuccessListener(aVoid -> {
+                                            Toast.makeText(this, "Student added", Toast.LENGTH_SHORT).show();
+                                            studentList.add(student);
+                                            studentAdapter.notifyItemInserted(studentList.size() - 1);
+                                            dialog.dismiss();
+                                        });
+                            } else {
+                                Toast.makeText(this, "Auth failed: " + authTask.getException().getMessage(), Toast.LENGTH_SHORT).show();
+                            }
+                        });
+            });
         });
     }
+
 
     private void generateStudentId(OnIdGeneratedListener listener) {
         studentsRef.addListenerForSingleValueEvent(new ValueEventListener() {

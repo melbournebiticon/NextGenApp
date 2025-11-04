@@ -44,7 +44,7 @@ public class CourseActivity extends AppCompatActivity {
         recyclerCourses = findViewById(R.id.recyclerCourses);
 
         recyclerCourses.setLayoutManager(new LinearLayoutManager(this));
-        adapter = new CourseAdapter(this, courseList);
+        adapter = new CourseAdapter(this, courseList, courseOptionList);
         recyclerCourses.setAdapter(adapter);
 
         coursesRef = FirebaseDatabase.getInstance().getReference("Courses");
@@ -58,6 +58,10 @@ public class CourseActivity extends AppCompatActivity {
 
         // Load all courses in RecyclerView
         loadCourses();
+
+        // Create adapter AFTER course options are loaded
+        adapter = new CourseAdapter(this, courseList, courseOptionList);
+        recyclerCourses.setAdapter(adapter);
     }
     private void showAddCourseDialog() {
         View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_add_course, null);
@@ -122,21 +126,23 @@ public class CourseActivity extends AppCompatActivity {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 courseOptionList.clear();
-                List<String> names = new ArrayList<>();
                 for (DataSnapshot ds : snapshot.getChildren()) {
                     CourseOption option = ds.getValue(CourseOption.class);
                     if (option != null) {
                         courseOptionList.add(option);
-                        names.add(option.getSpecializationName() + " - " + option.getSectionName() + " - " + option.getYearName());
-
                     }
                 }
+
+                // Create adapter AFTER course options are loaded
+                adapter = new CourseAdapter(CourseActivity.this, courseList, courseOptionList);
+                recyclerCourses.setAdapter(adapter);
             }
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) { }
         });
     }
+
 
 
     private void loadCourses() {
