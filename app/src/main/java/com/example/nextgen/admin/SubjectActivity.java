@@ -4,6 +4,7 @@ import android.os.Bundle;
 import android.text.TextUtils;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.view.View;
 import android.widget.EditText;
 import android.widget.Spinner;
 import android.widget.Toast;
@@ -46,7 +47,33 @@ public class SubjectActivity extends AppCompatActivity {
 
         // RecyclerView setup
         recyclerSubjects.setLayoutManager(new LinearLayoutManager(this));
-        adapter = new SubjectAdapter(subjectList);
+        adapter = new SubjectAdapter(subjectList, new SubjectAdapter.OnSubjectActionListener() {
+            @Override
+            public void onEdit(SubjectModel subject) {
+                showEditDialog(subject);
+            }
+
+            @Override
+            public void onDelete(SubjectModel subject) {
+                new androidx.appcompat.app.AlertDialog.Builder(SubjectActivity.this)
+                        .setTitle("Delete Subject")
+                        .setMessage("Are you sure you want to delete " + subject.getName() + "?")
+                        .setPositiveButton("Yes", (dialog, which) -> {
+                            FirebaseDatabase.getInstance().getReference("Subjects")
+                                    .child(subject.getId())
+                                    .removeValue()
+                                    .addOnSuccessListener(aVoid ->
+                                            Toast.makeText(SubjectActivity.this, "Deleted successfully", Toast.LENGTH_SHORT).show())
+                                    .addOnFailureListener(e ->
+                                            Toast.makeText(SubjectActivity.this, "Failed: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+                        })
+                        .setNegativeButton("Cancel", null)
+                        .show();
+            }
+        });
+
+
+
         recyclerSubjects.setAdapter(adapter);
 
         // Firebase
@@ -160,5 +187,40 @@ public class SubjectActivity extends AppCompatActivity {
             @Override
             public void onCancelled(@NonNull DatabaseError error) { }
         });
+    }
+    private void showEditDialog(SubjectModel subject) {
+        androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(this);
+        builder.setTitle("Edit Subject");
+
+        // Create input fields
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_edit_subject, null);
+        EditText etEditCode = dialogView.findViewById(R.id.etEditSubjectCode);
+        EditText etEditName = dialogView.findViewById(R.id.etEditSubjectName);
+
+        etEditCode.setText(subject.getCode());
+        etEditName.setText(subject.getName());
+
+        builder.setView(dialogView);
+
+        builder.setPositiveButton("Update", (dialog, which) -> {
+            String newCode = etEditCode.getText().toString().trim();
+            String newName = etEditName.getText().toString().trim();
+
+            if (newCode.isEmpty() || newName.isEmpty()) {
+                Toast.makeText(this, "Fields cannot be empty", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            DatabaseReference ref = FirebaseDatabase.getInstance().getReference("Subjects").child(subject.getId());
+            ref.child("code").setValue(newCode);
+            ref.child("name").setValue(newName)
+                    .addOnSuccessListener(aVoid ->
+                            Toast.makeText(this, "Subject updated successfully", Toast.LENGTH_SHORT).show())
+                    .addOnFailureListener(e ->
+                            Toast.makeText(this, "Update failed: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+        });
+
+        builder.setNegativeButton("Cancel", null);
+        builder.show();
     }
 }

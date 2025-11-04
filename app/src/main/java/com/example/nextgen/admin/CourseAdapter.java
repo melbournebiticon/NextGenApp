@@ -98,18 +98,26 @@ public class CourseAdapter extends RecyclerView.Adapter<CourseAdapter.ViewHolder
     }
 
     private void deleteCourse(String courseId, int position) {
-        if (courseId == null || position < 0 || position >= courseList.size()) return;
+        if (courseId == null) return;
 
         DatabaseReference ref = FirebaseDatabase.getInstance().getReference("Courses");
         ref.child(courseId).removeValue()
                 .addOnSuccessListener(aVoid -> {
-                    courseList.remove(position);
-                    notifyItemRemoved(position);
+                    // Safely remove only if still valid and not already updated elsewhere
+                    if (position >= 0 && position < courseList.size()) {
+                        courseList.remove(position);
+                        notifyItemRemoved(position);
+                    } else {
+                        // Fallback: refresh entire list if index invalid
+                        notifyDataSetChanged();
+                    }
+
                     Toast.makeText(context, "Course deleted", Toast.LENGTH_SHORT).show();
                 })
                 .addOnFailureListener(e ->
                         Toast.makeText(context, "Delete failed: " + e.getMessage(), Toast.LENGTH_SHORT).show());
     }
+
 
     @Override
     public int getItemCount() {
