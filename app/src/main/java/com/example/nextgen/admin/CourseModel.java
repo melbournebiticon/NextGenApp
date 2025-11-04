@@ -51,8 +51,7 @@ public class CourseModel {
     public String getSectionName() { return sectionName; }
     public void setSectionName(String sectionName) { this.sectionName = sectionName; }
 
-    // PROPER getName() METHOD
-    public String getName() {
-        return courseName;
+    public char[] getName() {
+        return new char[0];
     }
 }

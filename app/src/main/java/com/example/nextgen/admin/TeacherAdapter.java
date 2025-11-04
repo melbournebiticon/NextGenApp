@@ -5,10 +5,10 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
-
 
 import com.example.nextgen.R;
 
@@ -18,7 +18,7 @@ import java.util.List;
 public class TeacherAdapter extends RecyclerView.Adapter<TeacherAdapter.TeacherViewHolder> {
 
     private final List<TeacherModel> teacherList;
-    private final OnTeacherActionListener actionListener; // 🔹 Callback for Update/Delete
+    private final OnTeacherActionListener actionListener;
 
     public TeacherAdapter(List<TeacherModel> teacherList, OnTeacherActionListener actionListener) {
         this.teacherList = teacherList != null ? teacherList : new ArrayList<>();
@@ -37,37 +37,53 @@ public class TeacherAdapter extends RecyclerView.Adapter<TeacherAdapter.TeacherV
     public void onBindViewHolder(@NonNull TeacherViewHolder holder, int position) {
         TeacherModel teacher = teacherList.get(position);
 
-        holder.tvTeacherId.setText(teacher.getId() != null ? teacher.getId() : "N/A");
-        holder.tvDisplayName.setText(teacher.getDisplayName() != null ? teacher.getDisplayName() : "N/A");
-        holder.tvFullName.setText(teacher.getFullName() != null ? teacher.getFullName() : "N/A");
-        List<String> courses = teacher.getCourseDisplays();
-        if (courses != null && !courses.isEmpty()) {
-            holder.tvCourse.setText(String.join("\n", courses));
-        } else {
-            holder.tvCourse.setText("No courses assigned");
-        }
+        try {
+            holder.tvTeacherId.setText(teacher.getId() != null ? teacher.getId() : "N/A");
+            holder.tvDisplayName.setText(teacher.getDisplayName() != null ? teacher.getDisplayName() : "N/A");
+            holder.tvFullName.setText(teacher.getFullName() != null ? teacher.getFullName() : "N/A");
 
-        holder.tvEmail.setText(teacher.getEmail() != null ? teacher.getEmail() : "N/A");
-
-        List<String> subjects = teacher.getAssignedSubjects();
-        if (subjects != null && !subjects.isEmpty()) {
-            holder.tvSubjects.setText(String.join(", ", subjects));
-        } else {
-            holder.tvSubjects.setText("No subjects assigned");
-        }
-
-        // 🔹 Button click listeners
-        holder.btnUpdate.setOnClickListener(v -> {
-            if (actionListener != null) {
-                actionListener.onUpdate(teacher);
+            List<String> courses = teacher.getCourseDisplays();
+            if (courses != null && !courses.isEmpty()) {
+                holder.tvCourse.setText(String.join("\n", courses));
+            } else {
+                holder.tvCourse.setText("No courses assigned");
             }
-        });
 
-        holder.btnDelete.setOnClickListener(v -> {
-            if (actionListener != null) {
-                actionListener.onDelete(teacher);
+            holder.tvEmail.setText(teacher.getEmail() != null ? teacher.getEmail() : "N/A");
+
+            List<String> subjects = teacher.getAssignedSubjects();
+            if (subjects != null && !subjects.isEmpty()) {
+                holder.tvSubjects.setText(String.join(", ", subjects));
+            } else {
+                holder.tvSubjects.setText("No subjects assigned");
             }
-        });
+
+            // Button click listeners with error handling
+            holder.btnUpdate.setOnClickListener(v -> {
+                try {
+                    if (actionListener != null) {
+                        actionListener.onUpdate(teacher);
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    Toast.makeText(holder.itemView.getContext(), "Error updating teacher", Toast.LENGTH_SHORT).show();
+                }
+            });
+
+            holder.btnDelete.setOnClickListener(v -> {
+                try {
+                    if (actionListener != null) {
+                        actionListener.onDelete(teacher);
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    Toast.makeText(holder.itemView.getContext(), "Error deleting teacher", Toast.LENGTH_SHORT).show();
+                }
+            });
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
@@ -92,10 +108,8 @@ public class TeacherAdapter extends RecyclerView.Adapter<TeacherAdapter.TeacherV
         }
     }
 
-    // 🔹 Interface to communicate with TeacherActivity
     public interface OnTeacherActionListener {
         void onUpdate(TeacherModel teacher);
         void onDelete(TeacherModel teacher);
     }
-
 }

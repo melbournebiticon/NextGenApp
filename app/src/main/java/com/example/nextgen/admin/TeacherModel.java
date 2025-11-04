@@ -12,16 +12,13 @@ public class TeacherModel {
     private List<String> courseDisplays;
     private List<String> assignedSubjects;
     private String password;
-    private String profileImage; // base64 string for teacher's profile picture
-    private String uid;
-
 
     // Empty constructor required for Firebase
     public TeacherModel() { }
 
     public TeacherModel(String id, String fullName, String displayName, String birthday,
                         String email, List<String> courseIds, List<String> courseDisplays,
-                        List<String> assignedSubjects, String password, String uid) {
+                        List<String> assignedSubjects, String password) {
         this.id = id;
         this.fullName = fullName;
         this.displayName = displayName;
@@ -31,7 +28,6 @@ public class TeacherModel {
         this.courseDisplays = courseDisplays;
         this.assignedSubjects = assignedSubjects;
         this.password = password;
-        this.uid = uid;
     }
 
     // ✅ Getters
@@ -44,7 +40,6 @@ public class TeacherModel {
     public List<String> getCourseDisplays() { return courseDisplays; }
     public List<String> getAssignedSubjects() { return assignedSubjects; }
     public String getPassword() { return password; }
-    public String getUid() { return uid; }
 
     // ✅ Setters
     public void setId(String id) { this.id = id; }
@@ -56,12 +51,4 @@ public class TeacherModel {
     public void setCourseDisplays(List<String> courseDisplays) { this.courseDisplays = courseDisplays; }
     public void setAssignedSubjects(List<String> assignedSubjects) { this.assignedSubjects = assignedSubjects; }
     public void setPassword(String password) { this.password = password; }
-    public String getProfileImage() {
-        return profileImage;
-    }
-
-    public void setProfileImage(String profileImage) {
-        this.profileImage = profileImage;
-    }
-    public void setUid(String uid) { this.uid = uid; }
 }

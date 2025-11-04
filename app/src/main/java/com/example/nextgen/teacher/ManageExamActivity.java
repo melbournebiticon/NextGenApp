@@ -2,6 +2,7 @@ package com.example.nextgen.teacher;
 
 import android.app.AlertDialog;
 import android.app.DatePickerDialog;
+import android.app.TimePickerDialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.LayoutInflater;
@@ -22,6 +23,8 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.nextgen.admin.TeacherModel;
 import android.content.SharedPreferences;
 
+
+
 import com.example.nextgen.R;
 import com.example.nextgen.SessionManager;
 import com.google.firebase.FirebaseApp;
@@ -39,9 +42,6 @@ import java.util.Locale;
 import java.util.HashSet;
 import java.util.HashMap;
 
-// 🏆 NEW Imports for Material Time Picker (for previous request)
-import com.google.android.material.timepicker.MaterialTimePicker;
-import com.google.android.material.timepicker.TimeFormat;
 
 
 public class ManageExamActivity extends AppCompatActivity {
@@ -192,9 +192,6 @@ public class ManageExamActivity extends AppCompatActivity {
                     );
                     exam.setSection(child.child("courseDisplay").getValue(String.class));
 
-                    // Note: You might want to update your Exam object here to store the new 'scheduledDateDisplay'
-                    // exam.setScheduledDateDisplay(child.child("scheduledDateDisplay").getValue(String.class));
-
                     examList.add(exam);
 
                     // Optional: save to Room for offline support
@@ -275,7 +272,7 @@ public class ManageExamActivity extends AppCompatActivity {
 
 
 
-    // ===== ADD EXAM DIALOG (Updated with Material TimePicker) =====
+    // ===== ADD EXAM DIALOG =====
     private void showAddExamDialog() {
         View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_add_exam, null);
 
@@ -291,37 +288,18 @@ public class ManageExamActivity extends AppCompatActivity {
         final Calendar selectedDate = Calendar.getInstance();
         final SimpleDateFormat sdf = new SimpleDateFormat("MMM dd, yyyy hh:mm a", Locale.getDefault());
 
-        // 🏆 START: Updated Time Picker Logic (Using Material TimePicker)
         tvSchedule.setOnClickListener(v -> {
             Calendar now = Calendar.getInstance();
             new DatePickerDialog(this, (datePicker, year, month, day) -> {
                 now.set(year, month, day);
-
-                MaterialTimePicker timePicker = new MaterialTimePicker.Builder()
-                        .setTitleText("Select Exam Time")
-                        .setHour(now.get(Calendar.HOUR_OF_DAY))
-                        .setMinute(now.get(Calendar.MINUTE))
-                        .setTimeFormat(TimeFormat.CLOCK_12H)
-                        // .setInputMode(MaterialTimePicker.INPUT_MODE_KEYBOARD) // Uncomment kung gusto mo ng direct keyboard
-                        .build();
-
-                timePicker.addOnPositiveButtonClickListener(dialog -> {
-                    int hour = timePicker.getHour();
-                    int minute = timePicker.getMinute();
-
-                    // Update the Calendar object with the new time
+                new TimePickerDialog(this, (timePicker, hour, minute) -> {
                     now.set(Calendar.HOUR_OF_DAY, hour);
                     now.set(Calendar.MINUTE, minute);
-
                     selectedDate.setTimeInMillis(now.getTimeInMillis());
                     tvSchedule.setText(sdf.format(now.getTime()));
-                });
-
-                timePicker.show(getSupportFragmentManager(), "TIME_PICKER");
-
+                }, now.get(Calendar.HOUR_OF_DAY), now.get(Calendar.MINUTE), false).show();
             }, now.get(Calendar.YEAR), now.get(Calendar.MONTH), now.get(Calendar.DAY_OF_MONTH)).show();
         });
-        // 🏆 END: Updated Time Picker Logic
 
         // Course spinner setup
         List<String> courseList = courseDisplayList.isEmpty()
@@ -411,7 +389,7 @@ public class ManageExamActivity extends AppCompatActivity {
 
 
 
-    // ===== SYNC EXAM TO FIREBASE (UPDATED) =====
+    // ===== SYNC EXAM TO FIREBASE =====
     private void syncExamToFirebase(Exam exam) {
         DatabaseReference examsRef = FirebaseDatabase.getInstance().getReference("Exams").child(teacherId);
 
@@ -440,11 +418,6 @@ public class ManageExamActivity extends AppCompatActivity {
         // Build courseDisplay like student query expects
         String courseDisplayValue = courseName + " - " + specializationName + " - " + yearName + " - " + sectionName;
 
-        // 🏆 NEW: I-convert ang Milliseconds pabalik sa readable String format
-        // Ito ang magbibigay ng "Oct 28, 2025 10:00 AM" sa database.
-        SimpleDateFormat readableSDF = new SimpleDateFormat("MMM dd, yyyy hh:mm a", Locale.getDefault());
-        String scheduledDateDisplayValue = readableSDF.format(new java.util.Date(exam.getScheduledAt()));
-
 
         ExamModelTeacher examModel = new ExamModelTeacher(
                 firebaseKey,
@@ -458,17 +431,18 @@ public class ManageExamActivity extends AppCompatActivity {
                 teacherId,
                 teacherName,
                 exam.getDurationMinutes(),
-                exam.getScheduledAt(), // LONG value (Epoch Time)
+                exam.getScheduledAt(),
                 exam.isActive(),
                 createdAt,
-                courseDisplayValue,
-                scheduledDateDisplayValue // 🏆 NEW FIELD: Readable Date String
+                courseDisplayValue  // <-- fix here
         );
+
+
 
 
         // Save to Firebase
         examsRef.child(firebaseKey).setValue(examModel)
-                .addOnSuccessListener(aVoid -> Log.d("FirebaseSync", "Exam synced successfully with readable date: " + scheduledDateDisplayValue))
+                .addOnSuccessListener(aVoid -> Log.d("FirebaseSync", "Exam synced successfully"))
                 .addOnFailureListener(e -> Log.e("FirebaseSync", "Failed to sync exam", e));
     }
 
@@ -485,23 +459,15 @@ public class ManageExamActivity extends AppCompatActivity {
     }
 
 
-    // ===== EDIT EXAM DIALOG (Updated with Material TimePicker) =====
+    // ===== EDIT EXAM DIALOG =====
     private void showEditExamDialog(Exam exam) {
         View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_add_exam, null);
 
         EditText etExamName = dialogView.findViewById(R.id.etExamName);
         Spinner spSubject = dialogView.findViewById(R.id.spSubject);
-        Spinner spCourse = dialogView.findViewById(R.id.spCourse); // Added course spinner
 
         Spinner spDuration = dialogView.findViewById(R.id.spDuration);
         TextView tvSchedule = dialogView.findViewById(R.id.tvSchedule);
-
-        // Course spinner setup (from add dialog, but simplified for edit)
-        spCourse.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, courseDisplayList));
-        // Simple setting of course selection based on current exam data
-        int courseIndex = courseDisplayList.indexOf(exam.getSection());
-        if (courseIndex >= 0) spCourse.setSelection(courseIndex);
-
 
         ArrayAdapter<String> subjectAdapter = new ArrayAdapter<>(this,
                 android.R.layout.simple_spinner_dropdown_item, assignedSubjects);
@@ -525,39 +491,18 @@ public class ManageExamActivity extends AppCompatActivity {
         selectedDate.setTimeInMillis(exam.getScheduledAt());
         tvSchedule.setText(sdf.format(selectedDate.getTime()));
 
-        // 🏆 START: Updated Time Picker Logic (Using Material TimePicker)
         tvSchedule.setOnClickListener(v -> {
-            // Note: selectedDate already has the exam time
-            int initialHour = selectedDate.get(Calendar.HOUR_OF_DAY);
-            int initialMinute = selectedDate.get(Calendar.MINUTE);
-
+            Calendar now = Calendar.getInstance();
             new DatePickerDialog(this, (datePicker, year, month, day) -> {
-                selectedDate.set(year, month, day);
-
-                MaterialTimePicker timePicker = new MaterialTimePicker.Builder()
-                        .setTitleText("Select Exam Time")
-                        .setHour(initialHour)
-                        .setMinute(initialMinute)
-                        .setTimeFormat(TimeFormat.CLOCK_12H)
-                        // .setInputMode(MaterialTimePicker.INPUT_MODE_KEYBOARD)
-                        .build();
-
-                timePicker.addOnPositiveButtonClickListener(dialog -> {
-                    int hour = timePicker.getHour();
-                    int minute = timePicker.getMinute();
-
-                    // Update the Calendar object with the new time
-                    selectedDate.set(Calendar.HOUR_OF_DAY, hour);
-                    selectedDate.set(Calendar.MINUTE, minute);
-
-                    tvSchedule.setText(sdf.format(selectedDate.getTime()));
-                });
-
-                timePicker.show(getSupportFragmentManager(), "EDIT_TIME_PICKER");
-
-            }, selectedDate.get(Calendar.YEAR), selectedDate.get(Calendar.MONTH), selectedDate.get(Calendar.DAY_OF_MONTH)).show();
+                now.set(year, month, day);
+                new TimePickerDialog(this, (timePicker, hour, minute) -> {
+                    now.set(Calendar.HOUR_OF_DAY, hour);
+                    now.set(Calendar.MINUTE, minute);
+                    selectedDate.setTimeInMillis(now.getTimeInMillis());
+                    tvSchedule.setText(sdf.format(now.getTime()));
+                }, now.get(Calendar.HOUR_OF_DAY), now.get(Calendar.MINUTE), false).show();
+            }, now.get(Calendar.YEAR), now.get(Calendar.MONTH), now.get(Calendar.DAY_OF_MONTH)).show();
         });
-        // 🏆 END: Updated Time Picker Logic
 
         AlertDialog dialog = new AlertDialog.Builder(this)
                 .setTitle("Edit Exam")
@@ -565,8 +510,6 @@ public class ManageExamActivity extends AppCompatActivity {
                 .setPositiveButton("Save", (d, which) -> {
                     exam.setExamName(etExamName.getText().toString().trim());
                     exam.setSubject(spSubject.getSelectedItem().toString());
-                    exam.setSection(spCourse.getSelectedItem().toString()); // Update section
-
                     String selectedDuration = spDuration.getSelectedItem().toString();
                     exam.setDurationMinutes(Integer.parseInt(selectedDuration.split(" ")[0]));
                     exam.setScheduledAt(selectedDate.getTimeInMillis());

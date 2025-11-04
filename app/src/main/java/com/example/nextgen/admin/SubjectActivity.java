@@ -15,6 +15,7 @@ import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.Spinner;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -90,9 +91,22 @@ public class SubjectActivity extends AppCompatActivity {
                 drawerLayout.setFitsSystemWindows(true);
             }
 
-            // Setup RecyclerView
+            // Setup RecyclerView with improved configuration
             recyclerSubjects.setLayoutManager(new LinearLayoutManager(this));
-            adapter = new SubjectAdapter(this, subjectList);
+            recyclerSubjects.setHasFixedSize(true);
+
+            // Initialize adapter with click listeners
+            adapter = new SubjectAdapter(subjectList, new SubjectAdapter.OnItemClickListener() {
+                @Override
+                public void onEditClick(SubjectModel subject) {
+                    showEditSubjectDialog(subject);
+                }
+
+                @Override
+                public void onDeleteClick(SubjectModel subject) {
+                    showDeleteConfirmationDialog(subject);
+                }
+            });
             recyclerSubjects.setAdapter(adapter);
 
             // Check if all views are properly initialized
@@ -173,7 +187,7 @@ public class SubjectActivity extends AppCompatActivity {
             }
 
             int pos = spinnerCourses.getSelectedItemPosition();
-            if (pos < 0 || subjectOptionList.isEmpty()) {
+            if (pos < 0 || subjectOptionList.isEmpty() || subjectOptionList.get(0).getCourseId().equals("")) {
                 Toast.makeText(this, "Select a course option", Toast.LENGTH_SHORT).show();
                 return;
             }
@@ -186,25 +200,88 @@ public class SubjectActivity extends AppCompatActivity {
         btnCancel.setOnClickListener(v -> dialog.dismiss());
     }
 
+    private void showEditSubjectDialog(SubjectModel subject) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        LayoutInflater inflater = getLayoutInflater();
+        View dialogView = inflater.inflate(R.layout.dialog_add_subject, null);
+        builder.setView(dialogView);
+
+        EditText etSubjectCode = dialogView.findViewById(R.id.etSubjectCode);
+        EditText etSubjectName = dialogView.findViewById(R.id.etSubjectName);
+        Spinner spinnerCourses = dialogView.findViewById(R.id.spinnerCourseOption);
+        Button btnSave = dialogView.findViewById(R.id.btnSaveSubject);
+        Button btnCancel = dialogView.findViewById(R.id.btnCancelSubject);
+
+        // Set existing values - CORRECTED METHOD NAMES
+        etSubjectCode.setText(subject.getCode());
+        etSubjectName.setText(subject.getName());
+
+        // Load course options and set current selection
+        loadSubjectOptionsForDialog(spinnerCourses, subject);
+
+        AlertDialog dialog = builder.create();
+
+        // Change button text to "Update" for edit mode
+        btnSave.setText("Update");
+
+        dialog.show();
+
+        btnSave.setOnClickListener(v -> {
+            String code = etSubjectCode.getText().toString().trim();
+            String name = etSubjectName.getText().toString().trim();
+
+            if (TextUtils.isEmpty(code)) {
+                etSubjectCode.setError("Enter subject code");
+                return;
+            }
+            if (TextUtils.isEmpty(name)) {
+                etSubjectName.setError("Enter subject name");
+                return;
+            }
+
+            int pos = spinnerCourses.getSelectedItemPosition();
+            if (pos < 0 || subjectOptionList.isEmpty() || subjectOptionList.get(0).getCourseId().equals("")) {
+                Toast.makeText(this, "Select a course option", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            SubjectOption selectedOption = subjectOptionList.get(pos);
+            updateSubjectInFirebase(subject.getId(), code, name, selectedOption);
+            dialog.dismiss();
+        });
+
+        btnCancel.setOnClickListener(v -> dialog.dismiss());
+    }
+
+    private void showDeleteConfirmationDialog(SubjectModel subject) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Delete Subject");
+        builder.setMessage("Are you sure you want to delete " + subject.getName() + "?");
+        builder.setPositiveButton("Delete", (dialog, which) -> {
+            deleteSubjectFromFirebase(subject.getId());
+        });
+        builder.setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss());
+        builder.show();
+    }
+
     private void loadSubjectOptionsForDialog(Spinner spinner) {
+        loadSubjectOptionsForDialog(spinner, null);
+    }
+
+    private void loadSubjectOptionsForDialog(Spinner spinner, SubjectModel currentSubject) {
         coursesRef.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 subjectOptionList.clear();
                 List<String> displayNames = new ArrayList<>();
 
-                Log.d("SubjectActivity", "Total courses in database: " + snapshot.getChildrenCount());
+                // Add default option
+                subjectOptionList.add(new SubjectOption("", "Select Course Option", "", "", ""));
+                displayNames.add("Select Course Option");
 
                 for (DataSnapshot ds : snapshot.getChildren()) {
                     CourseModel course = ds.getValue(CourseModel.class);
                     if (course != null) {
-                        // DEBUG: Check if course data is complete
-                        Log.d("SubjectActivity", "Course Data - ID: " + course.getId() +
-                                ", Name: " + course.getCourseName() +
-                                ", Spec: " + course.getSpecializationName() +
-                                ", Year: " + course.getYearName() +
-                                ", Section: " + course.getSectionName());
-
                         SubjectOption option = new SubjectOption(
                                 course.getId(),
                                 course.getCourseName(),
@@ -214,45 +291,49 @@ public class SubjectActivity extends AppCompatActivity {
                         );
                         subjectOptionList.add(option);
                         displayNames.add(option.toString());
-                    } else {
-                        Log.e("SubjectActivity", "Course is null for snapshot: " + ds.getKey());
                     }
                 }
 
-                Log.d("SubjectActivity", "Total courses loaded: " + subjectOptionList.size());
-
                 if (displayNames.isEmpty()) {
                     displayNames.add("No courses available");
-                    Toast.makeText(SubjectActivity.this, "No courses found. Please add courses first.", Toast.LENGTH_LONG).show();
                 }
 
                 ArrayAdapter<String> adapter = new ArrayAdapter<>(SubjectActivity.this,
                         android.R.layout.simple_spinner_item, displayNames);
                 adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
                 spinner.setAdapter(adapter);
+
+                // Set current selection if editing
+                if (currentSubject != null) {
+                    for (int i = 0; i < subjectOptionList.size(); i++) {
+                        SubjectOption option = subjectOptionList.get(i);
+                        if (option.getCourseId().equals(currentSubject.getCourseId())) {
+                            spinner.setSelection(i);
+                            break;
+                        }
+                    }
+                }
             }
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
                 Toast.makeText(SubjectActivity.this, "Failed to load courses: " + error.getMessage(), Toast.LENGTH_SHORT).show();
-                Log.e("SubjectActivity", "Database error: " + error.getMessage());
             }
         });
     }
 
     private void addSubjectToFirebase(String code, String name, SubjectOption selectedOption) {
+        // Validate course selection
+        if (selectedOption.getCourseId().isEmpty()) {
+            Toast.makeText(this, "Please select a valid course option", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         String id = subjectsRef.push().getKey();
         if (id == null) {
             Toast.makeText(this, "Error generating ID", Toast.LENGTH_SHORT).show();
             return;
         }
-
-        // DEBUG: Check selected option data
-        Log.d("SubjectActivity", "Selected Option - CourseID: " + selectedOption.getCourseId() +
-                ", CourseName: " + selectedOption.getCourseName() +
-                ", Spec: " + selectedOption.getSpecializationName() +
-                ", Year: " + selectedOption.getYearName() +
-                ", Section: " + selectedOption.getSectionName());
 
         SubjectModel subject = new SubjectModel(
                 id,
@@ -268,11 +349,49 @@ public class SubjectActivity extends AppCompatActivity {
         subjectsRef.child(id).setValue(subject)
                 .addOnSuccessListener(aVoid -> {
                     Toast.makeText(this, "Subject added successfully", Toast.LENGTH_SHORT).show();
-                    Log.d("SubjectActivity", "Subject added: " + code + " - " + name);
                 })
                 .addOnFailureListener(e -> {
+                    Log.e("SubjectActivity", "Error adding subject: " + e.getMessage());
                     Toast.makeText(this, "Failed to add subject: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                    Log.e("SubjectActivity", "Add subject error: " + e.getMessage());
+                });
+    }
+
+    private void updateSubjectInFirebase(String subjectId, String code, String name, SubjectOption selectedOption) {
+        // Validate course selection
+        if (selectedOption.getCourseId().isEmpty()) {
+            Toast.makeText(this, "Please select a valid course option", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        SubjectModel updatedSubject = new SubjectModel(
+                subjectId,
+                code,
+                name,
+                selectedOption.getCourseId(),
+                selectedOption.getCourseName(),
+                selectedOption.getSpecializationName(),
+                selectedOption.getYearName(),
+                selectedOption.getSectionName()
+        );
+
+        subjectsRef.child(subjectId).setValue(updatedSubject)
+                .addOnSuccessListener(aVoid -> {
+                    Toast.makeText(this, "Subject updated successfully", Toast.LENGTH_SHORT).show();
+                })
+                .addOnFailureListener(e -> {
+                    Log.e("SubjectActivity", "Error updating subject: " + e.getMessage());
+                    Toast.makeText(this, "Failed to update subject: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
+    }
+
+    private void deleteSubjectFromFirebase(String subjectId) {
+        subjectsRef.child(subjectId).removeValue()
+                .addOnSuccessListener(aVoid -> {
+                    Toast.makeText(this, "Subject deleted successfully", Toast.LENGTH_SHORT).show();
+                })
+                .addOnFailureListener(e -> {
+                    Log.e("SubjectActivity", "Error deleting subject: " + e.getMessage());
+                    Toast.makeText(this, "Failed to delete subject: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                 });
     }
 
@@ -317,6 +436,7 @@ public class SubjectActivity extends AppCompatActivity {
 
         if (btnSubjects != null) {
             btnSubjects.setOnClickListener(v -> {
+                // Already in Subjects activity, just close drawer
                 if (drawerLayout != null) drawerLayout.closeDrawer(Gravity.START);
             });
         }
@@ -392,19 +512,19 @@ public class SubjectActivity extends AppCompatActivity {
                 subjectList.clear();
                 for (DataSnapshot ds : snapshot.getChildren()) {
                     SubjectModel s = ds.getValue(SubjectModel.class);
-                    if (s != null) {
-                        subjectList.add(s);
-                        Log.d("SubjectActivity", "Loaded subject: " + s.getCode() + " - " + s.getName());
-                    }
+                    if (s != null) subjectList.add(s);
                 }
                 adapter.notifyDataSetChanged();
-                Log.d("SubjectActivity", "Total subjects loaded: " + subjectList.size());
+
+                // Show empty state message if no subjects
+                if (subjectList.isEmpty()) {
+                    Toast.makeText(SubjectActivity.this, "No subjects found", Toast.LENGTH_SHORT).show();
+                }
             }
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
-                Toast.makeText(SubjectActivity.this, "Failed to load subjects", Toast.LENGTH_SHORT).show();
-                Log.e("SubjectActivity", "Load subjects error: " + error.getMessage());
+                Toast.makeText(SubjectActivity.this, "Failed to load subjects: " + error.getMessage(), Toast.LENGTH_SHORT).show();
             }
         });
     }

@@ -22,7 +22,7 @@
         android:id="@+id/etSubjectCode"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Subject Code"
+        android:hint="Enter Subject Code"
         android:padding="12dp"
         android:background="@android:drawable/edit_text"
         android:layout_marginBottom="16dp" />
@@ -32,7 +32,7 @@
         android:id="@+id/etSubjectName"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Subject Name"
+        android:hint="Enter Subject Name"
         android:padding="12dp"
         android:background="@android:drawable/edit_text"
         android:layout_marginBottom="16dp" />
@@ -41,7 +41,7 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Select Course:"
+        android:text="Select Course Option:"
         android:textSize="14sp"
         android:textColor="#333333"
         android:layout_marginBottom="8dp" />
