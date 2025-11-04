@@ -1,67 +1,379 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.drawerlayout.widget.DrawerLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/drawerLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="16dp">
+    android:fitsSystemWindows="true">
 
-    <EditText
-        android:id="@+id/etFullName"
+    <!-- ================= MAIN CONTENT ================= -->
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="Full Name"
-        android:inputType="textPersonName" />
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:background="#F4F6FA">
 
-    <EditText
-        android:id="@+id/etBirthday"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="Select Birthday"
-        android:focusable="false"
-        android:clickable="true"
-        android:inputType="none" />
+        <!-- Top Bar -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:orientation="horizontal"
+            android:background="#003366"
+            android:gravity="center_vertical">
 
+            <ImageButton
+                android:id="@+id/btnToggleSidebar"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@drawable/ic_menu"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:tint="#FFFFFF"
+                android:layout_marginStart="8dp"
+                android:contentDescription="Toggle navigation drawer" />
 
-    <EditText
-        android:id="@+id/etEmail"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="Email"
-        android:inputType="textEmailAddress" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Manage Examinees"
+                android:textColor="#FFFFFF"
+                android:textStyle="bold"
+                android:textSize="18sp"
+                android:layout_marginStart="12dp" />
+        </LinearLayout>
 
-    <EditText
-        android:id="@+id/etContact"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="Contact Number"
-        android:inputType="phone" />
+        <!-- Content Area -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:padding="16dp">
 
-    <Spinner
-        android:id="@+id/spinnerCourses"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:spinnerMode="dropdown"
-        android:layout_marginTop="8dp" />
+            <Button
+                android:id="@+id/btnAddStudent"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="+ Add New Examinee"
+                android:backgroundTint="#003366"
+                android:textColor="#FFFFFF"
+                android:layout_gravity="end" />
 
-    <Button
-        android:id="@+id/btnAddStudent"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Add Student"
-        android:layout_marginTop="8dp" />
+            <!-- Search Bar -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/search_bg"
+                android:padding="8dp"
+                android:gravity="center_vertical">
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Students List"
-        android:textStyle="bold"
-        android:layout_marginTop="16dp"/>
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_search"
+                    android:tint="#666666"
+                    android:layout_marginStart="8dp"
+                    android:layout_marginEnd="8dp"
+                    android:contentDescription="Search icon" />
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/recyclerStudents"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:paddingTop="8dp" />
+                <EditText
+                    android:id="@+id/searchStudent"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:hint="Search examinee..."
+                    android:background="@null"
+                    android:padding="8dp"
+                    android:textSize="14sp" />
 
-</LinearLayout>
+                <ImageButton
+                    android:id="@+id/btnClearSearch"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_close"
+                    android:tint="#666666"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:visibility="gone"
+                    android:contentDescription="Clear search" />
+            </LinearLayout>
+
+            <!-- Student Form - HIDDEN BY DEFAULT -->
+            <LinearLayout
+                android:id="@+id/studentFormContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@drawable/form_background"
+                android:padding="16dp"
+                android:layout_marginTop="12dp"
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Add New Examinee"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="#003366"
+                    android:layout_marginBottom="8dp" />
+
+                <EditText
+                    android:id="@+id/etFullName"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="Full Name"
+                    android:padding="12dp"
+                    android:background="@drawable/edittext_bg" />
+
+                <EditText
+                    android:id="@+id/etBirthday"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="Birthday (YYYY-MM-DD)"
+                    android:padding="12dp"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/edittext_bg" />
+
+                <EditText
+                    android:id="@+id/etEmail"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="Email"
+                    android:inputType="textEmailAddress"
+                    android:padding="12dp"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/edittext_bg" />
+
+                <EditText
+                    android:id="@+id/etContact"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="Contact Number"
+                    android:inputType="phone"
+                    android:padding="12dp"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/edittext_bg" />
+
+                <Spinner
+                    android:id="@+id/spinnerCourses"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:padding="12dp"
+                    android:background="@drawable/spinner_bg" />
+
+                <!-- Add Cancel and Submit Buttons -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="16dp">
+
+                    <Button
+                        android:id="@+id/btnCancel"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Cancel"
+                        android:backgroundTint="#FF6B6B"
+                        android:textColor="#FFFFFF"
+                        android:layout_marginEnd="4dp"/>
+
+                    <Button
+                        android:id="@+id/btnSubmit"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Add Examinee"
+                        android:backgroundTint="#003366"
+                        android:textColor="#FFFFFF"
+                        android:layout_marginStart="4dp"/>
+                </LinearLayout>
+
+            </LinearLayout>
+
+            <!-- Students List -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Examinees List"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="8dp" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/recyclerStudents"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
+
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- ================= SIDEBAR ================= -->
+    <LinearLayout
+        android:id="@+id/sidebarLayout"
+        android:layout_width="280dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="start"
+        android:orientation="vertical"
+        android:background="#00BCD4"
+        android:padding="16dp">
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <!-- Profile -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:paddingBottom="16dp">
+
+                    <ImageView
+                        android:id="@+id/profileImage"
+                        android:layout_width="64dp"
+                        android:layout_height="64dp"
+                        android:src="@drawable/ic_person"
+                        android:scaleType="centerCrop"
+                        android:background="@drawable/profile_circle_bg"
+                        android:layout_marginBottom="8dp"
+                        android:contentDescription="Profile picture" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Admin"
+                        android:textColor="#FFFFFF"
+                        android:textStyle="bold"
+                        android:textSize="16sp"/>
+                </LinearLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#FFFFFF"
+                    android:layout_marginBottom="8dp"/>
+
+                <!-- Manage Curriculum Header -->
+                <Button
+                    android:id="@+id/btnManageCurriculumHeader"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="📘 Manage Curriculum ▾"
+                    android:textAllCaps="false"
+                    android:textColor="#FFFFFF"
+                    android:background="@android:color/transparent"
+                    android:padding="8dp"/>
+
+                <!-- Curriculum Dropdown -->
+                <LinearLayout
+                    android:id="@+id/curriculumDropdown"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone"
+                    android:paddingStart="16dp">
+
+                    <Button
+                        android:id="@+id/btnManageSpecializations"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Manage Specialization"
+                        android:textColor="#FFFFFF"
+                        android:background="@android:color/transparent"/>
+
+                    <Button
+                        android:id="@+id/btnManageYears"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Manage Year"
+                        android:textColor="#FFFFFF"
+                        android:background="@android:color/transparent"/>
+
+                    <Button
+                        android:id="@+id/btnManageSections"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Manage Sections"
+                        android:textColor="#FFFFFF"
+                        android:background="@android:color/transparent"/>
+
+                    <Button
+                        android:id="@+id/btnManageCourse"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Manage Course"
+                        android:textColor="#FFFFFF"
+                        android:background="@android:color/transparent"/>
+
+                    <Button
+                        android:id="@+id/btnManageSubjects"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Manage Subjects"
+                        android:textColor="#FFFFFF"
+                        android:background="@android:color/transparent"/>
+                </LinearLayout>
+
+                <!-- Manage Accounts Header -->
+                <Button
+                    android:id="@+id/btnManageAccountsHeader"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="👤 Manage Accounts ▾"
+                    android:textAllCaps="false"
+                    android:textColor="#FFFFFF"
+                    android:background="@android:color/transparent"
+                    android:padding="8dp"/>
+
+                <!-- Accounts Dropdown -->
+                <LinearLayout
+                    android:id="@+id/accountsDropdown"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone"
+                    android:paddingStart="16dp">
+
+                    <Button
+                        android:id="@+id/btnManageTeachers"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Manage Teacher"
+                        android:textColor="#FFFFFF"
+                        android:background="@android:color/transparent"/>
+
+                    <Button
+                        android:id="@+id/btnManageStudents"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Manage Examinee"
+                        android:textColor="#FFFFFF"
+                        android:background="@android:color/transparent"/>
+                </LinearLayout>
+
+                <!-- Logout -->
+                <Button
+                    android:id="@+id/logoutBtn"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="🚪 Logout"
+                    android:textAllCaps="false"
+                    android:textColor="#FFEBEE"
+                    android:background="@android:color/transparent"
+                    android:layout_marginTop="12dp"/>
+            </LinearLayout>
+        </ScrollView>
+    </LinearLayout>
+
+</androidx.drawerlayout.widget.DrawerLayout>

@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content">
+    android:layout_height="wrap_content"
+    android:padding="8dp"
+    android:background="@drawable/dialog_background"
+    android:fillViewport="true">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -9,67 +12,130 @@
         android:orientation="vertical"
         android:padding="16dp">
 
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Edit Examinee"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:textColor="#003366"
+            android:gravity="center"
+            android:layout_marginBottom="20dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:layout_marginBottom="20dp">
+
+            <ImageView
+                android:id="@+id/ivProfile"
+                android:layout_width="80dp"
+                android:layout_height="80dp"
+                android:src="@drawable/examinee_default"
+                android:scaleType="centerCrop"
+                android:background="@drawable/profile_circle_bg"
+                android:contentDescription="Profile Image" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Tap to change photo"
+                android:textSize="12sp"
+                android:textColor="#666666"
+                android:layout_marginStart="12dp" />
+
+        </LinearLayout>
+
         <EditText
-            android:id="@+id/etEditFullName"
+            android:id="@+id/etFullName"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="Full Name"
-            android:inputType="textPersonName" />
+            android:padding="12dp"
+            android:background="@drawable/edittext_bg"
+            android:layout_marginBottom="12dp" />
 
         <EditText
-            android:id="@+id/etEditBirthday"
+            android:id="@+id/etBirthday"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Birthday (MM/DD/YY)"
-            android:focusable="false"
-            android:clickable="true"
-            android:inputType="none" />
+            android:hint="Birthday (YYYY-MM-DD)"
+            android:padding="12dp"
+            android:background="@drawable/edittext_bg"
+            android:layout_marginBottom="12dp"
+            android:focusable="false" />
 
         <EditText
-            android:id="@+id/etEditEmail"
+            android:id="@+id/etEmail"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="Email"
-            android:inputType="textEmailAddress" />
+            android:inputType="textEmailAddress"
+            android:padding="12dp"
+            android:background="@drawable/edittext_bg"
+            android:layout_marginBottom="12dp" />
 
         <EditText
-            android:id="@+id/etEditContact"
+            android:id="@+id/etContact"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="Contact Number"
-            android:inputType="phone" />
-
-        <Spinner
-            android:id="@+id/spinnerEditCourses"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:spinnerMode="dropdown"
-            android:layout_marginTop="8dp" />
-
-        <ImageView
-            android:id="@+id/ivEditProfile"
-            android:layout_width="80dp"
-            android:layout_height="80dp"
-            android:layout_gravity="center"
-            android:src="@drawable/examinee_default"
-            android:scaleType="centerCrop"
-            android:contentDescription="Profile Image"/>
-
-        <ProgressBar
-            android:id="@+id/progressBarUpload"
-            style="?android:attr/progressBarStyleHorizontal"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:max="100"
-            android:visibility="gone"/>
+            android:inputType="phone"
+            android:padding="12dp"
+            android:background="@drawable/edittext_bg"
+            android:layout_marginBottom="16dp" />
 
         <TextView
-            android:id="@+id/tvUploadProgress"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="0%"
-            android:visibility="gone"/>
+            android:text="Select Course"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="#003366"
+            android:layout_marginBottom="8dp" />
 
+        <Spinner
+            android:id="@+id/spinnerCourses"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:background="@drawable/spinner_background"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:layout_marginBottom="24dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:weightSum="2">
+
+            <Button
+                android:id="@+id/btnCancel"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Cancel"
+                android:textColor="#003366"
+                android:background="@drawable/button_outline"
+                android:textSize="14sp"
+                android:padding="12dp"
+                android:layout_marginEnd="8dp" />
+
+            <Button
+                android:id="@+id/btnSubmit"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Update Examinee"
+                android:textColor="#FFFFFF"
+                android:backgroundTint="#003366"
+                android:textSize="14sp"
+                android:padding="12dp"
+                android:layout_marginStart="8dp" />
+
+        </LinearLayout>
 
     </LinearLayout>
 </ScrollView>

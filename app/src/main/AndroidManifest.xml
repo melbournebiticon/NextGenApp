@@ -1,10 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    package="com.example.nextgen">
-
-    <uses-permission android:name="android.permission.RECORD_AUDIO" />
-
+    xmlns:tools="http://schemas.android.com/tools">
 
     <application
         android:allowBackup="true"
@@ -15,16 +11,16 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.NextGen">
-
         <activity
             android:name=".MainActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
+
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
+        //Admin
         <activity android:name=".admin.AdminActivity" />
         <activity android:name=".admin.TeacherActivity" />
         <activity android:name=".admin.StudentActivity" />
@@ -33,7 +29,7 @@
         <activity android:name=".admin.SectionsActivity" />
         <activity android:name=".admin.CourseActivity" />
         <activity android:name=".admin.SubjectActivity" />
-
+        //Teacher
         <activity android:name=".teacher.TeacherDashboardActivity" />
         <activity android:name=".teacher.ViewStudentsActivity" />
         <activity android:name=".teacher.Exam" />
@@ -41,14 +37,11 @@
         <activity android:name=".teacher.ManageExamActivity" />
         <activity android:name=".teacher.ProfileActivity" />
         <activity android:name=".teacher.Question" />
-
+        //Student
         <activity android:name=".student.StudentDashboardActivity" />
         <activity android:name=".student.StudentProfileActivity" />
+        <activity android:name=".student.TakeExamActivity" />
         <activity android:name=".student.ResultActivity" />
-        <activity android:name=".student.StudentProfileActivity" /> <activity
-        android:name=".student.TakeExamActivity"
-
-        />
 
     </application>
 

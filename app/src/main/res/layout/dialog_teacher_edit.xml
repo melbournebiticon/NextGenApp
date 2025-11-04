@@ -2,91 +2,75 @@
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:fillViewport="true">
+    android:padding="16dp">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="16dp"
-        android:gravity="center_horizontal">
+        android:orientation="vertical">
 
-        <!-- Profile Picture -->
-        <ImageView
-            android:id="@+id/ivEditProfile"
-            android:layout_width="100dp"
-            android:layout_height="100dp"
-            android:layout_marginBottom="12dp"
-            android:src="@drawable/examinee_default"
-            android:scaleType="centerCrop"
-            android:background="@drawable/circle_bg_light"
-            android:padding="4dp"
-            android:contentDescription="Profile Image"
-            android:clickable="true"
-            android:focusable="true" />
-
-        <!-- Upload Progress (optional, hidden by default) -->
-        <ProgressBar
-            android:id="@+id/progressBarUpload"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:visibility="gone" />
-
-        <TextView
-            android:id="@+id/tvUploadProgress"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="8dp"
-            android:text="Uploading..."
-            android:textSize="12sp"
-            android:textColor="#666"
-            android:visibility="gone" />
-
-        <!-- Full Name -->
         <EditText
             android:id="@+id/etEditFullName"
+            android:hint="Full Name"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Full Name"
-            android:inputType="textPersonName" />
+            android:background="@drawable/edit_bg"
+            android:padding="8dp" />
 
-        <!-- Birthday -->
         <EditText
             android:id="@+id/etEditBirthday"
+            android:hint="Birthday (YYYY-MM-DD)"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Select Birthday"
-            android:focusable="false"
-            android:clickable="true"
-            android:inputType="none"
-            android:drawableEnd="@android:drawable/ic_menu_today"
-            android:paddingEnd="12dp"
-            android:layout_marginTop="8dp" />
+            android:layout_marginTop="8dp"
+            android:background="@drawable/edit_bg"
+            android:padding="8dp" />
 
-        <!-- Email -->
         <EditText
             android:id="@+id/etEditEmail"
+            android:hint="Email"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Email"
-            android:inputType="textEmailAddress"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/edit_bg"
+            android:padding="8dp" />
+
+        <!-- Courses selection -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Select Course"
+            android:textStyle="bold"
             android:layout_marginTop="8dp" />
 
-        <!-- RecyclerView for multiple course selection -->
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/recyclerEditCourses"
+        <Spinner
+            android:id="@+id/spinnerEditCourse"
             android:layout_width="match_parent"
-            android:layout_height="120dp"
-            android:layout_marginTop="8dp"
-            android:scrollbars="vertical" />
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp" />
 
-        <!-- RecyclerView for subjects -->
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/recyclerEditSubjects"
+        <!-- Subjects selection -->
+        <TextView
             android:layout_width="match_parent"
-            android:layout_height="150dp"
-            android:layout_marginTop="8dp"
-            android:scrollbars="vertical" />
+            android:layout_height="wrap_content"
+            android:text="Select Subject"
+            android:textStyle="bold"
+            android:layout_marginTop="8dp" />
+
+        <Spinner
+            android:id="@+id/spinnerEditSubject"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp" />
+
+        <Button
+            android:id="@+id/btnUpdateTeacher"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Update"
+            android:backgroundTint="#003366"
+            android:textColor="#FFFFFF"
+            android:layout_marginTop="12dp" />
 
     </LinearLayout>
 </ScrollView>

@@ -1,42 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <!-- Main Palette -->
+    <!-- Dark blues (can keep for accents or toolbar if needed) -->
     <color name="dark_blue_900">#0D1B2A</color>
     <color name="dark_blue_700">#1B263B</color>
     <color name="dark_blue_500">#415A77</color>
 
-    <!-- Accent / Secondary Colors -->
+    <!-- Blues / Teals -->
     <color name="blue_300">#778DA9</color>
     <color name="blue_500">#1E90FF</color>
+    <color name="teal_200">#64B5F6</color>
     <color name="teal_700">#1565C0</color>
 
-    <!-- Grayscale -->
+    <!-- ✅ Added red and green colors -->
+    <color name="red">#FF0000</color>        <!-- Bright red -->
+    <color name="green">#00FF00</color>      <!-- Bright green -->
+
+    <!-- Light / Text colors -->
     <color name="white">#FFFFFF</color>
     <color name="black">#000000</color>
     <color name="light_gray">#B0BEC5</color>
 
     <!-- Backgrounds -->
-    <color name="background_dark">#FFFFFF</color>
-    <color name="surface_dark">#FFFFFF</color>
-
-    <color name="surface_variant">#F5F7FA</color>
-    <color name="on_surface_variant">#4A5568</color>
-
-    <color name="tertiary">#64748B</color> <!-- Muted gray-blue -->
-    <color name="error">#E53935</color> <!-- Modern red for delete -->
-
-    <!-- Theme References -->
-    <color name="primary">@color/dark_blue_700</color>
-    <color name="on_primary">@color/white</color>
-
-    <color name="primary_container">@color/blue_300</color>
-    <color name="on_primary_container">@color/black</color>
-
-    <color name="surface">@color/surface_dark</color>
-    <color name="on_surface">@color/black</color>
-
-    <color name="secondary">@color/teal_700</color>
-    <color name="on_secondary">@color/white</color>
+    <color name="background_dark">#FFFFFF</color>  <!-- changed to white -->
+    <color name="surface_dark">#FFFFFF</color>     <!-- changed to white -->
 
 </resources>

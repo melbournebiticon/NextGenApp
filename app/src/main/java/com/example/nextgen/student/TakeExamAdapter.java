@@ -6,9 +6,9 @@ import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ArrayAdapter;
 import android.widget.EditText;
-import android.widget.RadioButton;
-import android.widget.RadioGroup;
+import android.widget.Spinner;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -17,6 +17,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.nextgen.R;
 import com.example.nextgen.teacher.Question;
 
+import java.util.Arrays;
 import java.util.List;
 
 public class TakeExamAdapter extends RecyclerView.Adapter<TakeExamAdapter.QuestionViewHolder> {
@@ -39,80 +40,66 @@ public class TakeExamAdapter extends RecyclerView.Adapter<TakeExamAdapter.Questi
     @Override
     public void onBindViewHolder(@NonNull QuestionViewHolder holder, int position) {
         Question q = questions.get(position);
+        holder.tvQuestion.setText((position + 1) + ". " + q.getQuestionText());
 
-        // Use displayNumber for sequential numbering
-        holder.tvQuestion.setText(q.getDisplayNumber() + ". " + q.getQuestionText());
-
-        // Hide all first
-        holder.radioGroupMCQ.setVisibility(View.GONE);
-        holder.radioGroupTF.setVisibility(View.GONE);
+        // Hide both inputs initially
+        holder.spinnerAnswer.setVisibility(View.GONE);
         holder.etAnswer.setVisibility(View.GONE);
 
-        // Remove previous TextWatcher to prevent recycling issues
-        if (holder.textWatcher != null) {
-            holder.etAnswer.removeTextChangedListener(holder.textWatcher);
-            holder.textWatcher = null;
-        }
+        if (q.getQuestionType().equals("Multiple Choice")) {
+            holder.spinnerAnswer.setVisibility(View.VISIBLE);
+            List<String> options = Arrays.asList(q.getOptionA(), q.getOptionB(), q.getOptionC(), q.getOptionD());
+            ArrayAdapter<String> adapter = new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, options);
+            holder.spinnerAnswer.setAdapter(adapter);
 
-        switch (q.getQuestionType().toLowerCase()) {
+            // Restore previous answer if exists
+            if (q.getStudentAnswer() != null) {
+                int index = options.indexOf(q.getStudentAnswer());
+                if (index >= 0) holder.spinnerAnswer.setSelection(index);
+            }
 
-            case "multiple choice":
-                holder.radioGroupMCQ.setVisibility(View.VISIBLE);
-                holder.rbOptionA.setText("A. " + q.getOptionA());
-                holder.rbOptionB.setText("B. " + q.getOptionB());
-                holder.rbOptionC.setText("C. " + q.getOptionC());
-                holder.rbOptionD.setText("D. " + q.getOptionD());
-
-                holder.radioGroupMCQ.clearCheck();
-
-                if (q.getStudentAnswer() != null) {
-                    String ans = q.getStudentAnswer();
-                    if (ans.equals(q.getOptionA())) holder.rbOptionA.setChecked(true);
-                    else if (ans.equals(q.getOptionB())) holder.rbOptionB.setChecked(true);
-                    else if (ans.equals(q.getOptionC())) holder.rbOptionC.setChecked(true);
-                    else if (ans.equals(q.getOptionD())) holder.rbOptionD.setChecked(true);
+            holder.spinnerAnswer.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+                @Override
+                public void onItemSelected(android.widget.AdapterView<?> parent, View view, int pos, long id) {
+                    q.setStudentAnswer(options.get(pos));
                 }
+                @Override public void onNothingSelected(android.widget.AdapterView<?> parent) {}
+            });
 
-                holder.radioGroupMCQ.setOnCheckedChangeListener((group, checkedId) -> {
-                    RadioButton selected = group.findViewById(checkedId);
-                    if (selected != null) {
-                        String answerText = selected.getText().toString().substring(3).trim();
-                        q.setStudentAnswer(answerText);
-                    }
-                });
-                break;
+        } else if (q.getQuestionType().equals("True/False")) {
+            holder.spinnerAnswer.setVisibility(View.VISIBLE);
+            List<String> tfOptions = Arrays.asList("True", "False");
+            ArrayAdapter<String> adapter = new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, tfOptions);
+            holder.spinnerAnswer.setAdapter(adapter);
 
-            case "true/false":
-                holder.radioGroupTF.setVisibility(View.VISIBLE);
-                holder.radioGroupTF.clearCheck();
+            if (q.getStudentAnswer() != null) {
+                int index = tfOptions.indexOf(q.getStudentAnswer());
+                if (index >= 0) holder.spinnerAnswer.setSelection(index);
+            }
 
-                if ("True".equalsIgnoreCase(q.getStudentAnswer())) holder.rbTrue.setChecked(true);
-                else if ("False".equalsIgnoreCase(q.getStudentAnswer())) holder.rbFalse.setChecked(true);
+            holder.spinnerAnswer.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+                @Override
+                public void onItemSelected(android.widget.AdapterView<?> parent, View view, int pos, long id) {
+                    q.setStudentAnswer(tfOptions.get(pos));
+                }
+                @Override public void onNothingSelected(android.widget.AdapterView<?> parent) {}
+            });
 
-                holder.radioGroupTF.setOnCheckedChangeListener((group, checkedId) -> {
-                    RadioButton selected = group.findViewById(checkedId);
-                    if (selected != null) q.setStudentAnswer(selected.getText().toString());
-                });
-                break;
+        } else { // Matching Type
+            holder.etAnswer.setVisibility(View.VISIBLE);
+            holder.etAnswer.setHint("Enter your answer");
 
-            default: // Matching Type or Identification
-                holder.etAnswer.setVisibility(View.VISIBLE);
-                holder.etAnswer.setHint("Enter your answer");
+            if (q.getStudentAnswer() != null) {
+                holder.etAnswer.setText(q.getStudentAnswer());
+            }
 
-                if (q.getStudentAnswer() != null)
-                    holder.etAnswer.setText(q.getStudentAnswer());
-                else
-                    holder.etAnswer.setText("");
-
-                holder.textWatcher = new TextWatcher() {
-                    @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-                    @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
-                        q.setStudentAnswer(s.toString().trim());
-                    }
-                    @Override public void afterTextChanged(Editable s) {}
-                };
-                holder.etAnswer.addTextChangedListener(holder.textWatcher);
-                break;
+            holder.etAnswer.addTextChangedListener(new TextWatcher() {
+                @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+                @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
+                    q.setStudentAnswer(s.toString().trim());
+                }
+                @Override public void afterTextChanged(Editable s) {}
+            });
         }
     }
 
@@ -123,36 +110,18 @@ public class TakeExamAdapter extends RecyclerView.Adapter<TakeExamAdapter.Questi
 
     public static class QuestionViewHolder extends RecyclerView.ViewHolder {
         TextView tvQuestion;
+        Spinner spinnerAnswer;
         EditText etAnswer;
-        TextWatcher textWatcher;
-
-        RadioGroup radioGroupMCQ;
-        RadioButton rbOptionA, rbOptionB, rbOptionC, rbOptionD;
-
-        RadioGroup radioGroupTF;
-        RadioButton rbTrue, rbFalse;
 
         public QuestionViewHolder(@NonNull View itemView) {
             super(itemView);
             tvQuestion = itemView.findViewById(R.id.tvQuestion);
+            spinnerAnswer = itemView.findViewById(R.id.spinnerAnswer);
             etAnswer = itemView.findViewById(R.id.etAnswer);
-
-            radioGroupMCQ = itemView.findViewById(R.id.radioGroupMCQ);
-            rbOptionA = itemView.findViewById(R.id.rbOptionA);
-            rbOptionB = itemView.findViewById(R.id.rbOptionB);
-            rbOptionC = itemView.findViewById(R.id.rbOptionC);
-            rbOptionD = itemView.findViewById(R.id.rbOptionD);
-
-            radioGroupTF = itemView.findViewById(R.id.radioGroupTF);
-            rbTrue = itemView.findViewById(R.id.rbTrue);
-            rbFalse = itemView.findViewById(R.id.rbFalse);
-
-            // Clear listeners to prevent recycled view issues
-            radioGroupMCQ.setOnCheckedChangeListener(null);
-            radioGroupTF.setOnCheckedChangeListener(null);
         }
     }
 
+    // Optional helper to get all student answers for submission
     public List<Question> getQuestions() {
         return questions;
     }

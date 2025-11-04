@@ -1,103 +1,98 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="horizontal"
-    android:padding="12dp"
-    android:gravity="center_vertical"
-    android:background="@android:color/white"
-    android:elevation="2dp"
-    android:layout_marginBottom="8dp">
+    android:layout_marginBottom="8dp"
+    android:elevation="4dp"
+    android:backgroundTint="#FFFFFF"
+    android:padding="12dp">
 
-    <!-- 👤 Profile Image -->
-    <ImageView
-        android:id="@+id/ivProfile"
-        android:layout_width="60dp"
-        android:layout_height="60dp"
-        android:layout_marginEnd="12dp"
-        android:src="@drawable/examinee_default"
-        android:scaleType="centerCrop"
-        android:background="@drawable/profile_circle_background"
-        android:contentDescription="Teacher profile image" />
-
-    <!-- 📄 Info section -->
     <LinearLayout
-        android:orientation="vertical"
-        android:layout_width="0dp"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_weight="1">
+        android:orientation="vertical">
 
+        <!-- Teacher ID -->
         <TextView
             android:id="@+id/tvTeacherId"
-            android:text="Teacher ID"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="TCHR-0001"
             android:textStyle="bold"
-            android:textSize="13sp"
-            android:textColor="#000000"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content" />
-
-        <TextView
-            android:id="@+id/tvDisplayName"
-            android:text="Display Name"
             android:textSize="14sp"
-            android:textColor="#333333"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content" />
+            android:textColor="#000000"/>
 
+        <!-- Full Name -->
         <TextView
             android:id="@+id/tvFullName"
-            android:text="Full Name"
-            android:textSize="14sp"
-            android:textColor="#333333"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content" />
+            android:layout_height="wrap_content"
+            android:text="Full Name"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="#000000"/>
 
+        <!-- Display Name -->
+        <TextView
+            android:id="@+id/tvDisplayName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="D.Name"
+            android:textSize="14sp"
+            android:textColor="#555555"/>
+
+        <!-- Email -->
         <TextView
             android:id="@+id/tvEmail"
-            android:text="Email"
-            android:textSize="13sp"
-            android:textColor="#555555"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="2dp" />
+            android:text="teacher@email.com"
+            android:textColor="#555555"
+            android:layout_marginTop="2dp"/>
 
+        <!-- Courses -->
         <TextView
             android:id="@+id/tvCourse"
-            android:text="Course"
-            android:textSize="13sp"
-            android:textColor="#444444"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="2dp" />
+            android:text="Courses: Course1, Course2"
+            android:textColor="#333333"
+            android:layout_marginTop="2dp"/>
 
+        <!-- Subjects -->
         <TextView
             android:id="@+id/tvSubjects"
-            android:text="Subjects"
-            android:textSize="13sp"
-            android:textColor="#444444"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="2dp" />
+            android:text="Subjects: Subject1, Subject2"
+            android:textColor="#333333"
+            android:layout_marginTop="2dp"/>
+
+        <!-- Buttons -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="end"
+            android:layout_marginTop="6dp">
+
+            <Button
+                android:id="@+id/btnUpdateTeacher"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Edit"
+                android:textColor="#FFFFFF"
+                android:backgroundTint="#00BFFF"
+                android:layout_marginEnd="8dp"/>
+
+            <Button
+                android:id="@+id/btnDeleteTeacher"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Delete"
+                android:textColor="#FFFFFF"
+                android:backgroundTint="#FF4444"/>
+        </LinearLayout>
 
     </LinearLayout>
-
-    <!-- ✏️ Update Button -->
-    <ImageButton
-        android:id="@+id/btnUpdateTeacher"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:src="@android:drawable/ic_menu_edit"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:contentDescription="Update Teacher" />
-
-    <!-- ❌ Delete Button -->
-    <ImageButton
-        android:id="@+id/btnDeleteTeacher"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:src="@android:drawable/ic_menu_delete"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:contentDescription="Delete Teacher"
-        android:layout_marginStart="4dp" />
-
-</LinearLayout>
+</androidx.cardview.widget.CardView>

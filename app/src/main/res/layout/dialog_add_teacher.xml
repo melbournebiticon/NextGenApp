@@ -1,62 +1,91 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content">
+    android:layout_height="wrap_content"
+    android:padding="16dp"
+    android:fillViewport="true">
 
     <LinearLayout
-        android:orientation="vertical"
-        android:padding="16dp"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
 
+        <!-- First Name -->
         <EditText
-            android:id="@+id/etFullName"
-            android:hint="Full Name"
+            android:id="@+id/etFirstName"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"/>
+            android:layout_height="wrap_content"
+            android:hint="First Name"
+            android:padding="12dp"
+            android:background="@drawable/edit_bg" />
 
+        <!-- Last Name -->
+        <EditText
+            android:id="@+id/etLastName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:hint="Last Name"
+            android:padding="12dp"
+            android:background="@drawable/edit_bg" />
+
+        <!-- Birthday -->
         <EditText
             android:id="@+id/etBirthday"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Select Birthday"
-            android:focusable="false"
-            android:clickable="true"
-            android:inputType="none"
-            android:drawableEnd="@android:drawable/ic_menu_today"
-            android:paddingEnd="12dp" />
+            android:layout_marginTop="12dp"
+            android:hint="Birthday (YYYY-MM-DD)"
+            android:padding="12dp"
+            android:background="@drawable/edit_bg" />
 
-
+        <!-- Email -->
         <EditText
             android:id="@+id/etEmail"
-            android:hint="Email"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:inputType="textEmailAddress"/>
-
-        <TextView
-            android:text="Select Course(s)"
-            android:textStyle="bold"
             android:layout_marginTop="12dp"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
+            android:hint="Email"
+            android:padding="12dp"
+            android:background="@drawable/edit_bg" />
 
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/recyclerCourseSelection"
-            android:layout_width="match_parent"
-            android:layout_height="150dp"/>
-
+        <!-- Course Spinner -->
         <TextView
-            android:text="Subjects"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Select Course"
             android:textStyle="bold"
-            android:layout_marginTop="12dp"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"/>
+            android:layout_marginTop="12dp" />
 
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/recyclerSubjects"
+        <Spinner
+            android:id="@+id/spinnerCourse"
             android:layout_width="match_parent"
-            android:layout_height="150dp"/>
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp" />
+
+        <!-- Subject Spinner -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Select Subject"
+            android:textStyle="bold"
+            android:layout_marginTop="12dp" />
+
+        <Spinner
+            android:id="@+id/spinnerSubject"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp" />
+
+        <!-- Save Button -->
+        <Button
+            android:id="@+id/btnSaveTeacher"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="Save"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#003366" />
+
     </LinearLayout>
 </ScrollView>

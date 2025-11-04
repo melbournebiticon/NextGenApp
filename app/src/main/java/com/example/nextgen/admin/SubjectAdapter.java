@@ -5,23 +5,27 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageButton;
 import android.widget.TextView;
+import android.widget.Toast;
+
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
+
 import com.example.nextgen.R;
+
 import java.util.List;
 
 public class SubjectAdapter extends RecyclerView.Adapter<SubjectAdapter.SubjectViewHolder> {
 
     private final List<SubjectModel> subjectList;
-    private final OnSubjectActionListener listener;
+    private final OnItemClickListener listener;
 
-    // interface for edit/delete actions
-    public interface OnSubjectActionListener {
-        void onEdit(SubjectModel subject);
-        void onDelete(SubjectModel subject);
+    // Interface for click listeners
+    public interface OnItemClickListener {
+        void onEditClick(SubjectModel subject);
+        void onDeleteClick(SubjectModel subject);
     }
 
-    public SubjectAdapter(List<SubjectModel> subjectList, OnSubjectActionListener listener) {
+    public SubjectAdapter(List<SubjectModel> subjectList, OnItemClickListener listener) {
         this.subjectList = subjectList;
         this.listener = listener;
     }
@@ -38,6 +42,7 @@ public class SubjectAdapter extends RecyclerView.Adapter<SubjectAdapter.SubjectV
     public void onBindViewHolder(@NonNull SubjectViewHolder holder, int position) {
         SubjectModel subject = subjectList.get(position);
 
+        // Set subject data - CORRECTED METHOD NAMES
         holder.tvCode.setText(subject.getCode());
         holder.tvName.setText(subject.getName());
         holder.tvCourseInfo.setText(
@@ -47,13 +52,45 @@ public class SubjectAdapter extends RecyclerView.Adapter<SubjectAdapter.SubjectV
                         subject.getSectionName()
         );
 
-        holder.btnEdit.setOnClickListener(v -> listener.onEdit(subject));
-        holder.btnDelete.setOnClickListener(v -> listener.onDelete(subject));
+        // Set click listeners for edit and delete buttons
+        holder.btnEdit.setOnClickListener(v -> {
+            if (listener != null) {
+                listener.onEditClick(subject);
+            }
+        });
+
+        holder.btnDelete.setOnClickListener(v -> {
+            if (listener != null) {
+                listener.onDeleteClick(subject);
+            }
+        });
+
+        // Optional: Set click listener for entire item
+        holder.itemView.setOnClickListener(v -> {
+            // You can add item click functionality here if needed
+            Toast.makeText(holder.itemView.getContext(),
+                    "Subject: " + subject.getName(), Toast.LENGTH_SHORT).show();
+        });
     }
 
     @Override
     public int getItemCount() {
         return subjectList.size();
+    }
+
+    // Method to update data
+    public void updateData(List<SubjectModel> newSubjectList) {
+        subjectList.clear();
+        subjectList.addAll(newSubjectList);
+        notifyDataSetChanged();
+    }
+
+    // Method to remove item
+    public void removeItem(int position) {
+        if (position >= 0 && position < subjectList.size()) {
+            subjectList.remove(position);
+            notifyItemRemoved(position);
+        }
     }
 
     public static class SubjectViewHolder extends RecyclerView.ViewHolder {
@@ -65,8 +102,8 @@ public class SubjectAdapter extends RecyclerView.Adapter<SubjectAdapter.SubjectV
             tvCode = itemView.findViewById(R.id.tvSubjectCode);
             tvName = itemView.findViewById(R.id.tvSubjectName);
             tvCourseInfo = itemView.findViewById(R.id.tvSubjectCourseInfo);
-            btnEdit = itemView.findViewById(R.id.btnEdit);
-            btnDelete = itemView.findViewById(R.id.btnDelete);
+            btnEdit = itemView.findViewById(R.id.btnEditSubject);
+            btnDelete = itemView.findViewById(R.id.btnDeleteSubject);
         }
     }
 }

@@ -1,9 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
+    style="@style/StudentItemStyle"
     android:orientation="horizontal"
-    android:padding="12dp"
     android:gravity="center_vertical">
 
     <ImageView
@@ -12,6 +10,7 @@
         android:layout_height="50dp"
         android:src="@drawable/examinee_default"
         android:scaleType="centerCrop"
+        android:background="@drawable/profile_circle_bg"
         android:layout_marginEnd="12dp" />
 
     <LinearLayout
@@ -22,20 +21,21 @@
 
         <TextView
             android:id="@+id/tvFullName"
+            style="@style/StudentNameText"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Full Name"
-            android:textStyle="bold"
-            android:textSize="16sp"/>
+            android:text="Full Name" />
 
         <TextView
             android:id="@+id/tvSection"
+            style="@style/StudentInfoText"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Specialization - Year" />
 
         <TextView
             android:id="@+id/tvCourse"
+            style="@style/StudentInfoText"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Course Name" />
@@ -43,19 +43,15 @@
 
     <ImageButton
         android:id="@+id/ivEdit"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
+        style="@style/ActionButtonStyle"
         android:src="@android:drawable/ic_menu_edit"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:contentDescription="Edit" />
+        android:contentDescription="Edit"
+        android:layout_marginEnd="8dp" />
 
-    <!-- Delete Button -->
     <ImageButton
         android:id="@+id/ivDelete"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
+        style="@style/ActionButtonStyle"
         android:src="@android:drawable/ic_menu_delete"
-        android:background="?attr/selectableItemBackgroundBorderless"
         android:contentDescription="Delete" />
 
 </LinearLayout>

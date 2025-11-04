@@ -7,53 +7,59 @@ import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
+import android.text.Editable;
 import android.text.TextUtils;
+import android.text.TextWatcher;
 import android.util.Base64;
+import android.util.DisplayMetrics;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
-import android.widget.ArrayAdapter;
-import android.widget.Button;
-import android.widget.EditText;
-import android.widget.ImageView;
-import android.widget.ProgressBar;
-import android.widget.Spinner;
-import android.widget.TextView;
-import android.widget.Toast;
-
+import android.view.ViewGroup;
+import android.widget.*;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-
 import com.example.nextgen.R;
+import com.example.nextgen.MainActivity;
+import com.example.nextgen.SessionManager;
+import com.google.android.material.textfield.TextInputEditText;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.*;
-
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 
-
 public class StudentActivity extends AppCompatActivity {
-    private Spinner spEditCourse;
     private Uri selectedImageUri;
     private ImageView currentEditProfileView;
+    private String currentStudentId;
 
+    // SIDEBAR VARIABLES
+    private DrawerLayout drawerLayout;
+    private LinearLayout curriculumDropdown, accountsDropdown;
 
-    private EditText etFullName, etBirthday, etEmail, etContact;
-    private Spinner spinnerCourses;
+    // FORM VARIABLES
+    private EditText searchStudent;
     private RecyclerView recyclerStudents;
     private Button btnAddStudent;
+    private ImageButton btnClearSearch;
 
+    // USE CourseModel AND StudentModel
     private List<CourseModel> courseOptionList = new ArrayList<>();
     private List<StudentModel> studentList = new ArrayList<>();
+    private List<StudentModel> filteredStudentList = new ArrayList<>();
 
     private DatabaseReference studentsRef, coursesRef, usersRef;
     private FirebaseAuth auth;
+    private SessionManager sessionManager;
 
     private StudentAdapter studentAdapter;
 
@@ -62,86 +68,33 @@ public class StudentActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_student);
 
-        // UI
-        etFullName = findViewById(R.id.etFullName);
-        etBirthday = findViewById(R.id.etBirthday);
-        etEmail = findViewById(R.id.etEmail);
-        etContact = findViewById(R.id.etContact);
-        spinnerCourses = findViewById(R.id.spinnerCourses);
-        recyclerStudents = findViewById(R.id.recyclerStudents);
-        btnAddStudent = findViewById(R.id.btnAddStudent);
+        // INITIALIZE SIDEBAR
+        initializeSidebarViews();
+        setupSidebarNavigation();
 
-        etBirthday.setOnClickListener(v -> {
-            Calendar calendar = Calendar.getInstance();
-            int year = calendar.get(Calendar.YEAR);
-            int month = calendar.get(Calendar.MONTH);
-            int day = calendar.get(Calendar.DAY_OF_MONTH);
-
-            DatePickerDialog datePicker = new DatePickerDialog(StudentActivity.this,
-                    (view, selectedYear, selectedMonth, selectedDay) -> {
-                        // Format MM/DD/YYYY
-                        String formattedDate = String.format("%02d/%02d/%04d",
-                                selectedMonth + 1, selectedDay, selectedYear);
-                        etBirthday.setText(formattedDate);
-                    }, year, month, day);
-            datePicker.show();
-
-        });
-
-
-        recyclerStudents.setLayoutManager(new LinearLayoutManager(this));
+        // INITIALIZE FORM ELEMENTS
+        initializeFormViews();
+        setupSearchFunctionality();
 
         // Firebase
         studentsRef = FirebaseDatabase.getInstance().getReference("Students");
         coursesRef = FirebaseDatabase.getInstance().getReference("Courses");
         usersRef = FirebaseDatabase.getInstance().getReference("Users");
         auth = FirebaseAuth.getInstance();
+        sessionManager = new SessionManager(this);
 
-        studentAdapter = new StudentAdapter(studentList, new StudentAdapter.OnStudentActionListener() {
+        // INITIALIZE ADAPTER WITH STUDENTMODEL
+        studentAdapter = new StudentAdapter(filteredStudentList, new StudentAdapter.OnStudentActionListener() {
             @Override
             public void onUpdate(StudentModel student) {
-                showStudentDialog(student);
+                showEditStudentDialog(student);
             }
 
             @Override
             public void onDelete(StudentModel student) {
-                new AlertDialog.Builder(StudentActivity.this)
-                        .setTitle("Delete Student")
-                        .setMessage("Are you sure you want to delete " + student.getFullName() + "?")
-                        .setPositiveButton("Yes", (dialog, which) -> {
-                            // First, delete from Users node
-                            if (student.getUid() != null && !student.getUid().isEmpty()) {
-                                usersRef.child(student.getUid()).removeValue()
-                                        .addOnSuccessListener(aVoid -> {
-                                            // Optional: Delete from Firebase Auth (only if admin has access)
-                                            FirebaseUser currentUser = auth.getCurrentUser();
-                                            if (currentUser != null && currentUser.getUid().equals(student.getUid())) {
-                                                currentUser.delete()
-                                                        .addOnSuccessListener(aVoid2 ->
-                                                                Toast.makeText(StudentActivity.this, "Auth user deleted", Toast.LENGTH_SHORT).show())
-                                                        .addOnFailureListener(e ->
-                                                                Toast.makeText(StudentActivity.this, "Auth delete failed: " + e.getMessage(), Toast.LENGTH_SHORT).show());
-                                            }
-                                        })
-                                        .addOnFailureListener(e ->
-                                                Toast.makeText(StudentActivity.this, "Failed to delete user record: " + e.getMessage(), Toast.LENGTH_SHORT).show());
-                            }
-
-                            // Then, delete from Students node
-                            studentsRef.child(student.getStudentId()).removeValue()
-                                    .addOnSuccessListener(aVoid ->
-                                            Toast.makeText(StudentActivity.this, "Student deleted", Toast.LENGTH_SHORT).show())
-                                    .addOnFailureListener(e ->
-                                            Toast.makeText(StudentActivity.this, "Delete failed: " + e.getMessage(), Toast.LENGTH_SHORT).show());
-                        })
-                        .setNegativeButton("Cancel", null)
-                        .show();
+                showDeleteConfirmation(student);
             }
-
-
-
         });
-
         recyclerStudents.setAdapter(studentAdapter);
 
         // Load students
@@ -150,19 +103,548 @@ public class StudentActivity extends AppCompatActivity {
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 studentList.clear();
                 for (DataSnapshot ds : snapshot.getChildren()) {
-                    StudentModel s = ds.getValue(StudentModel.class);
-                    if (s != null) studentList.add(s);
+                    StudentModel student = ds.getValue(StudentModel.class);
+                    if (student != null) {
+                        student.setStudentId(ds.getKey()); // Set the studentId from Firebase key
+                        studentList.add(student);
+                    }
                 }
+                // Update filtered list
+                filterStudents(searchStudent.getText().toString());
                 studentAdapter.notifyDataSetChanged();
+
+                // Show message
+                if (studentList.isEmpty()) {
+                    Toast.makeText(StudentActivity.this, "No students found", Toast.LENGTH_SHORT).show();
+                }
             }
 
             @Override
-            public void onCancelled(@NonNull DatabaseError error) {}
+            public void onCancelled(@NonNull DatabaseError error) {
+                Toast.makeText(StudentActivity.this, "Failed to load students", Toast.LENGTH_SHORT).show();
+            }
         });
 
         loadCourses();
+    }
 
-        btnAddStudent.setOnClickListener(v -> addStudent());
+    @Override
+    protected void onPostCreate(@Nullable Bundle savedInstanceState) {
+        super.onPostCreate(savedInstanceState);
+        fixSidebarHeight();
+    }
+
+    private void fixSidebarHeight() {
+        View sidebarLayout = findViewById(R.id.sidebarLayout);
+        if (sidebarLayout != null) {
+            sidebarLayout.post(new Runnable() {
+                @Override
+                public void run() {
+                    DisplayMetrics displayMetrics = new DisplayMetrics();
+                    getWindowManager().getDefaultDisplay().getMetrics(displayMetrics);
+                    int screenHeight = displayMetrics.heightPixels;
+
+                    ViewGroup.LayoutParams params = sidebarLayout.getLayoutParams();
+                    params.height = screenHeight;
+                    sidebarLayout.setLayoutParams(params);
+                    sidebarLayout.requestLayout();
+
+                    // Debug log
+                    Log.d("SIDEBAR_FIX", "Sidebar height set to: " + screenHeight);
+                }
+            });
+        }
+    }
+
+    private void initializeFormViews() {
+        recyclerStudents = findViewById(R.id.recyclerStudents);
+        btnAddStudent = findViewById(R.id.btnAddStudent);
+        searchStudent = findViewById(R.id.searchStudent);
+        btnClearSearch = findViewById(R.id.btnClearSearch);
+
+        recyclerStudents.setLayoutManager(new LinearLayoutManager(this));
+
+        // Set click listener for Add Student button to show popup form
+        btnAddStudent.setOnClickListener(v -> showAddStudentDialog());
+    }
+
+    private void showAddStudentDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+
+        // Inflate custom dialog layout - GAMITIN ANG IYONG XML LAYOUT
+        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_add_student, null);
+        builder.setView(dialogView);
+
+        // Initialize dialog views FROM XML LAYOUT
+        TextInputEditText etFullName = dialogView.findViewById(R.id.etFullName);
+        TextInputEditText etBirthday = dialogView.findViewById(R.id.etBirthday);
+        TextInputEditText etEmail = dialogView.findViewById(R.id.etEmail);
+        TextInputEditText etContact = dialogView.findViewById(R.id.etContact);
+        Spinner spinnerCourses = dialogView.findViewById(R.id.spinnerCourses);
+        Button btnCancel = dialogView.findViewById(R.id.btnCancel);
+        Button btnSubmit = dialogView.findViewById(R.id.btnSubmit);
+
+        // Setup course spinner
+        setupDialogCourseSpinner(spinnerCourses);
+
+        // Date picker for birthday
+        etBirthday.setOnClickListener(v -> {
+            Calendar calendar = Calendar.getInstance();
+            int year = calendar.get(Calendar.YEAR);
+            int month = calendar.get(Calendar.MONTH);
+            int day = calendar.get(Calendar.DAY_OF_MONTH);
+
+            DatePickerDialog datePicker = new DatePickerDialog(StudentActivity.this,
+                    (view, selectedYear, selectedMonth, selectedDay) -> {
+                        String formattedDate = String.format("%04d-%02d-%02d", selectedYear, selectedMonth + 1, selectedDay);
+                        etBirthday.setText(formattedDate);
+                    }, year, month, day);
+            datePicker.show();
+        });
+
+        AlertDialog dialog = builder.create();
+        dialog.show();
+
+        // Cancel button
+        btnCancel.setOnClickListener(v -> dialog.dismiss());
+
+        // Submit button
+        btnSubmit.setOnClickListener(v -> {
+            String fullName = etFullName.getText().toString().trim();
+            String birthday = etBirthday.getText().toString().trim();
+            String email = etEmail.getText().toString().trim();
+            String contact = etContact.getText().toString().trim();
+            int coursePos = spinnerCourses.getSelectedItemPosition();
+
+            if (TextUtils.isEmpty(fullName)) {
+                etFullName.setError("Full name is required");
+                return;
+            }
+            if (TextUtils.isEmpty(birthday)) {
+                etBirthday.setError("Birthday is required");
+                return;
+            }
+            if (TextUtils.isEmpty(email)) {
+                etEmail.setError("Email is required");
+                return;
+            }
+            if (TextUtils.isEmpty(contact)) {
+                etContact.setError("Contact number is required");
+                return;
+            }
+            if (coursePos < 0 || coursePos >= courseOptionList.size()) {
+                Toast.makeText(this, "Please select a course", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            addStudent(fullName, birthday, email, contact, coursePos);
+            dialog.dismiss();
+        });
+    }
+
+    private void showEditStudentDialog(StudentModel student) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+
+        // Inflate custom dialog layout - GAMITIN ANG IYONG XML LAYOUT
+        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_student_edit, null);
+        builder.setView(dialogView);
+
+        // Initialize dialog views FROM XML LAYOUT
+        EditText etFullName = dialogView.findViewById(R.id.etFullName);
+        EditText etBirthday = dialogView.findViewById(R.id.etBirthday);
+        EditText etEmail = dialogView.findViewById(R.id.etEmail);
+        EditText etContact = dialogView.findViewById(R.id.etContact);
+        Spinner spinnerCourses = dialogView.findViewById(R.id.spinnerCourses);
+        ImageView ivProfile = dialogView.findViewById(R.id.ivProfile);
+        Button btnCancel = dialogView.findViewById(R.id.btnCancel);
+        Button btnSubmit = dialogView.findViewById(R.id.btnSubmit);
+
+        // Populate fields with current student data
+        etFullName.setText(student.getFullName());
+        etBirthday.setText(student.getBirthday());
+        etEmail.setText(student.getEmail());
+        etContact.setText(student.getContact());
+
+        // Set profile image
+        if (student.getProfileImage() != null && !student.getProfileImage().isEmpty()) {
+            try {
+                byte[] decodedBytes = Base64.decode(student.getProfileImage(), Base64.DEFAULT);
+                Bitmap bitmap = BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.length);
+                ivProfile.setImageBitmap(bitmap);
+            } catch (Exception e) {
+                e.printStackTrace();
+                ivProfile.setImageResource(R.drawable.examinee_default);
+            }
+        } else {
+            ivProfile.setImageResource(R.drawable.examinee_default);
+        }
+
+        // Setup course spinner and select current course
+        setupEditCourseSpinner(spinnerCourses, student);
+
+        // Date picker for birthday
+        etBirthday.setOnClickListener(v -> {
+            Calendar calendar = Calendar.getInstance();
+            int year = calendar.get(Calendar.YEAR);
+            int month = calendar.get(Calendar.MONTH);
+            int day = calendar.get(Calendar.DAY_OF_MONTH);
+
+            DatePickerDialog datePicker = new DatePickerDialog(StudentActivity.this,
+                    (view, selectedYear, selectedMonth, selectedDay) -> {
+                        String formattedDate = String.format("%04d-%02d-%02d", selectedYear, selectedMonth + 1, selectedDay);
+                        etBirthday.setText(formattedDate);
+                    }, year, month, day);
+            datePicker.show();
+        });
+
+        // Profile image click listener
+        ivProfile.setOnClickListener(v -> {
+            currentEditProfileView = ivProfile;
+            currentStudentId = student.getStudentId();
+            openImagePicker();
+        });
+
+        AlertDialog dialog = builder.create();
+        dialog.show();
+
+        // Cancel button
+        btnCancel.setOnClickListener(v -> dialog.dismiss());
+
+        // Submit button
+        btnSubmit.setOnClickListener(v -> {
+            String fullName = etFullName.getText().toString().trim();
+            String birthday = etBirthday.getText().toString().trim();
+            String email = etEmail.getText().toString().trim();
+            String contact = etContact.getText().toString().trim();
+            int coursePos = spinnerCourses.getSelectedItemPosition();
+
+            if (TextUtils.isEmpty(fullName)) {
+                etFullName.setError("Full name is required");
+                return;
+            }
+            if (TextUtils.isEmpty(birthday)) {
+                etBirthday.setError("Birthday is required");
+                return;
+            }
+            if (TextUtils.isEmpty(email)) {
+                etEmail.setError("Email is required");
+                return;
+            }
+            if (TextUtils.isEmpty(contact)) {
+                etContact.setError("Contact number is required");
+                return;
+            }
+            if (coursePos < 0 || coursePos >= courseOptionList.size()) {
+                Toast.makeText(this, "Please select a course", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            updateStudent(student, fullName, birthday, email, contact, coursePos);
+            dialog.dismiss();
+        });
+    }
+
+    private void showDeleteConfirmation(StudentModel student) {
+        new AlertDialog.Builder(this)
+                .setTitle("Delete Examinee")
+                .setMessage("Are you sure you want to delete " + student.getFullName() + "?")
+                .setPositiveButton("Delete", (dialog, which) -> {
+                    deleteStudentFromFirebase(student);
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void setupDialogCourseSpinner(Spinner spinner) {
+        List<String> displayNames = new ArrayList<>();
+        for (CourseModel course : courseOptionList) {
+            String displayName = course.getCourseName() + " - " +
+                    course.getSpecializationName() + " - " +
+                    course.getYearName() + " - " +
+                    course.getSectionName();
+            displayNames.add(displayName);
+        }
+
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_item, displayNames);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinner.setAdapter(adapter);
+    }
+
+    private void setupEditCourseSpinner(Spinner spinner, StudentModel student) {
+        List<String> displayNames = new ArrayList<>();
+        int selectedPosition = 0;
+
+        for (int i = 0; i < courseOptionList.size(); i++) {
+            CourseModel course = courseOptionList.get(i);
+            String displayName = course.getCourseName() + " - " +
+                    course.getSpecializationName() + " - " +
+                    course.getYearName() + " - " +
+                    course.getSectionName();
+            displayNames.add(displayName);
+
+            // Check if this course matches the student's current course
+            if (course.getId().equals(student.getCourseId())) {
+                selectedPosition = i;
+            }
+        }
+
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_item, displayNames);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinner.setAdapter(adapter);
+        spinner.setSelection(selectedPosition);
+    }
+
+    private void setupSearchFunctionality() {
+        searchStudent.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                filterStudents(s.toString());
+
+                // Show/hide clear button
+                if (s.length() > 0) {
+                    btnClearSearch.setVisibility(View.VISIBLE);
+                } else {
+                    btnClearSearch.setVisibility(View.GONE);
+                }
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {}
+        });
+
+        btnClearSearch.setOnClickListener(v -> {
+            searchStudent.setText("");
+            btnClearSearch.setVisibility(View.GONE);
+            filterStudents("");
+        });
+    }
+
+    private void filterStudents(String searchText) {
+        filteredStudentList.clear();
+
+        if (searchText.isEmpty()) {
+            filteredStudentList.addAll(studentList);
+        } else {
+            String query = searchText.toLowerCase().trim();
+            for (StudentModel student : studentList) {
+                if (student.getFullName().toLowerCase().contains(query) ||
+                        student.getEmail().toLowerCase().contains(query) ||
+                        student.getCourseName().toLowerCase().contains(query) ||
+                        student.getContact().contains(query)) {
+                    filteredStudentList.add(student);
+                }
+            }
+        }
+
+        studentAdapter.notifyDataSetChanged();
+
+        // Show empty state if no results
+        if (filteredStudentList.isEmpty() && !searchText.isEmpty()) {
+            Toast.makeText(this, "No examinees found", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    // DELETE STUDENT METHOD
+    private void deleteStudentFromFirebase(StudentModel student) {
+        String studentId = student.getStudentId();
+        String uid = student.getUid();
+
+        if (uid != null && !uid.isEmpty()) {
+            usersRef.child(uid).removeValue()
+                    .addOnSuccessListener(aVoid -> {
+                        Toast.makeText(this, "User record deleted", Toast.LENGTH_SHORT).show();
+                    })
+                    .addOnFailureListener(e -> {
+                        Toast.makeText(this, "Failed to delete user record: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    });
+        }
+
+        studentsRef.child(studentId).removeValue()
+                .addOnSuccessListener(aVoid -> {
+                    Toast.makeText(this, "Student deleted successfully", Toast.LENGTH_SHORT).show();
+                })
+                .addOnFailureListener(e -> {
+                    Toast.makeText(this, "Delete failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
+    }
+
+    // UPDATE STUDENT METHOD
+    private void updateStudent(StudentModel student, String fullName, String birthday, String email, String contact, int coursePos) {
+        CourseModel selectedCourse = courseOptionList.get(coursePos);
+
+        // Update student object
+        student.setFullName(fullName);
+        student.setBirthday(birthday);
+        student.setEmail(email);
+        student.setContact(contact);
+        student.setCourseId(selectedCourse.getId());
+        student.setCourseName(selectedCourse.getCourseName());
+        student.setSpecializationName(selectedCourse.getSpecializationName());
+        student.setYearName(selectedCourse.getYearName());
+        student.setSectionName(selectedCourse.getSectionName());
+
+        // Update profile image if new one was selected
+        if (selectedImageUri != null) {
+            String base64Image = convertImageToBase64(selectedImageUri);
+            if (base64Image != null) {
+                student.setProfileImage(base64Image);
+            }
+        }
+
+        // Update in Firebase
+        studentsRef.child(student.getStudentId()).setValue(student)
+                .addOnSuccessListener(aVoid -> {
+                    Toast.makeText(this, "Student updated successfully!", Toast.LENGTH_SHORT).show();
+                    selectedImageUri = null; // Reset after update
+                })
+                .addOnFailureListener(e -> {
+                    Toast.makeText(this, "Failed to update student: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
+    }
+
+    // SIDEBAR METHODS
+    private void initializeSidebarViews() {
+        drawerLayout = findViewById(R.id.drawerLayout);
+        curriculumDropdown = findViewById(R.id.curriculumDropdown);
+        accountsDropdown = findViewById(R.id.accountsDropdown);
+    }
+
+    private void setupSidebarNavigation() {
+        ImageButton btnToggleSidebar = findViewById(R.id.btnToggleSidebar);
+        btnToggleSidebar.setOnClickListener(v -> toggleSidebar());
+
+        Button btnManageCurriculumHeader = findViewById(R.id.btnManageCurriculumHeader);
+        Button btnManageAccountsHeader = findViewById(R.id.btnManageAccountsHeader);
+
+        btnManageCurriculumHeader.setOnClickListener(v -> {
+            if (curriculumDropdown.getVisibility() == View.VISIBLE) {
+                curriculumDropdown.setVisibility(View.GONE);
+            } else {
+                curriculumDropdown.setVisibility(View.VISIBLE);
+                accountsDropdown.setVisibility(View.GONE);
+            }
+        });
+
+        btnManageAccountsHeader.setOnClickListener(v -> {
+            if (accountsDropdown.getVisibility() == View.VISIBLE) {
+                accountsDropdown.setVisibility(View.GONE);
+            } else {
+                accountsDropdown.setVisibility(View.VISIBLE);
+                curriculumDropdown.setVisibility(View.GONE);
+            }
+        });
+
+        // BUTTONS INSIDE CURRICULUM DROPDOWN
+        findViewById(R.id.btnManageSpecializations).setOnClickListener(v -> {
+            navigateToActivity("Specializations");
+            drawerLayout.closeDrawer(android.view.Gravity.START);
+        });
+
+        findViewById(R.id.btnManageYears).setOnClickListener(v -> {
+            navigateToActivity("Years");
+            drawerLayout.closeDrawer(android.view.Gravity.START);
+        });
+
+        findViewById(R.id.btnManageSections).setOnClickListener(v -> {
+            navigateToActivity("Sections");
+            drawerLayout.closeDrawer(android.view.Gravity.START);
+        });
+
+        findViewById(R.id.btnManageCourse).setOnClickListener(v -> {
+            navigateToActivity("Courses");
+            drawerLayout.closeDrawer(android.view.Gravity.START);
+        });
+
+        findViewById(R.id.btnManageSubjects).setOnClickListener(v -> {
+            navigateToActivity("Subjects");
+            drawerLayout.closeDrawer(android.view.Gravity.START);
+        });
+
+        // BUTTONS INSIDE ACCOUNTS DROPDOWN
+        findViewById(R.id.btnManageTeachers).setOnClickListener(v -> {
+            navigateToActivity("Teachers");
+            drawerLayout.closeDrawer(android.view.Gravity.START);
+        });
+
+        findViewById(R.id.btnManageStudents).setOnClickListener(v -> {
+            Toast.makeText(this, "Already in Examinees", Toast.LENGTH_SHORT).show();
+            drawerLayout.closeDrawer(android.view.Gravity.START);
+        });
+
+        // Logout button
+        Button logoutBtn = findViewById(R.id.logoutBtn);
+        logoutBtn.setOnClickListener(v -> logout());
+    }
+
+    // NAVIGATION METHOD
+    private void navigateToActivity(String activityName) {
+        Toast.makeText(this, "Navigating to " + activityName, Toast.LENGTH_SHORT).show();
+
+        try {
+            Intent intent = null;
+
+            switch (activityName) {
+                case "Teachers":
+                    intent = new Intent(this, TeacherActivity.class);
+                    break;
+                case "Specializations":
+                    intent = new Intent(this, SpecializationsActivity.class);
+                    break;
+                case "Years":
+                    intent = new Intent(this, YearsActivity.class);
+                    break;
+                case "Sections":
+                    intent = new Intent(this, SectionsActivity.class);
+                    break;
+                case "Courses":
+                    intent = new Intent(this, CourseActivity.class);
+                    break;
+                case "Subjects":
+                    intent = new Intent(this, SubjectActivity.class);
+                    break;
+            }
+
+            if (intent != null) {
+                startActivity(intent);
+                overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
+            }
+
+        } catch (Exception e) {
+            Toast.makeText(this, "Cannot open " + activityName, Toast.LENGTH_LONG).show();
+        }
+    }
+
+    // HELPER METHODS
+    private void toggleSidebar() {
+        if (drawerLayout.isDrawerOpen(android.view.Gravity.START)) {
+            drawerLayout.closeDrawer(android.view.Gravity.START);
+        } else {
+            drawerLayout.openDrawer(android.view.Gravity.START);
+        }
+    }
+
+    private void logout() {
+        // Close sidebar first
+        if (drawerLayout.isDrawerOpen(android.view.Gravity.START)) {
+            drawerLayout.closeDrawer(android.view.Gravity.START);
+        }
+
+        // Clear session AND sign out from Firebase
+        sessionManager.clearSession();
+        auth.signOut();
+
+        Toast.makeText(this, "Logged out successfully", Toast.LENGTH_SHORT).show();
+
+        // Redirect to login screen
+        Intent intent = new Intent(StudentActivity.this, MainActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
+        finish();
     }
 
     private void loadCourses() {
@@ -170,89 +652,50 @@ public class StudentActivity extends AppCompatActivity {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 courseOptionList.clear();
-                List<String> displayNames = new ArrayList<>();
                 for (DataSnapshot ds : snapshot.getChildren()) {
-                    CourseModel c = ds.getValue(CourseModel.class);
-                    if (c != null) {
-                        courseOptionList.add(c);
-                        displayNames.add(c.getName() + " - " +
-                                c.getSpecializationName() + " - " +
-                                c.getYearName() + " - " +
-                                c.getSectionName());
+                    CourseModel course = ds.getValue(CourseModel.class);
+                    if (course != null) {
+                        course.setId(ds.getKey());
+                        courseOptionList.add(course);
                     }
                 }
 
-                ArrayAdapter<String> adapter = new ArrayAdapter<>(StudentActivity.this,
-                        android.R.layout.simple_spinner_item, displayNames);
-                adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-                spinnerCourses.setAdapter(adapter);
-            }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) {}
-        });
-    }
-
-    private void addStudent() {
-        String fullName = etFullName.getText().toString().trim();
-        String birthday = etBirthday.getText().toString().trim();
-        String email = etEmail.getText().toString().trim();
-        String contact = etContact.getText().toString().trim();
-        int coursePos = spinnerCourses.getSelectedItemPosition();
-
-        if (TextUtils.isEmpty(fullName) || TextUtils.isEmpty(birthday) ||
-                TextUtils.isEmpty(email) || TextUtils.isEmpty(contact) || coursePos < 0) {
-            Toast.makeText(this, "Complete all fields", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        CourseModel selectedCourse = courseOptionList.get(coursePos);
-
-        generateStudentId(studentId -> {
-            // Auto password from birthday: YYYYMMDD
-            // Accept both MM/DD/YYYY or YYYY-MM-DD formats
-            String cleanedBirthday = birthday.replace("-", "/");
-            String[] parts = cleanedBirthday.split("/");
-
-            String month = "";
-            String day = "";
-            String year = "";
-
-            if (parts.length == 3) {
-                // detect format
-                if (birthday.contains("-")) {
-                    // YYYY-MM-DD
-                    year = parts[0];
-                    month = parts[1];
-                    day = parts[2];
-                } else {
-                    // MM/DD/YYYY
-                    month = parts[0];
-                    day = parts[1];
-                    year = parts[2];
+                if (courseOptionList.isEmpty()) {
+                    Toast.makeText(StudentActivity.this, "No courses available", Toast.LENGTH_SHORT).show();
                 }
             }
 
-// Format password as MMDDYYYY
-            String password = month + day + year;
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                Toast.makeText(StudentActivity.this, "Failed to load courses", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
 
+    private void addStudent(String fullName, String birthday, String email, String contact, int coursePos) {
+        CourseModel selectedCourse = courseOptionList.get(coursePos);
 
-            StudentModel student = new StudentModel(
-                    studentId,
-                    fullName,
-                    birthday,
-                    email,
-                    contact,
-                    selectedCourse.getId(),
-                    selectedCourse.getCourseName(),
-                    selectedCourse.getSpecializationName(),
-                    selectedCourse.getYearName(),
-                    selectedCourse.getSectionName(),
-                    "",            // profileImage
-                    password,
-                    ""             // uid
-            );
+        generateStudentId(studentId -> {
+            String password = birthday.replaceAll("[^0-9]", "");
+            if (password.length() < 6) {
+                password = "123456";
+            }
 
+            // Create StudentModel object using setters
+            StudentModel student = new StudentModel();
+            student.setStudentId(studentId);
+            student.setFullName(fullName);
+            student.setBirthday(birthday);
+            student.setEmail(email);
+            student.setContact(contact);
+            student.setCourseId(selectedCourse.getId());
+            student.setCourseName(selectedCourse.getCourseName());
+            student.setSpecializationName(selectedCourse.getSpecializationName());
+            student.setYearName(selectedCourse.getYearName());
+            student.setSectionName(selectedCourse.getSectionName());
+            student.setProfileImage("");
+            student.setPassword(password);
+            student.setUid(""); // Will be set after Firebase auth
 
             auth.createUserWithEmailAndPassword(email, password)
                     .addOnCompleteListener(authTask -> {
@@ -264,26 +707,21 @@ public class StudentActivity extends AppCompatActivity {
                             usersRef.child(uid).child("role").setValue("student");
                             usersRef.child(uid).child("studentId").setValue(studentId);
 
-                            // Attach UID to student model
+                            // Attach UID to student
                             student.setUid(uid);
 
                             // Save student in Students node
                             studentsRef.child(studentId).setValue(student)
                                     .addOnSuccessListener(aVoid -> {
-                                        Toast.makeText(this, "Student added", Toast.LENGTH_SHORT).show();
-                                        etFullName.setText("");
-                                        etBirthday.setText("");
-                                        etEmail.setText("");
-                                        etContact.setText("");
+                                        Toast.makeText(StudentActivity.this, "Student added successfully!", Toast.LENGTH_SHORT).show();
                                     })
-                                    .addOnFailureListener(e ->
-                                            Toast.makeText(this, "Failed: " + e.getMessage(), Toast.LENGTH_SHORT).show()
-                                    );
+                                    .addOnFailureListener(e -> {
+                                        Toast.makeText(StudentActivity.this, "Failed to save student: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                                    });
                         } else {
-                            Toast.makeText(this, "Auth failed: " + authTask.getException().getMessage(), Toast.LENGTH_SHORT).show();
+                            Toast.makeText(StudentActivity.this, "Auth failed: " + authTask.getException().getMessage(), Toast.LENGTH_SHORT).show();
                         }
                     });
-
         });
     }
 
@@ -314,182 +752,13 @@ public class StudentActivity extends AppCompatActivity {
             }
         });
     }
-    AlertDialog loadingDialog;
 
-    private void showLoadingDialog(String message) {
-        View view = LayoutInflater.from(this).inflate(R.layout.dialog_loading, null);
-        TextView tvLoading = view.findViewById(R.id.tvLoading);
-        tvLoading.setText(message);
-
-        loadingDialog = new AlertDialog.Builder(this)
-                .setView(view)
-                .setCancelable(false)
-                .create();
-        loadingDialog.show();
+    // IMAGE PICKER METHOD
+    private void openImagePicker() {
+        Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+        startActivityForResult(intent, 101);
     }
 
-    private void hideLoadingDialog() {
-        if (loadingDialog != null && loadingDialog.isShowing()) {
-            loadingDialog.dismiss();
-        }
-    }
-
-
-    interface OnIdGeneratedListener {
-        void onGenerated(String studentId);
-    }
-
-    private void showStudentDialog(StudentModel student) {
-        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_student_edit, null);
-
-        EditText etEditFullName = dialogView.findViewById(R.id.etEditFullName);
-        EditText etEditBirthday = dialogView.findViewById(R.id.etEditBirthday);
-        etEditBirthday.setOnClickListener(v -> {
-            Calendar calendar = Calendar.getInstance();
-            if (!TextUtils.isEmpty(etEditBirthday.getText().toString())) {
-                try {
-                    String[] parts = etEditBirthday.getText().toString().split("-");
-                    int y = Integer.parseInt(parts[0]);
-                    int m = Integer.parseInt(parts[1]) - 1;
-                    int d = Integer.parseInt(parts[2]);
-                    calendar.set(y, m, d);
-                } catch (Exception ignored) {}
-            }
-            int year = calendar.get(Calendar.YEAR);
-            int month = calendar.get(Calendar.MONTH);
-            int day = calendar.get(Calendar.DAY_OF_MONTH);
-
-            DatePickerDialog datePicker = new DatePickerDialog(StudentActivity.this,
-                    (view, selectedYear, selectedMonth, selectedDay) -> {
-                        String formattedDate = String.format("%04d-%02d-%02d",
-                                selectedYear, selectedMonth + 1, selectedDay);
-                        etEditBirthday.setText(formattedDate);
-                    }, year, month, day);
-            datePicker.show();
-        });
-
-
-        EditText etEditEmail = dialogView.findViewById(R.id.etEditEmail);
-        EditText etEditContact = dialogView.findViewById(R.id.etEditContact);
-        Spinner spEditCourse = dialogView.findViewById(R.id.spinnerEditCourses);
-        ImageView ivEditProfile = dialogView.findViewById(R.id.ivEditProfile);
-        ProgressBar progressBar = dialogView.findViewById(R.id.progressBarUpload);
-        TextView tvProgress = dialogView.findViewById(R.id.tvUploadProgress);
-
-        // Prefill values
-        etEditFullName.setText(student.getFullName());
-        etEditBirthday.setText(student.getBirthday());
-        etEditEmail.setText(student.getEmail());
-        etEditContact.setText(student.getContact());
-
-        if (student.getProfileImage() != null && !student.getProfileImage().isEmpty()) {
-            byte[] decodedBytes = Base64.decode(student.getProfileImage(), Base64.DEFAULT);
-            Bitmap bitmap = BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.length);
-            ivEditProfile.setImageBitmap(bitmap);
-        } else {
-            ivEditProfile.setImageResource(R.drawable.examinee_default);
-        }
-
-
-        currentEditProfileView = ivEditProfile;
-
-        ivEditProfile.setOnClickListener(v -> {
-            Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
-            startActivityForResult(intent, 101);
-        });
-
-        // Load courses into spinner
-        coursesRef.addListenerForSingleValueEvent(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot snapshot) {
-                courseOptionList.clear(); // <-- important
-                List<String> courseNames = new ArrayList<>();
-                for (DataSnapshot ds : snapshot.getChildren()) {
-                    CourseModel c = ds.getValue(CourseModel.class);
-                    if (c != null) {
-                        courseOptionList.add(c); // <-- update main list
-                        courseNames.add(c.getName() + " - " +
-                                c.getSpecializationName() + " - " +
-                                c.getYearName() + " - " +
-                                c.getSectionName());
-                    }
-                }
-
-                ArrayAdapter<String> adapter = new ArrayAdapter<>(
-                        StudentActivity.this,
-                        android.R.layout.simple_spinner_item,
-                        courseNames
-                );
-                adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-                spEditCourse.setAdapter(adapter);
-
-                // Set selection based on student's current course
-                String displayValue = student.getCourseName() + " - " +
-                        student.getSpecializationName() + " - " +
-                        student.getYearName() + " - " +
-                        student.getSectionName();
-                setSpinnerSelection(spEditCourse, displayValue);
-            }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) {}
-        });
-
-
-        // Create dialog
-        AlertDialog dialog = new AlertDialog.Builder(this)
-                .setView(dialogView)
-                .setTitle("Edit Student")
-                .setCancelable(false)
-                .setPositiveButton("Update", null) // override later
-                .setNegativeButton("Cancel", null) // just null here
-                .create();
-
-        dialog.show(); // show first
-
-// Handle negative button manually if needed
-        Button btnCancel = dialog.getButton(AlertDialog.BUTTON_NEGATIVE);
-        btnCancel.setOnClickListener(v -> dialog.dismiss()); // manually dismiss
-
-
-        // Override positive button click
-        Button btnUpdate = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
-        btnUpdate.setOnClickListener(v -> {
-            student.setFullName(etEditFullName.getText().toString().trim());
-            student.setBirthday(etEditBirthday.getText().toString().trim());
-            student.setEmail(etEditEmail.getText().toString().trim());
-            student.setContact(etEditContact.getText().toString().trim());
-
-            int pos = spEditCourse.getSelectedItemPosition();
-            if (pos >= 0 && pos < courseOptionList.size()) {
-                CourseModel selectedCourse = courseOptionList.get(pos);
-                student.setCourseName(selectedCourse.getCourseName());
-                student.setSpecializationName(selectedCourse.getSpecializationName());
-                student.setYearName(selectedCourse.getYearName());
-                student.setSectionName(selectedCourse.getSectionName());
-            }
-
-
-            if (selectedImageUri != null) {
-                String base64Image = convertImageToBase64(selectedImageUri);
-                if (base64Image != null) {
-                    student.setProfileImage(base64Image); // save Base64 string instead of URL
-                    updateStudentData(student);
-                    dialog.dismiss();
-                } else {
-                    Toast.makeText(this, "Failed to encode image", Toast.LENGTH_SHORT).show();
-                }
-            } else {
-                updateStudentData(student);
-                dialog.dismiss();
-            }
-
-        });
-    }
-
-
-
-    // Handle selected image
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
@@ -501,52 +770,21 @@ public class StudentActivity extends AppCompatActivity {
         }
     }
 
-
-
-
-    private void updateStudentData(StudentModel student) {
-        studentsRef.child(student.getStudentId()).setValue(student)
-                .addOnSuccessListener(aVoid -> Toast.makeText(this, "Student updated", Toast.LENGTH_SHORT).show())
-                .addOnFailureListener(e -> Toast.makeText(this, "Update failed: " + e.getMessage(), Toast.LENGTH_SHORT).show());
-    }
-    private void setSpinnerSelection(Spinner spinner, String value) {
-        if (value == null) return;
-        for (int i = 0; i < spinner.getCount(); i++) {
-            if (spinner.getItemAtPosition(i).toString().equalsIgnoreCase(value)) {
-                spinner.setSelection(i);
-                break;
-            }
-        }
-    }
+    // CONVERT IMAGE TO BASE64
     private String convertImageToBase64(Uri imageUri) {
         try {
-            // Load bitmap from URI
-            Bitmap original = MediaStore.Images.Media.getBitmap(getContentResolver(), imageUri);
-
-            // Resize bitmap (max width or height = 400px)
-            int maxSize = 400;
-            int width = original.getWidth();
-            int height = original.getHeight();
-            float scale = Math.min((float) maxSize / width, (float) maxSize / height);
-            int newWidth = Math.round(width * scale);
-            int newHeight = Math.round(height * scale);
-            Bitmap resized = Bitmap.createScaledBitmap(original, newWidth, newHeight, true);
-
-            // Compress bitmap to JPEG with quality 60% for small size
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            resized.compress(Bitmap.CompressFormat.JPEG, 60, baos);
-
-            byte[] imageBytes = baos.toByteArray();
-            return Base64.encodeToString(imageBytes, Base64.DEFAULT);
-
-        } catch (Exception e) {
+            Bitmap bitmap = MediaStore.Images.Media.getBitmap(getContentResolver(), imageUri);
+            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 50, byteArrayOutputStream);
+            byte[] byteArray = byteArrayOutputStream.toByteArray();
+            return Base64.encodeToString(byteArray, Base64.DEFAULT);
+        } catch (IOException e) {
             e.printStackTrace();
             return null;
         }
     }
 
-
-
-
-
+    interface OnIdGeneratedListener {
+        void onGenerated(String studentId);
+    }
 }

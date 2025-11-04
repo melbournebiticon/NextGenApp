@@ -6,7 +6,6 @@ import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
 
-import android.os.Handler; // NEW Import for auto-refresh
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -36,10 +35,6 @@ import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.Locale;
 
 public class StudentDashboardActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener {
@@ -58,24 +53,11 @@ public class StudentDashboardActivity extends AppCompatActivity
 
     private FirebaseAuth auth;
     private DatabaseReference studentsRef;
-    // 🏆 NEW: Reference sa Scores table
-    private DatabaseReference scoresRef;
-    // 🏆 NEW: Variable para sa UID ng kasalukuyang estudyante
-    private String currentStudentUid;
-
 
     private RecyclerView rvExams;
     private ExamAdapter examAdapter;
     private List<ExamModel> examList = new ArrayList<>();
     private DatabaseReference examsRef;
-
-    // 🏆 FIXED: Ito ang 15-minute max login window.
-    private static final long MAX_LOGIN_WINDOW_MILLIS = TimeUnit.MINUTES.toMillis(15);
-
-    // 🏆 FIXED: 3-second (3000ms) refresh interval.
-    private Handler handler = new Handler();
-    private Runnable examRefreshRunnable;
-    private final int REFRESH_INTERVAL = 3000;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -112,9 +94,6 @@ public class StudentDashboardActivity extends AppCompatActivity
         rvExams.setLayoutManager(new LinearLayoutManager(this));
 
         examsRef = FirebaseDatabase.getInstance().getReference("Exams");
-        // 🏆 NEW: Initialize Scores Ref
-        scoresRef = FirebaseDatabase.getInstance().getReference("Scores");
-
 
         // Initialize Main Content UI
         btnLogout = findViewById(R.id.logoutBtn);
@@ -128,9 +107,6 @@ public class StudentDashboardActivity extends AppCompatActivity
             return;
         }
 
-        // 🏆 I-store ang UID ng kasalukuyang user
-        currentStudentUid = currentUser.getUid();
-
         studentsRef = FirebaseDatabase.getInstance().getReference("Students");
 
         // Fetch student data
@@ -143,8 +119,7 @@ public class StudentDashboardActivity extends AppCompatActivity
                                 StudentModel student = ds.getValue(StudentModel.class);
                                 if (student != null) {
                                     populateStudentData(student);
-                                    // Start the periodic fetcher instead of single fetch
-                                    startPeriodicExamFetch(student);
+                                    fetchExamsForStudent(student);
                                 }
                             }
                         } else {
@@ -162,69 +137,7 @@ public class StudentDashboardActivity extends AppCompatActivity
         btnLogout.setOnClickListener(v -> handleLogout());
     }
 
-    // 🏆 FIXED: Logic to start the periodic fetching (Added a Log)
-    private void startPeriodicExamFetch(StudentModel student) {
-        // Stop any previous callback to avoid duplicates (CRITICAL)
-        if (examRefreshRunnable != null) {
-            handler.removeCallbacks(examRefreshRunnable);
-            Log.d(TAG, "Removed previous exam refresh callbacks.");
-        }
-
-        examRefreshRunnable = new Runnable() {
-            @Override
-            public void run() {
-                Log.d(TAG, "Running periodic exam fetch. Interval: " + REFRESH_INTERVAL + "ms"); // Log to confirm interval
-                // Reruns the fetch logic to check current time against schedule
-                fetchExamsForStudent(student);
-                // Schedules itself to run again after REFRESH_INTERVAL
-                handler.postDelayed(this, REFRESH_INTERVAL);
-            }
-        };
-        // Start the initial fetch
-        handler.post(examRefreshRunnable);
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-        // 🏆 IMPORTANT: Stop the handler when the activity is paused to save battery
-        if (handler != null && examRefreshRunnable != null) {
-            handler.removeCallbacks(examRefreshRunnable);
-            Log.d(TAG, "Exam refresh stopped.");
-        }
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        // 🏆 IMPORTANT: Resume the handler when the activity comes back to foreground
-        // Re-start the process only if a user is logged in
-        FirebaseUser currentUser = auth.getCurrentUser();
-        if (currentUser != null && studentsRef != null) {
-            studentsRef.orderByChild("uid").equalTo(currentUser.getUid())
-                    .addListenerForSingleValueEvent(new ValueEventListener() {
-                        @Override
-                        public void onDataChange(@NonNull DataSnapshot snapshot) {
-                            if (snapshot.exists()) {
-                                for (DataSnapshot ds : snapshot.getChildren()) {
-                                    StudentModel student = ds.getValue(StudentModel.class);
-                                    if (student != null) {
-                                        startPeriodicExamFetch(student);
-                                        Log.d(TAG, "Exam refresh resumed.");
-                                    }
-                                }
-                            }
-                        }
-
-                        @Override
-                        public void onCancelled(@NonNull DatabaseError error) {
-                            Log.e(TAG, "Resume failed: " + error.getMessage());
-                        }
-                    });
-        }
-    }
-
-    // --- 3. Implement Navigation Item Click Handler (NO CHANGE) ---
+    // --- 3. Implement Navigation Item Click Handler (UPDATED) ---
     @Override
     public boolean onNavigationItemSelected(@NonNull MenuItem item) {
         int id = item.getItemId();
@@ -246,7 +159,7 @@ public class StudentDashboardActivity extends AppCompatActivity
         return true;
     }
 
-    // --- 4. Handle Back Button Press (NO CHANGE) ---
+    // --- 4. Handle Back Button Press (No Change) ---
     @Override
     public void onBackPressed() {
         if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
@@ -256,7 +169,7 @@ public class StudentDashboardActivity extends AppCompatActivity
         }
     }
 
-    // --- 5. Centralized Logout Logic (NO CHANGE) ---
+    // --- 5. Centralized Logout Logic (No Change) ---
     private void handleLogout() {
         new SessionManager(this).clearSession();
         FirebaseAuth.getInstance().signOut();
@@ -266,7 +179,7 @@ public class StudentDashboardActivity extends AppCompatActivity
         finish();
     }
 
-    // --- 6. populateStudentData (NO CHANGE) ---
+    // --- 6. populateStudentData (No Change) ---
     private void populateStudentData(StudentModel student) {
         // Navigation Header UI
         if (navHeaderFullName != null) {
@@ -298,135 +211,39 @@ public class StudentDashboardActivity extends AppCompatActivity
         }
     }
 
-    // ===== Fetch exams assigned to this student's course/section (FIXED Counter Logic) =====
+    // ===== Fetch exams assigned to this student's course/section (No Change) =====
     private void fetchExamsForStudent(StudentModel student) {
+        // Build the courseDisplay string to match Firebase
         String studentCourseDisplay = student.getCourseName()
                 + " - " + student.getSpecializationName()
                 + " - " + student.getYearName()
                 + " - " + student.getSectionName();
 
-        long currentTime = System.currentTimeMillis();
-        SimpleDateFormat sdf = new SimpleDateFormat("MMM dd, yyyy hh:mm a", Locale.getDefault());
+        Log.d("DEBUG_COURSE_DISPLAY", "Querying exams for: " + studentCourseDisplay);
 
         examsRef.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 examList.clear();
-
-                // 🏆 I-filter muna ang lahat ng eligible exams
-                List<DataSnapshot> eligibleExams = new ArrayList<>();
                 for (DataSnapshot teacherSnap : snapshot.getChildren()) {
                     for (DataSnapshot examSnap : teacherSnap.getChildren()) {
                         ExamModel exam = examSnap.getValue(ExamModel.class);
-                        Long scheduledAtLong = examSnap.child("scheduledAt").getValue(Long.class);
-                        Integer durationMinutesInt = examSnap.child("durationMinutes").getValue(Integer.class);
-
-                        // Only include exams that match the course, are active, and have required fields
-                        if (exam != null && scheduledAtLong != null && durationMinutesInt != null &&
+                        if (exam != null &&
                                 exam.getCourseDisplay().equals(studentCourseDisplay) &&
                                 exam.isActive()) {
-                            eligibleExams.add(examSnap);
+                            examList.add(exam);
                         }
                     }
                 }
-
-                final int totalEligibleExams = eligibleExams.size();
-                final int[] examsProcessed = {0}; // Counter para sa natapos na i-check sa Scores
-
-                if (totalEligibleExams == 0) {
-                    updateExamRecyclerView();
-                    return; // Walang exams, tapos na.
+                if (examList.isEmpty()) {
+                    Toast.makeText(StudentDashboardActivity.this, "No exams found for your course.", Toast.LENGTH_SHORT).show();
                 }
-
-                for (DataSnapshot examSnap : eligibleExams) {
-                    ExamModel exam = examSnap.getValue(ExamModel.class);
-                    String examId = examSnap.getKey();
-
-                    // Set basic data (safe na ito dahil na-filter na)
-                    exam.setExamId(examId);
-                    exam.setScheduledAt(examSnap.child("scheduledAt").getValue(Long.class));
-                    exam.setDurationMinutes(examSnap.child("durationMinutes").getValue(Integer.class));
-
-                    // 🏆 NEW STEP: Check if the exam has been taken
-                    scoresRef.child(currentStudentUid).child(examId).addListenerForSingleValueEvent(new ValueEventListener() {
-                        @Override
-                        public void onDataChange(@NonNull DataSnapshot scoreSnapshot) {
-                            if (scoreSnapshot.exists()) {
-                                // 🛑 EXAM TAKEN LOGIC
-                                exam.setStatus("TAKEN");
-                                exam.setAvailable(false);
-                            } else {
-                                // 🔄 EXAM NOT TAKEN - Proceed with Time Logic
-                                long scheduledTime = exam.getScheduledAt();
-                                long examStartTimeWindow = scheduledTime;
-                                long examEndLoginWindow = scheduledTime + MAX_LOGIN_WINDOW_MILLIS;
-
-                                String status = "";
-                                if (currentTime < examStartTimeWindow) {
-                                    String formattedTime = sdf.format(new Date(scheduledTime));
-                                    status = "Scheduled: Starts at " + formattedTime;
-                                    exam.setStatus(status);
-                                    exam.setAvailable(false);
-                                } else if (currentTime >= examStartTimeWindow && currentTime <= examEndLoginWindow) {
-                                    String formattedLoginEnd = sdf.format(new Date(examEndLoginWindow));
-                                    status = "AVAILABLE NOW (Login closes at " + formattedLoginEnd + ")";
-                                    exam.setStatus(status);
-                                    exam.setAvailable(true);
-                                } else {
-                                    String formattedLoginEnd = sdf.format(new Date(examEndLoginWindow));
-                                    status = "EXPIRED: Login window closed at " + formattedLoginEnd;
-                                    exam.setStatus(status);
-                                    exam.setAvailable(false);
-                                }
-                            }
-
-                            // I-fetch ang readable date
-                            String readableDate = examSnap.child("scheduledDateDisplay").getValue(String.class);
-                            if (readableDate != null) {
-                                exam.setScheduledDateDisplay(readableDate);
-                            } else {
-                                exam.setScheduledDateDisplay(sdf.format(new Date(exam.getScheduledAt())));
-                            }
-
-                            examList.add(exam);
-
-                            // 🏆 CRITICAL: Check if ALL eligible exams are processed
-                            examsProcessed[0]++;
-                            if (examsProcessed[0] == totalEligibleExams) {
-                                Log.d(TAG, "All " + totalEligibleExams + " exams processed. Updating RecyclerView.");
-                                updateExamRecyclerView();
-                            }
-                        }
-
-                        @Override
-                        public void onCancelled(@NonNull DatabaseError scoreError) {
-                            Log.e(TAG, "Failed to check score for exam " + exam.getExamTitle() + ": " + scoreError.getMessage());
-
-                            // 🏆 CRITICAL: I-count pa rin ito kahit nag-error ang score check, para hindi ma-stuck ang logic.
-                            examsProcessed[0]++;
-                            if (examsProcessed[0] == totalEligibleExams) {
-                                updateExamRecyclerView();
-                            }
-                        }
-                    });
-                }
+                examAdapter = new ExamAdapter(StudentDashboardActivity.this, examList);
+                rvExams.setAdapter(examAdapter);
             }
 
             @Override
-            public void onCancelled(@NonNull DatabaseError error) {
-                Toast.makeText(StudentDashboardActivity.this, "Failed to fetch exams: " + error.getMessage(), Toast.LENGTH_SHORT).show();
-            }
+            public void onCancelled(@NonNull DatabaseError error) { }
         });
-    }
-
-    // 🏆 NEW: Helper method to update RecyclerView after all async score checks are done
-    private void updateExamRecyclerView() {
-        if (examList.isEmpty()) {
-            Toast.makeText(StudentDashboardActivity.this, "No active or future exams found for your course.", Toast.LENGTH_SHORT).show();
-        }
-
-        examAdapter = new ExamAdapter(StudentDashboardActivity.this, examList);
-        rvExams.setAdapter(examAdapter);
-        Log.d(TAG, "Exam list updated with " + examList.size() + " exams.");
     }
 }

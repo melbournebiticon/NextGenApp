@@ -1,33 +1,85 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="vertical"
-    android:padding="16dp"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content">
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:background="@android:color/white">
+
+    <!-- Dialog Title - Will be dynamically changed in Java -->
+    <TextView
+        android:id="@+id/tvDialogTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Add / Edit Section"
+        android:textSize="20sp"
+        android:textColor="#003366"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:paddingBottom="16dp" />
+
+    <!-- Section Name Input -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Section Name"
+        android:textSize="14sp"
+        android:textColor="#333333"
+        android:layout_marginBottom="8dp"/>
 
     <EditText
         android:id="@+id/sectionNameEt"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Section Name"
-        android:inputType="text"/>
+        android:hint="Enter section name"
+        android:inputType="textPersonName"
+        android:padding="12dp"
+        android:background="@android:drawable/edit_text"
+        android:textSize="16sp"
+        android:layout_marginBottom="16dp" />
+
+    <!-- Specialization Spinner -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Specialization"
+        android:textSize="14sp"
+        android:textColor="#333333"
+        android:layout_marginBottom="8dp"/>
 
     <Spinner
         android:id="@+id/spinnerSpecialization"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"/>
+        android:padding="12dp"
+        android:layout_marginBottom="16dp" />
+
+    <!-- Year Spinner -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Year"
+        android:textSize="14sp"
+        android:textColor="#333333"
+        android:layout_marginBottom="8dp"/>
 
     <Spinner
         android:id="@+id/spinnerYear"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"/>
+        android:padding="12dp"
+        android:layout_marginBottom="24dp" />
 
+    <!-- Save Button - Text will be dynamically changed in Java -->
     <Button
         android:id="@+id/saveSectionBtn"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:backgroundTint="#0D6EFD"
         android:text="Save"
-        android:layout_marginTop="16dp"/>
+        android:textColor="@android:color/white"
+        android:textSize="16sp"
+        android:textAllCaps="false"
+        android:padding="10dp" />
+
 </LinearLayout>

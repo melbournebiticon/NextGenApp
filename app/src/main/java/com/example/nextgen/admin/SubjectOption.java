@@ -18,6 +18,9 @@ public class SubjectOption {
         this.sectionName = sectionName;
     }
 
+    public SubjectOption(String id, char[] name, String specializationName, String yearName, String sectionName) {
+    }
+
     public String getCourseId() { return courseId; }
     public String getCourseName() { return courseName; }
     public String getSpecializationName() { return specializationName; }

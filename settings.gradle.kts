@@ -1,5 +1,3 @@
-// settings.gradle.kts
-
 pluginManagement {
     repositories {
         google {
@@ -11,6 +9,8 @@ pluginManagement {
         }
         mavenCentral()
         gradlePluginPortal()
+        // Add JitPack for MPAndroidChart
+        maven(url = "https://jitpack.io")
     }
 }
 
@@ -19,6 +19,8 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // Add JitPack for MPAndroidChart and other GitHub libraries
+        maven(url = "https://jitpack.io")
     }
 }
 

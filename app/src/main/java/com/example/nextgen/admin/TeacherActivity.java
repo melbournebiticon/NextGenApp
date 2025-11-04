@@ -1,40 +1,32 @@
 package com.example.nextgen.admin;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.util.DisplayMetrics;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageButton;
+import android.widget.LinearLayout;
+import android.widget.Spinner;
 import android.widget.Toast;
-import android.net.Uri;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.provider.MediaStore;
-import android.util.Base64;
-import android.widget.ImageView;
-import android.content.Intent;
-import android.provider.MediaStore;
-import androidx.annotation.Nullable;
-import android.widget.ProgressBar;
-import android.widget.ImageView;
-import android.widget.ProgressBar;
-import android.widget.TextView;   // ← add this
-import java.io.ByteArrayOutputStream;
-import android.graphics.Bitmap;
-import android.util.Base64;
-import android.app.DatePickerDialog;
-import java.util.Calendar;
-
-
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.example.nextgen.MainActivity;
 import com.example.nextgen.R;
+import com.example.nextgen.SessionManager;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DataSnapshot;
@@ -45,55 +37,240 @@ import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.HashMap;
-
 
 public class TeacherActivity extends AppCompatActivity {
 
-    private EditText etFullName, etBirthday, etEmail;
-    private RecyclerView recyclerCourseSelection, recyclerSubjects, recyclerTeachers;
+    private DrawerLayout drawerLayout;
+    private RecyclerView recyclerTeachers;
     private Button btnAddTeacher;
+    private EditText searchTeacher;
+    private LinearLayout curriculumDropdown, accountsDropdown;
 
-    private List<SubjectModel> selectedCourseSubjects = new ArrayList<>();
     private List<CourseModel> courseOptionList = new ArrayList<>();
+    private List<SubjectModel> subjectOptionList = new ArrayList<>();
     private List<TeacherModel> teacherList = new ArrayList<>();
 
     private DatabaseReference teachersRef, coursesRef, subjectsRef, usersRef;
     private FirebaseAuth auth;
+    private SessionManager sessionManager;
 
-
-    private SubjectSelectionAdapter subjectAdapter;
     private TeacherAdapter teacherAdapter;
-    private CourseSelectionAdapter courseSelectionAdapter;
-
-    private Uri selectedImageUri;
-    private ImageView currentEditProfileView;
-    private String profileImage; // Base64-encoded profile picture
-
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_teacher);
 
-        // Only activity views
+        initializeViews();
+        setupSidebar();
+        setupFirebase();
+        setupRecyclerViews();
+        loadTeachers();
+        loadCourses();
+        loadSubjects();
+        setupClickListeners();
+    }
+
+    @Override
+    protected void onPostCreate(@Nullable Bundle savedInstanceState) {
+        super.onPostCreate(savedInstanceState);
+        fixSidebarHeight();
+    }
+
+    private void fixSidebarHeight() {
+        View sidebarLayout = findViewById(R.id.sidebarLayout);
+        if (sidebarLayout != null) {
+            sidebarLayout.post(new Runnable() {
+                @Override
+                public void run() {
+                    DisplayMetrics displayMetrics = new DisplayMetrics();
+                    getWindowManager().getDefaultDisplay().getMetrics(displayMetrics);
+                    int screenHeight = displayMetrics.heightPixels;
+
+                    ViewGroup.LayoutParams params = sidebarLayout.getLayoutParams();
+                    params.height = screenHeight;
+                    sidebarLayout.setLayoutParams(params);
+                    sidebarLayout.requestLayout();
+
+                    // Debug log
+                    Log.d("SIDEBAR_FIX", "Sidebar height set to: " + screenHeight);
+                }
+            });
+        }
+    }
+
+    private void initializeViews() {
+        drawerLayout = findViewById(R.id.drawerLayout);
         recyclerTeachers = findViewById(R.id.recyclerTeachers);
         btnAddTeacher = findViewById(R.id.btnAddTeacher);
+        searchTeacher = findViewById(R.id.searchTeacher);
+        curriculumDropdown = findViewById(R.id.curriculumDropdown);
+        accountsDropdown = findViewById(R.id.accountsDropdown);
+    }
 
-        recyclerTeachers.setLayoutManager(new LinearLayoutManager(this));
+    private void setupSidebar() {
+        // CORRECT ID: btnToggleSidebar
+        ImageButton btnToggleSidebar = findViewById(R.id.btnToggleSidebar);
+        btnToggleSidebar.setOnClickListener(v -> toggleSidebar());
 
-        // Firebase refs
+        // Dropdown headers
+        Button btnManageCurriculumHeader = findViewById(R.id.btnManageCurriculumHeader);
+        Button btnManageAccountsHeader = findViewById(R.id.btnManageAccountsHeader);
+
+        // Toggle dropdowns (exactly like AdminDashboard)
+        btnManageCurriculumHeader.setOnClickListener(v -> {
+            if (curriculumDropdown.getVisibility() == View.VISIBLE) {
+                curriculumDropdown.setVisibility(View.GONE);
+            } else {
+                curriculumDropdown.setVisibility(View.VISIBLE);
+                accountsDropdown.setVisibility(View.GONE); // close other dropdown
+            }
+        });
+
+        btnManageAccountsHeader.setOnClickListener(v -> {
+            if (accountsDropdown.getVisibility() == View.VISIBLE) {
+                accountsDropdown.setVisibility(View.GONE);
+            } else {
+                accountsDropdown.setVisibility(View.VISIBLE);
+                curriculumDropdown.setVisibility(View.GONE); // close other dropdown
+            }
+        });
+
+        // BUTTONS INSIDE CURRICULUM DROPDOWN
+        findViewById(R.id.btnManageSpecializations).setOnClickListener(v -> {
+            navigateToActivity("Specializations");
+            drawerLayout.closeDrawer(android.view.Gravity.START);
+        });
+
+        findViewById(R.id.btnManageYears).setOnClickListener(v -> {
+            navigateToActivity("Years");
+            drawerLayout.closeDrawer(android.view.Gravity.START);
+        });
+
+        findViewById(R.id.btnManageSections).setOnClickListener(v -> {
+            navigateToActivity("Sections");
+            drawerLayout.closeDrawer(android.view.Gravity.START);
+        });
+
+        findViewById(R.id.btnManageCourse).setOnClickListener(v -> {
+            navigateToActivity("Courses");
+            drawerLayout.closeDrawer(android.view.Gravity.START);
+        });
+
+        findViewById(R.id.btnManageSubjects).setOnClickListener(v -> {
+            navigateToActivity("Subjects");
+            drawerLayout.closeDrawer(android.view.Gravity.START);
+        });
+
+        // BUTTONS INSIDE ACCOUNTS DROPDOWN
+        findViewById(R.id.btnManageTeachers).setOnClickListener(v -> {
+            Toast.makeText(this, "Already in Teachers", Toast.LENGTH_SHORT).show();
+            drawerLayout.closeDrawer(android.view.Gravity.START);
+        });
+
+        findViewById(R.id.btnManageStudents).setOnClickListener(v -> {
+            navigateToActivity("Examinees");
+            drawerLayout.closeDrawer(android.view.Gravity.START);
+        });
+
+        // Logout button - FIXED: Same as AdminActivity
+        Button logoutBtn = findViewById(R.id.logoutBtn);
+        logoutBtn.setOnClickListener(v -> logout());
+    }
+
+    // NAVIGATION METHOD - FIXED VERSION
+    private void navigateToActivity(String activityName) {
+        Toast.makeText(this, "Navigating to " + activityName, Toast.LENGTH_SHORT).show();
+
+        try {
+            Intent intent = null;
+
+            switch (activityName) {
+                case "Specializations":
+                    intent = new Intent(this, SpecializationsActivity.class);
+                    break;
+                case "Years":
+                    intent = new Intent(this, YearsActivity.class);
+                    break;
+                case "Sections":
+                    intent = new Intent(this, SectionsActivity.class);
+                    break;
+                case "Courses":
+                    intent = new Intent(this, CourseActivity.class);
+                    break;
+                case "Subjects":
+                    intent = new Intent(this, SubjectActivity.class);
+                    break;
+                case "Examinees":
+                    intent = new Intent(this, StudentActivity.class);
+                    break;
+            }
+
+            // ✅ DITO MAG-START ANG ACTIVITY
+            if (intent != null) {
+                startActivity(intent);
+                // Optional: Add animation
+                overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
+            }
+
+        } catch (Exception e) {
+            Toast.makeText(this, activityName + " activity not available yet", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    // HELPER METHODS
+    private void toggleSidebar() {
+        if (drawerLayout.isDrawerOpen(android.view.Gravity.START)) {
+            drawerLayout.closeDrawer(android.view.Gravity.START);
+        } else {
+            drawerLayout.openDrawer(android.view.Gravity.START);
+        }
+    }
+
+    // FIXED LOGOUT METHOD - Same as AdminActivity
+    private void logout() {
+        // Close sidebar first
+        if (drawerLayout.isDrawerOpen(android.view.Gravity.START)) {
+            drawerLayout.closeDrawer(android.view.Gravity.START);
+        }
+
+        // Clear session AND sign out from Firebase
+        sessionManager = new SessionManager(this);
+        sessionManager.clearSession();
+        auth.signOut();
+
+        Toast.makeText(this, "Logged out successfully", Toast.LENGTH_SHORT).show();
+
+        // Redirect to login screen
+        Intent intent = new Intent(this, MainActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
+        finish();
+    }
+
+    private void setupFirebase() {
         teachersRef = FirebaseDatabase.getInstance().getReference("Teachers");
         coursesRef = FirebaseDatabase.getInstance().getReference("Courses");
         subjectsRef = FirebaseDatabase.getInstance().getReference("Subjects");
         usersRef = FirebaseDatabase.getInstance().getReference("Users");
         auth = FirebaseAuth.getInstance();
+    }
 
+    private void setupRecyclerViews() {
+        recyclerTeachers.setLayoutManager(new LinearLayoutManager(this));
+    }
+
+    private void setupClickListeners() {
+        btnAddTeacher.setOnClickListener(v -> {
+            showAddTeacherDialog();
+        });
+    }
+
+    private void loadTeachers() {
         teacherAdapter = new TeacherAdapter(teacherList, new TeacherAdapter.OnTeacherActionListener() {
             @Override
             public void onUpdate(TeacherModel teacher) {
-                showTeacherDialog(teacher);
+                showEditTeacherDialog(teacher);
             }
 
             @Override
@@ -101,31 +278,12 @@ public class TeacherActivity extends AppCompatActivity {
                 new AlertDialog.Builder(TeacherActivity.this)
                         .setTitle("Delete Teacher")
                         .setMessage("Are you sure you want to delete " + teacher.getFullName() + "?")
-                        .setPositiveButton("Yes", (dialog, which) -> {
-                            // Delete from "Users"
-                            if (teacher.getUid() != null && !teacher.getUid().isEmpty()) {
-                                usersRef.child(teacher.getUid()).removeValue()
-                                        .addOnSuccessListener(aVoid -> {
-                                            // Delete from "Teachers"
-                                            teachersRef.child(teacher.getId()).removeValue()
-                                                    .addOnSuccessListener(aVoid2 ->
-                                                            Toast.makeText(TeacherActivity.this, "Teacher deleted", Toast.LENGTH_SHORT).show()
-                                                    )
-                                                    .addOnFailureListener(e ->
-                                                            Toast.makeText(TeacherActivity.this, "Failed to delete teacher record: " + e.getMessage(), Toast.LENGTH_SHORT).show()
-                                                    );
-                                        })
-                                        .addOnFailureListener(e ->
-                                                Toast.makeText(TeacherActivity.this, "Failed to delete user record: " + e.getMessage(), Toast.LENGTH_SHORT).show()
-                                        );
-                            }
+                        .setPositiveButton("Delete", (dialog, which) -> {
+                            deleteTeacher(teacher);
                         })
                         .setNegativeButton("Cancel", null)
                         .show();
             }
-
-
-
         });
         recyclerTeachers.setAdapter(teacherAdapter);
 
@@ -135,20 +293,28 @@ public class TeacherActivity extends AppCompatActivity {
                 teacherList.clear();
                 for (DataSnapshot ds : snapshot.getChildren()) {
                     TeacherModel t = ds.getValue(TeacherModel.class);
-                    if (t != null) teacherList.add(t);
+                    if (t != null) {
+                        t.setId(ds.getKey());
+                        teacherList.add(t);
+                    }
                 }
                 teacherAdapter.notifyDataSetChanged();
             }
 
             @Override
-            public void onCancelled(@NonNull DatabaseError error) { }
+            public void onCancelled(@NonNull DatabaseError error) {
+                Toast.makeText(TeacherActivity.this, "Failed to load teachers", Toast.LENGTH_SHORT).show();
+            }
         });
-
-        loadCourses();
-
-        btnAddTeacher.setOnClickListener(v -> showAddTeacherDialog());
     }
 
+    private void deleteTeacher(TeacherModel teacher) {
+        teachersRef.child(teacher.getId()).removeValue()
+                .addOnSuccessListener(aVoid -> {
+                    Toast.makeText(TeacherActivity.this, "Teacher deleted", Toast.LENGTH_SHORT).show();
+                })
+                .addOnFailureListener(e -> Toast.makeText(TeacherActivity.this, "Delete failed", Toast.LENGTH_SHORT).show());
+    }
 
     private void loadCourses() {
         coursesRef.addListenerForSingleValueEvent(new ValueEventListener() {
@@ -157,369 +323,327 @@ public class TeacherActivity extends AppCompatActivity {
                 courseOptionList.clear();
                 for (DataSnapshot ds : snapshot.getChildren()) {
                     CourseModel course = ds.getValue(CourseModel.class);
-                    if (course != null) courseOptionList.add(course);
+                    if (course != null) {
+                        course.setId(ds.getKey());
+                        courseOptionList.add(course);
+                    }
                 }
-                // No need to notify anything here in activity
             }
 
             @Override
-            public void onCancelled(@NonNull DatabaseError error) {}
+            public void onCancelled(@NonNull DatabaseError error) {
+                Toast.makeText(TeacherActivity.this, "Failed to load courses", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void loadSubjects() {
+        subjectsRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                subjectOptionList.clear();
+                for (DataSnapshot ds : snapshot.getChildren()) {
+                    SubjectModel subject = ds.getValue(SubjectModel.class);
+                    if (subject != null) {
+                        subjectOptionList.add(subject);
+                    }
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                Toast.makeText(TeacherActivity.this, "Failed to load subjects", Toast.LENGTH_SHORT).show();
+            }
         });
     }
 
     private void showAddTeacherDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Add New Teacher");
+
         View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_add_teacher, null);
+        builder.setView(dialogView);
 
-        EditText etFullNameDialog = dialogView.findViewById(R.id.etFullName);
-        EditText etBirthdayDialog = dialogView.findViewById(R.id.etBirthday);
-        etBirthdayDialog.setOnClickListener(v -> {
-            Calendar calendar = Calendar.getInstance();
-            int year = calendar.get(Calendar.YEAR);
-            int month = calendar.get(Calendar.MONTH);
-            int day = calendar.get(Calendar.DAY_OF_MONTH);
+        EditText etFirstName = dialogView.findViewById(R.id.etFirstName);
+        EditText etLastName = dialogView.findViewById(R.id.etLastName);
+        EditText etBirthday = dialogView.findViewById(R.id.etBirthday);
+        EditText etEmail = dialogView.findViewById(R.id.etEmail);
+        Spinner spinnerCourse = dialogView.findViewById(R.id.spinnerCourse);
+        Spinner spinnerSubject = dialogView.findViewById(R.id.spinnerSubject);
+        Button btnSaveTeacher = dialogView.findViewById(R.id.btnSaveTeacher);
 
-            DatePickerDialog datePicker = new DatePickerDialog(TeacherActivity.this,
-                    (view, selectedYear, selectedMonth, selectedDay) -> {
-                        String formattedDate = String.format("%04d-%02d-%02d",
-                                selectedYear, selectedMonth + 1, selectedDay);
-                        etBirthdayDialog.setText(formattedDate);
-                    }, year, month, day);
+        // Setup course spinner
+        List<String> courseDisplayList = new ArrayList<>();
+        courseDisplayList.add("Select Course");
+        for (CourseModel course : courseOptionList) {
+            courseDisplayList.add(course.getName() + " - " + course.getSpecializationName());
+        }
 
-            datePicker.show();
-        });
-        EditText etEmailDialog = dialogView.findViewById(R.id.etEmail);
-        RecyclerView recyclerCourseDialog = dialogView.findViewById(R.id.recyclerCourseSelection);
-        RecyclerView recyclerSubjectsDialog = dialogView.findViewById(R.id.recyclerSubjects);
+        ArrayAdapter<String> courseAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, courseDisplayList);
+        courseAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerCourse.setAdapter(courseAdapter);
 
-        // Setup RecyclerViews
-        recyclerCourseDialog.setLayoutManager(new LinearLayoutManager(this));
-        recyclerSubjectsDialog.setLayoutManager(new LinearLayoutManager(this));
+        // Setup subject spinner
+        List<String> subjectDisplayList = new ArrayList<>();
+        subjectDisplayList.add("Select Subject");
+        for (SubjectModel subject : subjectOptionList) {
+            subjectDisplayList.add(subject.getName());
+        }
 
-        // Clone the course list
-        List<CourseModel> dialogCourses = new ArrayList<>(courseOptionList);
-        CourseSelectionAdapter courseAdapterDialog = new CourseSelectionAdapter(this, dialogCourses);
-        recyclerCourseDialog.setAdapter(courseAdapterDialog);
+        ArrayAdapter<String> subjectAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, subjectDisplayList);
+        subjectAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerSubject.setAdapter(subjectAdapter);
 
-        // Subject adapter starts empty
-        List<SubjectModel> dialogSubjects = new ArrayList<>();
-        SubjectSelectionAdapter subjectAdapterDialog = new SubjectSelectionAdapter(dialogSubjects);
-        recyclerSubjectsDialog.setAdapter(subjectAdapterDialog);
+        AlertDialog dialog = builder.create();
+        dialog.show();
 
-        // Map to store subjects per selected course
-        Map<String, List<SubjectModel>> courseSubjectsMap = new HashMap<>();
+        btnSaveTeacher.setOnClickListener(v -> {
+            String firstName = etFirstName.getText().toString().trim();
+            String lastName = etLastName.getText().toString().trim();
+            String birthday = etBirthday.getText().toString().trim();
+            String email = etEmail.getText().toString().trim();
+            String selectedCourse = spinnerCourse.getSelectedItem().toString();
+            String selectedSubject = spinnerSubject.getSelectedItem().toString();
 
-        // Update subjects when course selection changes
-        courseAdapterDialog.setOnCourseSelectionChanged(() -> {
-            List<CourseModel> selectedCourses = courseAdapterDialog.getSelectedCourses();
-            List<SubjectModel> combinedSubjects = new ArrayList<>();
-
-            if (selectedCourses.isEmpty()) {
-                subjectAdapterDialog.updateSubjects(combinedSubjects);
+            if (TextUtils.isEmpty(firstName)) {
+                etFirstName.setError("First name required");
+                return;
+            }
+            if (TextUtils.isEmpty(lastName)) {
+                etLastName.setError("Last name required");
+                return;
+            }
+            if (TextUtils.isEmpty(birthday)) {
+                etBirthday.setError("Birthday required");
+                return;
+            }
+            if (TextUtils.isEmpty(email)) {
+                etEmail.setError("Email required");
+                return;
+            }
+            if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+                etEmail.setError("Valid email required");
+                return;
+            }
+            if (spinnerCourse.getSelectedItemPosition() == 0) {
+                Toast.makeText(this, "Select a course", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (spinnerSubject.getSelectedItemPosition() == 0) {
+                Toast.makeText(this, "Select a subject", Toast.LENGTH_SHORT).show();
                 return;
             }
 
-            final int[] loadedCount = {0};
-            for (CourseModel course : selectedCourses) {
-                // If subjects already loaded, use cache
-                if (courseSubjectsMap.containsKey(course.getId())) {
-                    combinedSubjects.addAll(courseSubjectsMap.get(course.getId()));
-                    loadedCount[0]++;
-                    if (loadedCount[0] == selectedCourses.size()) {
-                        subjectAdapterDialog.updateSubjects(combinedSubjects);
-                    }
-                    continue;
-                }
-
-                subjectsRef.orderByChild("courseId").equalTo(course.getId())
-                        .addListenerForSingleValueEvent(new ValueEventListener() {
-                            @Override
-                            public void onDataChange(@NonNull DataSnapshot snapshot) {
-                                List<SubjectModel> courseSubjects = new ArrayList<>();
-                                for (DataSnapshot ds : snapshot.getChildren()) {
-                                    SubjectModel s = ds.getValue(SubjectModel.class);
-                                    if (s != null) courseSubjects.add(s);
-                                }
-                                courseSubjectsMap.put(course.getId(), courseSubjects);
-                                combinedSubjects.addAll(courseSubjects);
-
-                                loadedCount[0]++;
-                                if (loadedCount[0] == selectedCourses.size()) {
-                                    subjectAdapterDialog.updateSubjects(combinedSubjects);
-                                }
-                            }
-
-                            @Override
-                            public void onCancelled(@NonNull DatabaseError error) {
-                                loadedCount[0]++;
-                                if (loadedCount[0] == selectedCourses.size()) {
-                                    subjectAdapterDialog.updateSubjects(combinedSubjects);
-                                }
-                            }
-                        });
-            }
+            String fullName = firstName + " " + lastName;
+            addTeacherToDatabase(fullName, birthday, email, selectedCourse, selectedSubject, dialog);
         });
-
-        // Show dialog
-        new AlertDialog.Builder(this)
-                .setTitle("Add Teacher")
-                .setView(dialogView)
-                .setPositiveButton("Add", (dialog, which) -> {
-                    String fullName = etFullNameDialog.getText().toString().trim();
-                    String birthday = etBirthdayDialog.getText().toString().trim();
-                    String email = etEmailDialog.getText().toString().trim();
-
-                    if (TextUtils.isEmpty(fullName) || TextUtils.isEmpty(birthday) || TextUtils.isEmpty(email)) {
-                        Toast.makeText(this, "Complete all fields", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-
-                    List<CourseModel> selectedCourses = courseAdapterDialog.getSelectedCourses();
-                    if (selectedCourses.isEmpty()) {
-                        Toast.makeText(this, "Select at least one course", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-
-                    List<String> assignedSubjects = new ArrayList<>();
-                    for (SubjectModel s : subjectAdapterDialog.getSelectedSubjects()) {
-                        assignedSubjects.add(s.getName());
-                    }
-
-                    // Generate teacher ID and create teacher
-                    generateTeacherId(teacherId -> {
-                        String[] parts = birthday.split("-"); // [YYYY, MM, DD]
-                        String year = parts[0];  // kunin last 2 digits ng year
-                        String month = parts[1];
-                        String day = parts[2];
-                        String password = month + day + year; // MMDDYY format
-
-                        List<String> courseIds = new ArrayList<>();
-                        List<String> courseDisplays = new ArrayList<>();
-                        for (CourseModel c : selectedCourses) {
-                            courseIds.add(c.getId());
-                            courseDisplays.add(
-                                    c.getName() + " - " +
-                                            c.getSpecializationName() + " - " +
-                                            c.getYearName() + " - " +
-                                            c.getSectionName()
-
-                            );
-
-                        }
-
-                        TeacherModel teacher = new TeacherModel(
-                                teacherId,
-                                fullName,
-                                getDisplayName(fullName),
-                                birthday,
-                                email,
-                                courseIds,
-                                courseDisplays,
-                                assignedSubjects,
-                                password,
-                                null
-                        );
-
-                        auth.createUserWithEmailAndPassword(email, password)
-                                .addOnCompleteListener(authTask -> {
-                                    if (authTask.isSuccessful()) {
-                                        FirebaseUser firebaseUser = authTask.getResult().getUser();
-                                        String uid = firebaseUser.getUid(); // ✅ get actual UID
-                                        teacher.setUid(uid); // ✅ assign UID to the object
-
-                                        // Save role under "Users"
-                                        usersRef.child(uid).child("role").setValue("teacher");
-
-                                        // Save full teacher record
-                                        teachersRef.child(teacherId).setValue(teacher)
-                                                .addOnSuccessListener(aVoid ->
-                                                        Toast.makeText(this, "Teacher added successfully", Toast.LENGTH_SHORT).show()
-                                                )
-                                                .addOnFailureListener(e ->
-                                                        Toast.makeText(this, "Failed to save teacher: " + e.getMessage(), Toast.LENGTH_SHORT).show()
-                                                );
-                                    } else {
-                                        Toast.makeText(this, "Auth failed: " + authTask.getException().getMessage(), Toast.LENGTH_SHORT).show();
-                                    }
-                                });
-
-                    });
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
     }
 
-
-
-    private void updateSelectedSubjects() {
-        List<CourseModel> selectedCourses = courseSelectionAdapter.getSelectedCourses();
-
-        selectedCourseSubjects.clear(); // reset subjects
-        if (selectedCourses.isEmpty()) {
-            subjectAdapter.updateSubjects(selectedCourseSubjects);
-            return;
-        }
-
-        final int[] loadedCount = {0};
-        List<SubjectModel> subjects = new ArrayList<>();
-
-        for (CourseModel c : selectedCourses) {
-            subjectsRef.orderByChild("courseId").equalTo(c.getId())
-                    .addListenerForSingleValueEvent(new ValueEventListener() {
-                        @Override
-                        public void onDataChange(@NonNull DataSnapshot snapshot) {
-                            for (DataSnapshot ds : snapshot.getChildren()) {
-                                SubjectModel s = ds.getValue(SubjectModel.class);
-                                if (s != null && !subjects.contains(s)) {
-                                    subjects.add(s); // just add, do NOT auto-select
-                                }
-                            }
-                            loadedCount[0]++;
-                            if (loadedCount[0] == selectedCourses.size()) {
-                                selectedCourseSubjects.addAll(subjects);
-                                subjectAdapter.updateSubjects(selectedCourseSubjects);
-                            }
-                        }
-
-                        @Override
-                        public void onCancelled(@NonNull DatabaseError error) {
-                            loadedCount[0]++;
-                            if (loadedCount[0] == selectedCourses.size()) {
-                                selectedCourseSubjects.addAll(subjects);
-                                subjectAdapter.updateSubjects(selectedCourseSubjects);
-                            }
-                        }
-                    });
-        }
-    }
-
-    private void addTeacher() {
-        String fullName = etFullName.getText().toString().trim();
-        String birthday = etBirthday.getText().toString().trim();
-        String email = etEmail.getText().toString().trim();
-
-        if (TextUtils.isEmpty(fullName) || TextUtils.isEmpty(birthday) || TextUtils.isEmpty(email)) {
-            Toast.makeText(this, "Complete all fields", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        List<CourseModel> selectedCourses = courseSelectionAdapter.getSelectedCourses();
-        if (selectedCourses.isEmpty()) {
-            Toast.makeText(this, "Select at least one course", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        // Get only selected subjects
-        List<String> assignedSubjects = new ArrayList<>();
-        for (SubjectModel s : subjectAdapter.getSelectedSubjects()) {
-            assignedSubjects.add(s.getName());
-        }
-
-        if (assignedSubjects.isEmpty()) {
-            Toast.makeText(this, "Select at least one subject", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
+    private void addTeacherToDatabase(String fullName, String birthday, String email,
+                                      String selectedCourse, String selectedSubject, AlertDialog dialog) {
         generateTeacherId(teacherId -> {
             String password = birthday.replaceAll("[^0-9]", "");
+            if (password.length() < 6) password = "123456";
 
             List<String> courseIds = new ArrayList<>();
             List<String> courseDisplays = new ArrayList<>();
-            for (CourseModel c : selectedCourses) {
-                courseIds.add(c.getId());
-                courseDisplays.add(
-                        c.getName() + " - " +
-                                c.getSpecializationName() + " - " +
-                                c.getYearName() + " - " +
-                                c.getSectionName()
-                );
-
+            for (CourseModel course : courseOptionList) {
+                String courseDisplay = course.getName() + " - " + course.getSpecializationName();
+                if (courseDisplay.equals(selectedCourse)) {
+                    courseIds.add(course.getId());
+                    courseDisplays.add(courseDisplay);
+                    break;
+                }
             }
 
+            List<String> assignedSubjects = new ArrayList<>();
+            assignedSubjects.add(selectedSubject);
+
             TeacherModel teacher = new TeacherModel(
-                    teacherId,
-                    fullName,
-                    getDisplayName(fullName),
-                    birthday,
-                    email,
-                    courseIds,
-                    courseDisplays,
-                    assignedSubjects,
-                    password,
-                    null
+                    teacherId, fullName, getDisplayName(fullName), birthday, email,
+                    courseIds, courseDisplays, assignedSubjects, password
             );
 
             auth.createUserWithEmailAndPassword(email, password)
                     .addOnCompleteListener(authTask -> {
                         if (authTask.isSuccessful()) {
                             FirebaseUser firebaseUser = authTask.getResult().getUser();
-                            usersRef.child(firebaseUser.getUid()).child("role").setValue("teacher");
-
-                            teachersRef.child(teacherId).setValue(teacher)
-                                    .addOnSuccessListener(aVoid -> {
-                                        Toast.makeText(this, "Teacher added successfully", Toast.LENGTH_SHORT).show();
-                                        etFullName.setText("");
-                                        etBirthday.setText("");
-                                        etEmail.setText("");
-                                        selectedCourseSubjects.clear();
-                                        subjectAdapter.updateSubjects(selectedCourseSubjects);
-                                    })
-                                    .addOnFailureListener(e -> Toast.makeText(this, "Failed: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+                            if (firebaseUser != null) {
+                                usersRef.child(firebaseUser.getUid()).child("role").setValue("teacher");
+                                teachersRef.child(teacherId).setValue(teacher)
+                                        .addOnSuccessListener(aVoid -> {
+                                            Toast.makeText(this, "Teacher added", Toast.LENGTH_SHORT).show();
+                                            dialog.dismiss();
+                                        })
+                                        .addOnFailureListener(e -> {
+                                            Toast.makeText(this, "Save failed", Toast.LENGTH_SHORT).show();
+                                        });
+                            }
                         } else {
-                            Toast.makeText(this, "Auth creation failed: " + authTask.getException().getMessage(), Toast.LENGTH_SHORT).show();
+                            Toast.makeText(this, "Create user failed", Toast.LENGTH_SHORT).show();
                         }
                     });
         });
     }
 
+    private void showEditTeacherDialog(TeacherModel teacher) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Edit Teacher");
 
-    private void fetchSelectedSubjects(List<CourseModel> selectedCourses, OnSubjectsFetchedListener listener) {
-        List<SubjectModel> subjects = new ArrayList<>();
-        if (selectedCourses.isEmpty()) {
-            listener.onFetched(new ArrayList<>());
-            return;
+        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_teacher_edit, null);
+        builder.setView(dialogView);
+
+        EditText etEditFullName = dialogView.findViewById(R.id.etEditFullName);
+        EditText etEditBirthday = dialogView.findViewById(R.id.etEditBirthday);
+        EditText etEditEmail = dialogView.findViewById(R.id.etEditEmail);
+        Spinner spinnerEditCourse = dialogView.findViewById(R.id.spinnerEditCourse);
+        Spinner spinnerEditSubject = dialogView.findViewById(R.id.spinnerEditSubject);
+        Button btnUpdateTeacher = dialogView.findViewById(R.id.btnUpdateTeacher);
+
+        etEditFullName.setText(teacher.getFullName());
+        etEditBirthday.setText(teacher.getBirthday());
+        etEditEmail.setText(teacher.getEmail());
+
+        // Setup course spinner
+        List<String> courseDisplayList = new ArrayList<>();
+        courseDisplayList.add("Select Course");
+        for (CourseModel course : courseOptionList) {
+            courseDisplayList.add(course.getName() + " - " + course.getSpecializationName());
         }
 
-        final int[] loadedCount = {0};
-        for (CourseModel c : selectedCourses) {
-            subjectsRef.orderByChild("courseId").equalTo(c.getId())
-                    .addListenerForSingleValueEvent(new ValueEventListener() {
-                        @Override
-                        public void onDataChange(@NonNull DataSnapshot snapshot) {
-                            for (DataSnapshot ds : snapshot.getChildren()) {
-                                SubjectModel s = ds.getValue(SubjectModel.class);
-                                if (s != null && !subjects.contains(s)) {
-                                    // ❌ REMOVE this line: s.setSelected(true);
-                                    subjects.add(s);
-                                }
-                            }
-                            loadedCount[0]++;
-                            if (loadedCount[0] == selectedCourses.size()) {
-                                listener.onFetched(subjectsToNames(subjects));
-                            }
-                        }
+        ArrayAdapter<String> courseAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, courseDisplayList);
+        courseAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerEditCourse.setAdapter(courseAdapter);
 
-                        @Override
-                        public void onCancelled(@NonNull DatabaseError error) {
-                            loadedCount[0]++;
-                            if (loadedCount[0] == selectedCourses.size()) {
-                                listener.onFetched(subjectsToNames(subjects));
-                            }
-                        }
-                    });
+        if (teacher.getCourseDisplays() != null && !teacher.getCourseDisplays().isEmpty()) {
+            String currentCourse = teacher.getCourseDisplays().get(0);
+            for (int i = 0; i < courseDisplayList.size(); i++) {
+                if (courseDisplayList.get(i).equals(currentCourse)) {
+                    spinnerEditCourse.setSelection(i);
+                    break;
+                }
+            }
         }
+
+        // Setup subject spinner
+        List<String> subjectDisplayList = new ArrayList<>();
+        subjectDisplayList.add("Select Subject");
+        for (SubjectModel subject : subjectOptionList) {
+            subjectDisplayList.add(subject.getName());
+        }
+
+        ArrayAdapter<String> subjectAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, subjectDisplayList);
+        subjectAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerEditSubject.setAdapter(subjectAdapter);
+
+        if (teacher.getAssignedSubjects() != null && !teacher.getAssignedSubjects().isEmpty()) {
+            String currentSubject = teacher.getAssignedSubjects().get(0);
+            for (int i = 0; i < subjectDisplayList.size(); i++) {
+                if (subjectDisplayList.get(i).equals(currentSubject)) {
+                    spinnerEditSubject.setSelection(i);
+                    break;
+                }
+            }
+        }
+
+        AlertDialog dialog = builder.create();
+        dialog.show();
+
+        btnUpdateTeacher.setOnClickListener(v -> {
+            String fullName = etEditFullName.getText().toString().trim();
+            String birthday = etEditBirthday.getText().toString().trim();
+            String email = etEditEmail.getText().toString().trim();
+            String selectedCourse = spinnerEditCourse.getSelectedItem().toString();
+            String selectedSubject = spinnerEditSubject.getSelectedItem().toString();
+
+            if (TextUtils.isEmpty(fullName)) {
+                etEditFullName.setError("Full name required");
+                return;
+            }
+            if (TextUtils.isEmpty(birthday)) {
+                etEditBirthday.setError("Birthday required");
+                return;
+            }
+            if (TextUtils.isEmpty(email)) {
+                etEditEmail.setError("Email required");
+                return;
+            }
+            if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+                etEditEmail.setError("Valid email required");
+                return;
+            }
+            if (spinnerEditCourse.getSelectedItemPosition() == 0) {
+                Toast.makeText(this, "Select a course", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (spinnerEditSubject.getSelectedItemPosition() == 0) {
+                Toast.makeText(this, "Select a subject", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            updateTeacher(teacher, fullName, birthday, email, selectedCourse, selectedSubject, dialog);
+        });
     }
 
+    private void updateTeacher(TeacherModel teacher, String fullName, String birthday,
+                               String email, String selectedCourse, String selectedSubject, AlertDialog dialog) {
+        final String oldEmail = teacher.getEmail();
+        final String oldPassword = teacher.getPassword();
+        final String newEmail = email;
+        final String newPassword = birthday.replaceAll("[^0-9]", "").length() < 6 ? "123456" : birthday.replaceAll("[^0-9]", "");
 
-    private List<String> subjectsToNames(List<SubjectModel> subjects) {
-        List<String> names = new ArrayList<>();
-        for (SubjectModel s : subjects) {
-            names.add(s.getName());
+        teacher.setFullName(fullName);
+        teacher.setBirthday(birthday);
+        teacher.setEmail(email);
+        teacher.setDisplayName(getDisplayName(fullName));
+
+        List<String> courseIds = new ArrayList<>();
+        List<String> courseDisplays = new ArrayList<>();
+        for (CourseModel course : courseOptionList) {
+            String courseDisplay = course.getName() + " - " + course.getSpecializationName();
+            if (courseDisplay.equals(selectedCourse)) {
+                courseIds.add(course.getId());
+                courseDisplays.add(courseDisplay);
+                break;
+            }
         }
-        return names;
+        teacher.setCourseIds(courseIds);
+        teacher.setCourseDisplays(courseDisplays);
+
+        List<String> assignedSubjects = new ArrayList<>();
+        assignedSubjects.add(selectedSubject);
+        teacher.setAssignedSubjects(assignedSubjects);
+        teacher.setPassword(newPassword);
+
+        teachersRef.child(teacher.getId()).setValue(teacher)
+                .addOnSuccessListener(aVoid -> {
+                    Toast.makeText(this, "Teacher updated", Toast.LENGTH_SHORT).show();
+                    if (!oldEmail.equals(newEmail) || !oldPassword.equals(newPassword)) {
+                        updateAuthCredentials(oldEmail, oldPassword, newEmail, newPassword);
+                    }
+                    dialog.dismiss();
+                })
+                .addOnFailureListener(e -> {
+                    Toast.makeText(this, "Update failed", Toast.LENGTH_SHORT).show();
+                });
     }
 
-    interface OnSubjectsFetchedListener {
-        void onFetched(List<String> assignedSubjects);
+    private void updateAuthCredentials(final String oldEmail, final String oldPassword,
+                                       final String newEmail, final String newPassword) {
+        auth.signInWithEmailAndPassword(oldEmail, oldPassword)
+                .addOnCompleteListener(signInTask -> {
+                    if (signInTask.isSuccessful()) {
+                        FirebaseUser user = auth.getCurrentUser();
+                        if (user != null) {
+                            if (!oldEmail.equals(newEmail)) {
+                                user.updateEmail(newEmail);
+                            }
+                            if (!oldPassword.equals(newPassword)) {
+                                user.updatePassword(newPassword);
+                            }
+                        }
+                    }
+                });
     }
 
     private String getDisplayName(String fullName) {
@@ -551,7 +675,7 @@ public class TeacherActivity extends AppCompatActivity {
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
-                Toast.makeText(TeacherActivity.this, "Error generating ID", Toast.LENGTH_SHORT).show();
+                listener.onGenerated("TCHR-" + System.currentTimeMillis());
             }
         });
     }
@@ -559,245 +683,4 @@ public class TeacherActivity extends AppCompatActivity {
     interface OnIdGeneratedListener {
         void onGenerated(String teacherId);
     }
-
-
-    private void showTeacherDialog(TeacherModel teacher) {
-        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_teacher_edit, null);
-
-        EditText etEditFullName = dialogView.findViewById(R.id.etEditFullName);
-        EditText etEditBirthday = dialogView.findViewById(R.id.etEditBirthday);
-        etEditBirthday.setOnClickListener(v -> {
-            Calendar calendar = Calendar.getInstance();
-
-            // Preload current birthday if available
-            if (!TextUtils.isEmpty(etEditBirthday.getText().toString())) {
-                try {
-                    String[] parts = etEditBirthday.getText().toString().split("-");
-                    int y = Integer.parseInt(parts[0]);
-                    int m = Integer.parseInt(parts[1]) - 1; // months start at 0
-                    int d = Integer.parseInt(parts[2]);
-                    calendar.set(y, m, d);
-                } catch (Exception ignored) {}
-            }
-
-            int year = calendar.get(Calendar.YEAR);
-            int month = calendar.get(Calendar.MONTH);
-            int day = calendar.get(Calendar.DAY_OF_MONTH);
-
-            DatePickerDialog datePicker = new DatePickerDialog(TeacherActivity.this,
-                    (view, selectedYear, selectedMonth, selectedDay) -> {
-                        String formattedDate = String.format("%04d-%02d-%02d", selectedYear, selectedMonth + 1, selectedDay);
-                        etEditBirthday.setText(formattedDate);
-                    }, year, month, day);
-
-            datePicker.show();
-        });
-
-        EditText etEditEmail = dialogView.findViewById(R.id.etEditEmail);
-        RecyclerView recyclerEditCourses = dialogView.findViewById(R.id.recyclerEditCourses);
-        RecyclerView recyclerEditSubjects = dialogView.findViewById(R.id.recyclerEditSubjects);
-        ImageView ivEditProfile = dialogView.findViewById(R.id.ivEditProfile);
-        ProgressBar progressBar = dialogView.findViewById(R.id.progressBarUpload);
-        TextView tvProgress = dialogView.findViewById(R.id.tvUploadProgress);
-
-        etEditFullName.setText(teacher.getFullName());
-        etEditBirthday.setText(teacher.getBirthday());
-        etEditEmail.setText(teacher.getEmail());
-
-        // Load profile image
-        if (teacher.getProfileImage() != null && !teacher.getProfileImage().isEmpty()) {
-            byte[] decodedBytes = Base64.decode(teacher.getProfileImage(), Base64.DEFAULT);
-            Bitmap bitmap = BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.length);
-            ivEditProfile.setImageBitmap(bitmap);
-        } else {
-            ivEditProfile.setImageResource(R.drawable.examinee_default);
-        }
-
-        currentEditProfileView = ivEditProfile;
-
-        ivEditProfile.setOnClickListener(v -> {
-            Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
-            startActivityForResult(intent, 202);
-        });
-
-        // Setup recycler views
-        List<CourseModel> editCourseList = new ArrayList<>();
-        CourseSelectionAdapter editCourseAdapter = new CourseSelectionAdapter(this, editCourseList);
-        recyclerEditCourses.setLayoutManager(new LinearLayoutManager(this));
-        recyclerEditCourses.setAdapter(editCourseAdapter);
-
-        SubjectSelectionAdapter editSubjectAdapter = new SubjectSelectionAdapter(new ArrayList<>());
-        recyclerEditSubjects.setLayoutManager(new LinearLayoutManager(this));
-        recyclerEditSubjects.setAdapter(editSubjectAdapter);
-
-        // Load all courses first
-        coursesRef.addListenerForSingleValueEvent(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot snapshot) {
-                editCourseList.clear();
-                for (DataSnapshot ds : snapshot.getChildren()) {
-                    CourseModel c = ds.getValue(CourseModel.class);
-                    if (c != null) editCourseList.add(c);
-                }
-                editCourseAdapter.notifyDataSetChanged();
-
-                if (teacher.getCourseIds() != null)
-                    editCourseAdapter.setPreselectedCoursesById(teacher.getCourseIds());
-
-                // Load subjects of existing courses
-                if (teacher.getCourseIds() != null && !teacher.getCourseIds().isEmpty()) {
-                    final List<SubjectModel> loadedSubjects = new ArrayList<>();
-                    final int[] loadedCount = {0};
-
-                    for (String courseId : teacher.getCourseIds()) {
-                        subjectsRef.orderByChild("courseId").equalTo(courseId)
-                                .addListenerForSingleValueEvent(new ValueEventListener() {
-                                    @Override
-                                    public void onDataChange(@NonNull DataSnapshot snapshot) {
-                                        for (DataSnapshot ds : snapshot.getChildren()) {
-                                            SubjectModel s = ds.getValue(SubjectModel.class);
-                                            if (s != null && !loadedSubjects.contains(s))
-                                                loadedSubjects.add(s);
-                                        }
-                                        loadedCount[0]++;
-                                        if (loadedCount[0] == teacher.getCourseIds().size()) {
-                                            editSubjectAdapter.updateSubjects(loadedSubjects);
-                                            editSubjectAdapter.setPreselectedSubjects(teacher.getAssignedSubjects());
-                                        }
-                                    }
-
-                                    @Override
-                                    public void onCancelled(@NonNull DatabaseError error) {}
-                                });
-                    }
-                }
-            }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) {}
-        });
-
-        // 🔹 Course selection listener (dynamically update subjects)
-        editCourseAdapter.setOnCourseSelectionChanged(() -> {
-            List<CourseModel> selectedCourses = editCourseAdapter.getSelectedCourses();
-            List<SubjectModel> combinedSubjects = new ArrayList<>();
-            final int[] loadedCount = {0};
-
-            if (selectedCourses.isEmpty()) {
-                editSubjectAdapter.updateSubjects(new ArrayList<>());
-                return;
-            }
-
-            for (CourseModel c : selectedCourses) {
-                subjectsRef.orderByChild("courseId").equalTo(c.getId())
-                        .addListenerForSingleValueEvent(new ValueEventListener() {
-                            @Override
-                            public void onDataChange(@NonNull DataSnapshot snapshot) {
-                                for (DataSnapshot ds : snapshot.getChildren()) {
-                                    SubjectModel s = ds.getValue(SubjectModel.class);
-                                    if (s != null && !combinedSubjects.contains(s))
-                                        combinedSubjects.add(s);
-                                }
-                                loadedCount[0]++;
-                                if (loadedCount[0] == selectedCourses.size()) {
-                                    editSubjectAdapter.updateSubjects(combinedSubjects);
-                                    editSubjectAdapter.setPreselectedSubjects(teacher.getAssignedSubjects());
-                                }
-                            }
-
-                            @Override
-                            public void onCancelled(@NonNull DatabaseError error) {}
-                        });
-            }
-        });
-
-        // ✅ Show the actual dialog here
-        new AlertDialog.Builder(this)
-                .setTitle("Update Teacher")
-                .setView(dialogView)
-                .setPositiveButton("Update", (dialog, which) -> {
-                    updateTeacherData(teacher, etEditFullName, etEditBirthday, etEditEmail, editCourseAdapter, editSubjectAdapter);
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
-    }
-
-
-
-    private void updateTeacherData(
-            TeacherModel teacher,
-            EditText etEditFullName,
-            EditText etEditBirthday,
-            EditText etEditEmail,
-            CourseSelectionAdapter editCourseAdapter,
-            SubjectSelectionAdapter editSubjectAdapter
-    ) {
-        String oldEmail = teacher.getEmail();
-        String oldPassword = teacher.getBirthday().replaceAll("[^0-9]", "");
-
-        teacher.setFullName(etEditFullName.getText().toString().trim());
-        teacher.setBirthday(etEditBirthday.getText().toString().trim());
-        teacher.setEmail(etEditEmail.getText().toString().trim());
-        teacher.setDisplayName(getDisplayName(teacher.getFullName()));
-
-        if (selectedImageUri != null) {
-            String base64Image = convertImageToBase64(selectedImageUri);
-            if (base64Image != null)
-                teacher.setProfileImage(base64Image);
-        }
-
-        List<CourseModel> updatedCourses = editCourseAdapter.getSelectedCourses();
-        List<String> courseIds = new ArrayList<>();
-        List<String> courseDisplays = new ArrayList<>();
-        for (CourseModel c : updatedCourses) {
-            courseIds.add(c.getId());
-            courseDisplays.add(c.getName() + " - " + c.getSpecializationName() + " - " + c.getYearName() + " - " + c.getSectionName());
-        }
-        teacher.setCourseIds(courseIds);
-        teacher.setCourseDisplays(courseDisplays);
-
-        List<String> updatedSubjects = new ArrayList<>();
-        for (SubjectModel s : editSubjectAdapter.getSelectedSubjects()) {
-            updatedSubjects.add(s.getName());
-        }
-        teacher.setAssignedSubjects(updatedSubjects);
-
-        teachersRef.child(teacher.getId()).setValue(teacher)
-                .addOnSuccessListener(aVoid -> Toast.makeText(this, "Teacher updated", Toast.LENGTH_SHORT).show());
-    }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == 202 && resultCode == RESULT_OK && data != null && data.getData() != null) {
-            selectedImageUri = data.getData();
-            if (currentEditProfileView != null) {
-                currentEditProfileView.setImageURI(selectedImageUri);
-            }
-        }
-    }
-    private String convertImageToBase64(Uri imageUri) {
-        try {
-            Bitmap original = MediaStore.Images.Media.getBitmap(getContentResolver(), imageUri);
-            int maxSize = 400;
-            int width = original.getWidth();
-            int height = original.getHeight();
-            float scale = Math.min((float) maxSize / width, (float) maxSize / height);
-            int newWidth = Math.round(width * scale);
-            int newHeight = Math.round(height * scale);
-            Bitmap resized = Bitmap.createScaledBitmap(original, newWidth, newHeight, true);
-
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            resized.compress(Bitmap.CompressFormat.JPEG, 60, baos);
-            byte[] imageBytes = baos.toByteArray();
-            return Base64.encodeToString(imageBytes, Base64.DEFAULT);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
-    }
-
-
-
 }
-
