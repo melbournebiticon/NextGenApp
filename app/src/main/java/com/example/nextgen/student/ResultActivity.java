@@ -6,8 +6,10 @@ import android.os.Bundle;
 import android.util.Base64;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast; // Added for error messages
 import androidx.appcompat.app.AppCompatActivity;
 import com.example.nextgen.R;
+import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.DatabaseReference;
 
@@ -17,6 +19,28 @@ public class ResultActivity extends AppCompatActivity {
     private TextView tvStudentName, tvStudentId;
     private TextView tvScoreRaw, tvScorePercent, tvEquivalentGrade;
     private ImageView imgProfile;
+
+    // Helper method to decode and set Base64 image
+    private void setProfileImage(String base64Image) {
+        if (base64Image != null && !base64Image.isEmpty()) {
+            try {
+                // Remove potential prefixes like "data:image/jpeg;base64," if present
+                String pureBase64 = base64Image.replaceAll("data:image/.*?;base64,", "");
+
+                byte[] decodedBytes = Base64.decode(pureBase64, Base64.DEFAULT);
+                Bitmap bitmap = BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.length);
+                if (bitmap != null) {
+                    imgProfile.setImageBitmap(bitmap);
+                    return; // Successfully loaded
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                // Fall through to set default image on failure
+            }
+        }
+        // Set default image if input is null/empty or decoding failed
+        imgProfile.setImageResource(R.drawable.examinee_default);
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -39,59 +63,61 @@ public class ResultActivity extends AppCompatActivity {
         String subjectName = getIntent().getStringExtra("subjectName");
         String teacherName = getIntent().getStringExtra("teacherName");
         String studentName = getIntent().getStringExtra("studentName");
-        String studentId = getIntent().getStringExtra("studentId");
-        // String profileImage = getIntent().getStringExtra("profileImage"); // Hindi ginagamit
+        final String studentId = getIntent().getStringExtra("studentId"); // Final to use in listener
 
-        // --- KEY FIX DITO ---
-        int finalScore = getIntent().getIntExtra("score", 0); // 👈 TAMA NA: Ito ang pinasa ng TakeExamActivity
+        // FIX: Palitan ang "score" ng "totalScore" para maging consistent sa TakeExamActivity
+        int finalScore = getIntent().getIntExtra("totalScore", 0);
         int maxScore = getIntent().getIntExtra("maxScore", 0);
-        // int deductions = getIntent().getIntExtra("deductions", 0); // Optional, kung may TextView ka para dito
-        // --- END KEY FIX ---
+        String profileImageFromIntent = getIntent().getStringExtra("profileImage"); // Use for fallback
 
         // Populate text fields
-        tvCourseCode.setText(courseCode);
-        tvSubjectName.setText(subjectName);
-        tvTeacherName.setText(teacherName);
-        tvStudentName.setText(studentName);
-        tvStudentId.setText(studentId);
+        tvCourseCode.setText(courseCode != null ? courseCode : "N/A");
+        tvSubjectName.setText(subjectName != null ? subjectName : "N/A");
+        tvTeacherName.setText(teacherName != null ? teacherName : "N/A");
+        tvStudentName.setText(studentName != null ? studentName : "N/A");
+        tvStudentId.setText(studentId != null ? studentId : "N/A");
 
-        // --- DISPLAY FIX DITO ---
-        tvScoreRaw.setText(finalScore + "/" + maxScore); // 👈 Ginamit na ang "finalScore"
+        // Calculate and Display Score
+        tvScoreRaw.setText(finalScore + "/" + maxScore);
 
-        double percent = maxScore > 0 ? (finalScore * 100.0) / maxScore : 0; // 👈 Ginamit na ang "finalScore"
+        double percent = maxScore > 0 ? (finalScore * 100.0) / maxScore : 0;
         tvScorePercent.setText(String.format("%.2f%%", percent));
-        // --- END DISPLAY FIX ---
 
+        // Determine Grade
         String grade = percent >= 75 ? "Passed" : "Failed";
         tvEquivalentGrade.setText(grade);
 
-        // 🔹 Default profile first (in case Firebase fails)
-        imgProfile.setImageResource(R.drawable.examinee_default);
+        // --- Profile Image Loading Logic ---
 
-        // 🔹 Try to load latest profile from Firebase (instead of old Intent data)
+        // 1. Try to load profile image from the Intent data first (fastest)
+        setProfileImage(profileImageFromIntent);
+
+        // 2. Load the latest profile from Firebase (This overrides the Intent data if successful)
         if (studentId != null && !studentId.isEmpty()) {
             DatabaseReference ref = FirebaseDatabase.getInstance()
                     .getReference("Students")
-                    .child(studentId);
+                    .orderByChild("studentId").equalTo(studentId) // Search by studentId
+                    .limitToFirst(1).getRef();
 
             ref.get().addOnSuccessListener(snapshot -> {
                 if (snapshot.exists()) {
-                    String profileFromDb = snapshot.child("profileImage").getValue(String.class);
-                    if (profileFromDb != null && !profileFromDb.isEmpty()) {
-                        try {
-                            byte[] decodedBytes = Base64.decode(profileFromDb, Base64.DEFAULT);
-                            Bitmap bitmap = BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.length);
-                            imgProfile.setImageBitmap(bitmap);
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                            imgProfile.setImageResource(R.drawable.examinee_default);
+                    // We need to iterate the result since orderByChild returns a list
+                    for (DataSnapshot studentSnap : snapshot.getChildren()) {
+                        String profileFromDb = studentSnap.child("profileImage").getValue(String.class);
+                        if (profileFromDb != null && !profileFromDb.isEmpty()) {
+                            setProfileImage(profileFromDb); // Set the DB profile image
+                            return; // Stop after finding and setting the image
                         }
                     }
                 }
+                // If not found in DB or empty, the default image or Intent image remains set.
             }).addOnFailureListener(e -> {
-                e.printStackTrace();
-                imgProfile.setImageResource(R.drawable.examinee_default);
+                // Log and show error if DB fetch fails, but keep the current image (Intent/Default)
+                Toast.makeText(this, "Error fetching latest profile: " + e.getMessage(), Toast.LENGTH_SHORT).show();
             });
+        } else {
+            imgProfile.setImageResource(R.drawable.examinee_default);
         }
     }
 }
+
