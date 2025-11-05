@@ -1,9 +1,16 @@
 package com.example.nextgen.teacher;
 
+import android.graphics.Color;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
+import android.widget.Button;
+import android.widget.Switch;
+
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
@@ -15,9 +22,12 @@ import java.util.List;
 public class StudentExamAdapter extends RecyclerView.Adapter<StudentExamAdapter.ViewHolder> {
 
     private final List<StudentExamStatus> students;
+    private final String examId; // store examId
 
-    public StudentExamAdapter(List<StudentExamStatus> students) {
+    // ✅ New constructor
+    public StudentExamAdapter(List<StudentExamStatus> students, String examId) {
         this.students = students;
+        this.examId = examId;
     }
 
     @NonNull
@@ -32,18 +42,90 @@ public class StudentExamAdapter extends RecyclerView.Adapter<StudentExamAdapter.
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         StudentExamStatus student = students.get(position);
 
+        // Name and course info
         holder.tvStudentName.setText(student.getFullName());
+        holder.tvCourseInfo.setText("Course: "
+                + student.getCourse() + " - "
+                + student.getSpecialization() + " - "
+                + student.getYear() + " - "
+                + student.getSection());
 
-        // Show Present / Ongoing / Absent
-        if (!student.isPresent()) {
-            holder.tvStudentStatus.setText("Absent");
-        } else if (student.isOngoing()) {
-            holder.tvStudentStatus.setText("Ongoing");
+        // Answered counter
+        holder.tvCounter.setText("Answered: " + student.getQuestionsAnswered());
+
+        // Highlight if ongoing
+        if(student.isOngoing()){
+            holder.itemView.setBackgroundColor(Color.parseColor("#FFF9C4")); // light yellow
         } else {
-            holder.tvStudentStatus.setText("Present");
+            holder.itemView.setBackgroundColor(Color.WHITE);
         }
 
-        holder.tvStudentCounter.setText("Answered: " + student.getQuestionsAnswered());
+        // Present switch
+        // Present switch
+        // Inside onBindViewHolder
+
+        holder.switchPresent.setOnCheckedChangeListener(null);
+        holder.switchPresent.setChecked(student.isPresent());
+        holder.switchPresent.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            student.setPresent(isChecked);
+
+            // --- Add logging here ---
+            android.util.Log.d("StudentExamAdapter", "Switch toggled. examId: " + examId
+                    + ", studentId: " + student.getStudentId()
+                    + ", new present value: " + isChecked);
+
+            if (examId != null && !examId.trim().isEmpty() &&
+                    student.getStudentId() != null && !student.getStudentId().trim().isEmpty()) {
+
+                DatabaseReference studentNode = FirebaseDatabase.getInstance()
+                        .getReference("ExamStudents")
+                        .child(examId.trim())
+                        .child(student.getStudentId().trim());
+
+                // --- Add logging to check Firebase path ---
+                android.util.Log.d("StudentExamAdapter", "Firebase path: "
+                        + studentNode.toString());
+
+                studentNode.child("present").setValue(isChecked)
+                        .addOnCompleteListener(task -> {
+                            if(task.isSuccessful()){
+                                android.util.Log.d("StudentExamAdapter", "Present updated successfully!");
+                            } else {
+                                android.util.Log.e("StudentExamAdapter", "Failed to update present", task.getException());
+                            }
+                        });
+
+                studentNode.child("ongoing").setValue(isChecked); // optional
+            } else {
+                android.util.Log.e("StudentExamAdapter", "Cannot update Firebase: examId or studentId is null");
+            }
+        });
+
+
+
+        holder.btnReset.setOnClickListener(v -> {
+            student.setQuestionsAnswered(0);
+            student.setPresent(false);
+
+            // Update UI
+            holder.tvCounter.setText("Answered: 0");
+            holder.switchPresent.setChecked(false);
+            holder.itemView.setBackgroundColor(Color.WHITE);
+
+            // ✅ Firebase: trigger reset
+            if (examId != null && !examId.trim().isEmpty() &&
+                    student.getStudentId() != null && !student.getStudentId().trim().isEmpty()) {
+
+                DatabaseReference studentNode = FirebaseDatabase.getInstance()
+                        .getReference("ExamStudents")
+                        .child(examId.trim())
+                        .child(student.getStudentId().trim());
+
+                studentNode.child("reset").setValue(true);  // TakeExamActivity listens to this
+            }
+        });
+
+
     }
 
     @Override
@@ -52,13 +134,17 @@ public class StudentExamAdapter extends RecyclerView.Adapter<StudentExamAdapter.
     }
 
     public static class ViewHolder extends RecyclerView.ViewHolder {
-        TextView tvStudentName, tvStudentStatus, tvStudentCounter;
+        TextView tvStudentName, tvCourseInfo, tvCounter;
+        Switch switchPresent;
+        Button btnReset;
 
         public ViewHolder(@NonNull View itemView) {
             super(itemView);
             tvStudentName = itemView.findViewById(R.id.tvStudentName);
-            tvStudentStatus = itemView.findViewById(R.id.tvStudentStatus);
-            tvStudentCounter = itemView.findViewById(R.id.tvStudentCounter);
+            tvCourseInfo = itemView.findViewById(R.id.tvCourseInfo);
+            tvCounter = itemView.findViewById(R.id.tvCounter);
+            switchPresent = itemView.findViewById(R.id.switchPresent);
+            btnReset = itemView.findViewById(R.id.btnReset);
         }
     }
 }

@@ -256,12 +256,14 @@ public class ManageExamActivity extends AppCompatActivity {
                                 String examSection = parts.length > 3 ? parts[3].trim() : "";
 
                                 Intent intent = new Intent(ManageExamActivity.this, ExamMonitorActivity.class);
+                                intent.putExtra("examId", exam.getFirebaseKey()); // ✅ Add this
                                 intent.putExtra("examCourseName", examCourse);
                                 intent.putExtra("examSpecialization", examSpecialization);
                                 intent.putExtra("examYearName", examYear);
                                 intent.putExtra("examSectionName", examSection);
                                 startActivity(intent);
                             }
+
 
 
                         });

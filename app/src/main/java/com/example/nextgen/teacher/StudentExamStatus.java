@@ -8,15 +8,25 @@ public class StudentExamStatus {
     private boolean ongoing;           // true if student is currently taking the exam
     private int questionsAnswered;     // how many questions the student has answered
 
+    private String course;
+    private String specialization;
+    private String year;
+    private String section;
+
     // Empty constructor required for Firebase
     public StudentExamStatus() {}
 
-    public StudentExamStatus(String studentId, String fullName, boolean present, boolean ongoing, int questionsAnswered) {
+    public StudentExamStatus(String studentId, String fullName, boolean present, boolean ongoing, int questionsAnswered,
+                             String course, String specialization, String year, String section) {
         this.studentId = studentId;
         this.fullName = fullName;
         this.present = present;
         this.ongoing = ongoing;
         this.questionsAnswered = questionsAnswered;
+        this.course = course;
+        this.specialization = specialization;
+        this.year = year;
+        this.section = section;
     }
 
     // Getters & Setters
@@ -34,4 +44,17 @@ public class StudentExamStatus {
 
     public int getQuestionsAnswered() { return questionsAnswered; }
     public void setQuestionsAnswered(int questionsAnswered) { this.questionsAnswered = questionsAnswered; }
+
+    // Getters & setters for new fields
+    public String getCourse() { return course; }
+    public void setCourse(String course) { this.course = course; }
+
+    public String getSpecialization() { return specialization; }
+    public void setSpecialization(String specialization) { this.specialization = specialization; }
+
+    public String getYear() { return year; }
+    public void setYear(String year) { this.year = year; }
+
+    public String getSection() { return section; }
+    public void setSection(String section) { this.section = section; }
 }

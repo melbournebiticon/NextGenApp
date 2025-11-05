@@ -25,6 +25,8 @@ public class ExamMonitorActivity extends AppCompatActivity {
     private RecyclerView recyclerView;
     private StudentExamAdapter adapter;
     private String examTitle;
+    private String examId;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -35,7 +37,11 @@ public class ExamMonitorActivity extends AppCompatActivity {
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
 
         examTitle = getIntent().getStringExtra("examTitle");
+        examId = getIntent().getStringExtra("examId");
+        android.util.Log.d("ExamMonitor", "examId from intent: " + examId);
+
         setTitle("Monitoring: " + examTitle);
+
 
         // Load students for this exam
         loadStudents();
@@ -65,6 +71,20 @@ public class ExamMonitorActivity extends AppCompatActivity {
                 for (DataSnapshot ds : snapshot.getChildren()) {
                     StudentModel student = ds.getValue(StudentModel.class);
                     if (student != null) {
+                        String studentId = student.getStudentId();
+                        // Skip students with missing IDs
+                        // Remove 'String' and just assign
+                        studentId = student.getStudentId();
+                        if (studentId == null || studentId.trim().isEmpty()) {
+                            // fallback: use Firebase key
+                            studentId = ds.getKey();  // Firebase node key
+                            student.setStudentId(studentId);
+
+                            // Optionally update Firebase so studentId is saved for next time
+                            ds.getRef().child("studentId").setValue(studentId);
+                        }
+
+
 
                         // Null-safe strings
                         String studentSpec = student.getSpecializationName() != null ? student.getSpecializationName().trim() : "";
@@ -77,36 +97,31 @@ public class ExamMonitorActivity extends AppCompatActivity {
                         String examYear = examYearName != null ? examYearName.trim() : "";
                         String examCourse = examCourseName != null ? examCourseName.trim() : "";
 
-
-                        android.util.Log.d("ExamMonitor", "Student: " + student.getFullName() +
-                                ", Spec: " + studentSpec +
-                                ", Section: " + studentSection +
-                                ", Year: " + studentYear +
-                                ", Course: " + studentCourse);
-
                         // Compare all fields
                         if (studentSpec.equalsIgnoreCase(examSpec)
                                 && studentSection.equalsIgnoreCase(examSection)
                                 && studentYear.equalsIgnoreCase(examYear)
                                 && studentCourse.equalsIgnoreCase(examCourse)) {
 
-                            android.util.Log.d("ExamMonitor", "Matched student: " + student.getFullName());
-
                             students.add(new StudentExamStatus(
-                                    student.getStudentId(),
+                                    studentId,
                                     student.getFullName(),
                                     false, // not yet joined
                                     false, // not ongoing
-                                    0      // answered 0
+                                    0,     // answered 0
+                                    studentCourse,
+                                    studentSpec,
+                                    studentYear,
+                                    studentSection
                             ));
-                        } else {
-                            android.util.Log.d("ExamMonitor", "Skipped student: " + student.getFullName());
+
                         }
                     }
                 }
 
+
                 android.util.Log.d("ExamMonitor", "Total matched students: " + students.size());
-                adapter = new StudentExamAdapter(students);
+                adapter = new StudentExamAdapter(students, examId); // ✅ matches constructor
                 recyclerView.setAdapter(adapter);
             }
 

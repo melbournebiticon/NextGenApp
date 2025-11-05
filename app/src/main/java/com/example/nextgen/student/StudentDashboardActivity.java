@@ -396,7 +396,30 @@ public class StudentDashboardActivity extends AppCompatActivity
                                 Log.d(TAG, "All " + totalEligibleExams + " exams processed. Updating RecyclerView.");
                                 updateExamRecyclerView();
                             }
+                            DatabaseReference examStudentRef = FirebaseDatabase.getInstance()
+                                    .getReference("ExamStudents")
+                                    .child(examId)
+                                    .child(currentStudentUid);
+
+                            // inside fetchExamsForStudent -> after scoresRef check
+                            examStudentRef.child("present").addListenerForSingleValueEvent(new ValueEventListener() {
+                                @Override
+                                public void onDataChange(@NonNull DataSnapshot snapshot) {
+                                    Boolean present = snapshot.getValue(Boolean.class);
+                                    exam.setAvailable(exam.isAvailable() && (present != null && present));
+                                    // DO NOT call updateExamRecyclerView() here
+                                    examsProcessed[0]++;
+                                    if (examsProcessed[0] == totalEligibleExams) {
+                                        updateExamRecyclerView(); // call once after all exams processed
+                                    }
+                                }
+                                @Override
+                                public void onCancelled(@NonNull DatabaseError error) {}
+                            });
+
+
                         }
+
 
                         @Override
                         public void onCancelled(@NonNull DatabaseError scoreError) {
