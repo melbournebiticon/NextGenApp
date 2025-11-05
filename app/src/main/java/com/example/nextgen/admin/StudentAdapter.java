@@ -40,6 +40,7 @@ public class StudentAdapter extends RecyclerView.Adapter<StudentAdapter.StudentV
     public void onBindViewHolder(@NonNull StudentViewHolder holder, int position) {
         StudentModel student = studentList.get(position);
 
+        holder.tvStudentId.setText(student.getStudentId());
         holder.tvFullName.setText(student.getFullName());
         holder.tvSection.setText(student.getSpecializationName() + " - " + student.getYearName());
         holder.tvCourse.setText(student.getCourseName());
@@ -72,11 +73,12 @@ public class StudentAdapter extends RecyclerView.Adapter<StudentAdapter.StudentV
     }
 
     static class StudentViewHolder extends RecyclerView.ViewHolder {
-        TextView tvFullName, tvSection, tvCourse;
+        TextView tvStudentId, tvFullName, tvSection, tvCourse;
         ImageView ivProfile, ivEdit, ivDelete;
 
         public StudentViewHolder(@NonNull View itemView) {
             super(itemView);
+            tvStudentId = itemView.findViewById(R.id.tvStudentId); // <-- new
             tvFullName = itemView.findViewById(R.id.tvFullName);
             tvSection = itemView.findViewById(R.id.tvSection);
             tvCourse = itemView.findViewById(R.id.tvCourse);
@@ -85,6 +87,7 @@ public class StudentAdapter extends RecyclerView.Adapter<StudentAdapter.StudentV
             ivDelete = itemView.findViewById(R.id.ivDelete);
         }
     }
+
 
 
 }

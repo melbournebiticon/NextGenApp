@@ -46,8 +46,13 @@ public class StudentActivity extends AppCompatActivity {
     private DrawerLayout drawerLayout;
     private LinearLayout curriculumDropdown, accountsDropdown;
 
+<<<<<<< HEAD
     // FORM VARIABLES
     private EditText searchStudent;
+=======
+    private EditText etFullName, etBirthday, etEmail, etContact;
+
+>>>>>>> origin/pushnyodito4
     private RecyclerView recyclerStudents;
     private Button btnAddStudent;
     private ImageButton btnClearSearch;
@@ -68,6 +73,7 @@ public class StudentActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_student);
 
+<<<<<<< HEAD
         // INITIALIZE SIDEBAR
         initializeSidebarViews();
         setupSidebarNavigation();
@@ -75,6 +81,15 @@ public class StudentActivity extends AppCompatActivity {
         // INITIALIZE FORM ELEMENTS
         initializeFormViews();
         setupSearchFunctionality();
+=======
+        recyclerStudents = findViewById(R.id.recyclerStudents);
+        btnAddStudent = findViewById(R.id.btnAddStudent);
+
+
+
+
+        recyclerStudents.setLayoutManager(new LinearLayoutManager(this));
+>>>>>>> origin/pushnyodito4
 
         // Firebase
         studentsRef = FirebaseDatabase.getInstance().getReference("Students");
@@ -125,6 +140,7 @@ public class StudentActivity extends AppCompatActivity {
             }
         });
 
+<<<<<<< HEAD
         loadCourses();
     }
 
@@ -645,6 +661,11 @@ public class StudentActivity extends AppCompatActivity {
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
         finish();
+=======
+
+        btnAddStudent.setOnClickListener(v -> addStudentDialog());
+
+>>>>>>> origin/pushnyodito4
     }
 
     private void loadCourses() {
@@ -660,21 +681,86 @@ public class StudentActivity extends AppCompatActivity {
                     }
                 }
 
+<<<<<<< HEAD
                 if (courseOptionList.isEmpty()) {
                     Toast.makeText(StudentActivity.this, "No courses available", Toast.LENGTH_SHORT).show();
-                }
+=======
+                ArrayAdapter<String> adapter = new ArrayAdapter<>(StudentActivity.this,
+                        android.R.layout.simple_spinner_item, displayNames);
+                adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
             }
 
             @Override
+            public void onCancelled(@NonNull DatabaseError error) {}
+        });
+    }
+
+    private void addStudentDialog() {
+        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_student_add, null);
+
+        EditText etFullName = dialogView.findViewById(R.id.etFullName);
+        EditText etBirthday = dialogView.findViewById(R.id.etBirthday);
+        EditText etEmail = dialogView.findViewById(R.id.etEmail);
+        EditText etContact = dialogView.findViewById(R.id.etContact);
+        Spinner spCourse = dialogView.findViewById(R.id.spinnerCourses);
+        ImageView ivProfile = dialogView.findViewById(R.id.ivProfile);
+
+        // Birthday picker
+        etBirthday.setOnClickListener(v -> {
+            Calendar calendar = Calendar.getInstance();
+            int year = calendar.get(Calendar.YEAR);
+            int month = calendar.get(Calendar.MONTH);
+            int day = calendar.get(Calendar.DAY_OF_MONTH);
+
+            DatePickerDialog picker = new DatePickerDialog(this, (view, y, m, d) -> {
+                etBirthday.setText(String.format("%04d-%02d-%02d", y, m+1, d));
+            }, year, month, day);
+            picker.show();
+        });
+
+        // Load courses dynamically from Firebase
+        coursesRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                courseOptionList.clear();
+                List<String> courseNames = new ArrayList<>();
+                for (DataSnapshot ds : snapshot.getChildren()) {
+                    CourseModel c = ds.getValue(CourseModel.class);
+                    if (c != null) {
+                        courseOptionList.add(c);
+                        courseNames.add(c.getCourseName() + " - " +
+                                c.getSpecializationName() + " - " +
+                                c.getYearName() + " - " +
+                                c.getSectionName());
+                    }
+>>>>>>> origin/pushnyodito4
+                }
+
+                ArrayAdapter<String> adapter = new ArrayAdapter<>(
+                        StudentActivity.this,
+                        android.R.layout.simple_spinner_item,
+                        courseNames
+                );
+                adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                spCourse.setAdapter(adapter);
+            }
+
+            @Override
+<<<<<<< HEAD
             public void onCancelled(@NonNull DatabaseError error) {
                 Toast.makeText(StudentActivity.this, "Failed to load courses", Toast.LENGTH_SHORT).show();
             }
         });
     }
+=======
+            public void onCancelled(@NonNull DatabaseError error) {}
+        });
+>>>>>>> origin/pushnyodito4
 
     private void addStudent(String fullName, String birthday, String email, String contact, int coursePos) {
         CourseModel selectedCourse = courseOptionList.get(coursePos);
 
+<<<<<<< HEAD
         generateStudentId(studentId -> {
             String password = birthday.replaceAll("[^0-9]", "");
             if (password.length() < 6) {
@@ -696,17 +782,33 @@ public class StudentActivity extends AppCompatActivity {
             student.setProfileImage("");
             student.setPassword(password);
             student.setUid(""); // Will be set after Firebase auth
+=======
+        // Create AlertDialog
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setView(dialogView)
+                .setTitle("Add Student")
+                .setPositiveButton("Add", null)
+                .setNegativeButton("Cancel", (d, which) -> d.dismiss())
+                .create();
 
-            auth.createUserWithEmailAndPassword(email, password)
-                    .addOnCompleteListener(authTask -> {
-                        if (authTask.isSuccessful()) {
-                            FirebaseUser firebaseUser = authTask.getResult().getUser();
-                            String uid = firebaseUser.getUid();
+        dialog.show();
+>>>>>>> origin/pushnyodito4
 
-                            // Save role in Users node
-                            usersRef.child(uid).child("role").setValue("student");
-                            usersRef.child(uid).child("studentId").setValue(studentId);
+        // Override positive button to prevent auto-dismiss
+        Button btnAdd = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+        btnAdd.setOnClickListener(v -> {
+            String fullName = etFullName.getText().toString().trim();
+            String birthday = etBirthday.getText().toString().trim();
+            String email = etEmail.getText().toString().trim();
+            String contact = etContact.getText().toString().trim();
+            int coursePos = spCourse.getSelectedItemPosition();
 
+            if (fullName.isEmpty() || birthday.isEmpty() || email.isEmpty() || contact.isEmpty() || coursePos < 0) {
+                Toast.makeText(this, "Complete all fields", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+<<<<<<< HEAD
                             // Attach UID to student
                             student.setUid(uid);
 
@@ -722,8 +824,56 @@ public class StudentActivity extends AppCompatActivity {
                             Toast.makeText(StudentActivity.this, "Auth failed: " + authTask.getException().getMessage(), Toast.LENGTH_SHORT).show();
                         }
                     });
+=======
+            CourseModel selectedCourse = courseOptionList.get(coursePos);
+
+            // Generate student ID and password
+            generateStudentId(studentId -> {
+                String[] parts = birthday.split("-");
+                String password = parts.length == 3 ? parts[1] + parts[2] + parts[0] : "123456"; // MMDDYYYY fallback
+
+                StudentModel student = new StudentModel(
+                        studentId,
+                        fullName,
+                        birthday,
+                        email,
+                        contact,
+                        selectedCourse.getId(),
+                        selectedCourse.getCourseName(),
+                        selectedCourse.getSpecializationName(),
+                        selectedCourse.getYearName(),
+                        selectedCourse.getSectionName(),
+                        "", // profileImage
+                        password,
+                        ""  // uid
+                );
+
+                auth.createUserWithEmailAndPassword(email, password)
+                        .addOnCompleteListener(authTask -> {
+                            if (authTask.isSuccessful()) {
+                                FirebaseUser firebaseUser = authTask.getResult().getUser();
+                                String uid = firebaseUser.getUid();
+                                student.setUid(uid);
+
+                                usersRef.child(uid).child("role").setValue("student");
+                                usersRef.child(uid).child("studentId").setValue(studentId);
+
+                                studentsRef.child(studentId).setValue(student)
+                                        .addOnSuccessListener(aVoid -> {
+                                            Toast.makeText(this, "Student added", Toast.LENGTH_SHORT).show();
+                                            studentList.add(student);
+                                            studentAdapter.notifyItemInserted(studentList.size() - 1);
+                                            dialog.dismiss();
+                                        });
+                            } else {
+                                Toast.makeText(this, "Auth failed: " + authTask.getException().getMessage(), Toast.LENGTH_SHORT).show();
+                            }
+                        });
+            });
+>>>>>>> origin/pushnyodito4
         });
     }
+
 
     private void generateStudentId(OnIdGeneratedListener listener) {
         studentsRef.addListenerForSingleValueEvent(new ValueEventListener() {

@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<<<<<<< HEAD
+=======
+    android:padding="24dp"
+    android:orientation="vertical"
+>>>>>>> origin/pushnyodito4
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
@@ -19,19 +24,26 @@
 
     <!-- Subject Code Input -->
     <EditText
-        android:id="@+id/etSubjectCode"
+        android:id="@+id/etDialogSubjectCode"
+        android:hint="Subject Code"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+<<<<<<< HEAD
         android:hint="Enter Subject Code"
         android:padding="12dp"
         android:background="@android:drawable/edit_text"
         android:layout_marginBottom="16dp" />
+=======
+        android:inputType="text" />
+>>>>>>> origin/pushnyodito4
 
     <!-- Subject Name Input -->
     <EditText
-        android:id="@+id/etSubjectName"
+        android:id="@+id/etDialogSubjectName"
+        android:hint="Subject Name"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+<<<<<<< HEAD
         android:hint="Enter Subject Name"
         android:padding="12dp"
         android:background="@android:drawable/edit_text"
@@ -45,9 +57,13 @@
         android:textSize="14sp"
         android:textColor="#333333"
         android:layout_marginBottom="8dp" />
+=======
+        android:inputType="text"
+        android:layout_marginTop="8dp"/>
+>>>>>>> origin/pushnyodito4
 
     <Spinner
-        android:id="@+id/spinnerCourseOption"
+        android:id="@+id/spinnerDialogCourses"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginBottom="20dp"

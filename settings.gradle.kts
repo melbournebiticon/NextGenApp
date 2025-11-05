@@ -19,7 +19,10 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+<<<<<<< HEAD
         // Add JitPack for MPAndroidChart and other GitHub libraries
+=======
+>>>>>>> origin/pushnyodito4
         maven(url = "https://jitpack.io")
     }
 }

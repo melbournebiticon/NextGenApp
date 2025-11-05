@@ -307,6 +307,7 @@ public class SectionsActivity extends AppCompatActivity {
                     showEditSectionDialog(section);
                 }
 
+<<<<<<< HEAD
                 @Override
                 public void onDelete(SectionModel section) {
                     showDeleteConfirmationDialog(section);
@@ -329,6 +330,27 @@ public class SectionsActivity extends AppCompatActivity {
                     })
                     .addOnFailureListener(e ->
                             Toast.makeText(SectionsActivity.this, "Failed to delete section", Toast.LENGTH_SHORT).show());
+=======
+            @Override
+            public void onDelete(SectionModel section) {
+                new AlertDialog.Builder(SectionsActivity.this)
+                        .setTitle("Confirm Delete")
+                        .setMessage("Are you sure you want to delete section \"" + section.name + "\"?")
+                        .setPositiveButton("Yes", (dialog, which) -> {
+                            dbSections.child(section.id).removeValue()
+                                    .addOnSuccessListener(aVoid -> {
+                                        // Also remove from CourseOptions
+                                        dbCourseOptions.child(section.id).removeValue();
+                                        Toast.makeText(SectionsActivity.this, "Section deleted", Toast.LENGTH_SHORT).show();
+                                    })
+                                    .addOnFailureListener(e ->
+                                            Toast.makeText(SectionsActivity.this, "Failed to delete", Toast.LENGTH_SHORT).show());
+                        })
+                        .setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss())
+                        .show();
+            }
+
+>>>>>>> origin/pushnyodito4
         });
         builder.setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss());
         builder.show();

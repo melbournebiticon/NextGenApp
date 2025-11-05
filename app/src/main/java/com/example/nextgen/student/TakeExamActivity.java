@@ -97,6 +97,12 @@ public class TakeExamActivity extends AppCompatActivity {
     }
 
     private void submitExam() {
+<<<<<<< HEAD
+=======
+        // if (countDownTimer != null) countDownTimer.cancel(); // Uncomment if used
+        stopAudioMonitoring();
+
+>>>>>>> origin/pushnyodito4
         if (questionList.isEmpty()) {
             Toast.makeText(this, "No questions to submit", Toast.LENGTH_SHORT).show();
             return;
@@ -107,7 +113,7 @@ public class TakeExamActivity extends AppCompatActivity {
 
         for (Question q : questionList) {
             String studentAns = q.getStudentAnswer();
-            if (studentAns != null && studentAns.equalsIgnoreCase(q.getCorrectAnswer())) {
+            if (studentAns != null && q.getCorrectAnswer() != null && studentAns.equalsIgnoreCase(q.getCorrectAnswer())) {
                 correctAnswers++;
             }
         }
@@ -115,9 +121,144 @@ public class TakeExamActivity extends AppCompatActivity {
         final int finalTotalQuestions = totalQuestions;
         final int finalCorrectAnswers = correctAnswers;
 
+<<<<<<< HEAD
         FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
         if (currentUser == null) {
             Toast.makeText(this, "User not logged in", Toast.LENGTH_SHORT).show();
+=======
+        // 1. Save Score
+        saveScoreToFirebase(finalCalculatedScore, totalQuestions);
+        // 2. Redirect (This method now handles all Firebase lookups)
+        redirectToResultActivity(finalCalculatedScore, totalQuestions);
+    }
+
+    private void submitExamWithZeroScore() {
+        // if (countDownTimer != null) countDownTimer.cancel(); // Uncomment if used
+        stopAudioMonitoring();
+        int maxScore = questionList.size();
+
+        // 1. Save Score
+        saveScoreToFirebase(0, maxScore);
+        // 2. Redirect (This method now handles all Firebase lookups)
+        redirectToResultActivity(0, maxScore);
+    }
+
+    private void saveScoreToFirebase(int score, int maxScore) {
+        DatabaseReference scoreEntryRef = FirebaseDatabase.getInstance()
+                .getReference("Scores")
+                .child(currentStudentUid)
+                .child(examId);
+
+        scoreEntryRef.child("score").setValue(score);
+        scoreEntryRef.child("maxScore").setValue(maxScore);
+        scoreEntryRef.child("timestamp").setValue(System.currentTimeMillis());
+        scoreEntryRef.child("deductions").setValue(totalDeductions);
+    }
+
+    private void redirectToResultActivity(int score, int maxScore) {
+        // NOTE: ALL Firebase lookups for Student/Exam/Subject info are moved here.
+
+        // Step 1: Get Student Info
+        DatabaseReference studentsRef = FirebaseDatabase.getInstance().getReference("Students");
+        studentsRef.orderByChild("uid").equalTo(currentStudentUid).addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot studentSnap) {
+                if (!studentSnap.exists()) {
+                    Toast.makeText(TakeExamActivity.this, "Student info not found", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+                for (DataSnapshot studentData : studentSnap.getChildren()) {
+                    final String studentId = studentData.child("studentId").getValue(String.class);
+                    final String fullName = studentData.child("fullName").getValue(String.class);
+                    final String profileImage = studentData.child("profileImage").getValue(String.class);
+
+                    // Step 2: Get Exam Info
+                    DatabaseReference examsRef = FirebaseDatabase.getInstance().getReference("Exams");
+                    examsRef.addListenerForSingleValueEvent(new ValueEventListener() {
+                        @Override
+                        public void onDataChange(@NonNull DataSnapshot snapshot) {
+                            boolean found = false;
+                            for (DataSnapshot teacherSnap : snapshot.getChildren()) {
+                                if (teacherSnap.hasChild(examId)) {
+                                    found = true;
+                                    DataSnapshot examSnap = teacherSnap.child(examId);
+
+                                    final String subjectName = examSnap.child("subjectName").getValue(String.class);
+                                    final String teacherName = examSnap.child("teacherName").getValue(String.class);
+
+                                    // Step 3: Get Subject Code
+                                    DatabaseReference subjectsRef = FirebaseDatabase.getInstance().getReference("Subjects");
+                                    subjectsRef.addListenerForSingleValueEvent(new ValueEventListener() {
+                                        @Override
+                                        public void onDataChange(@NonNull DataSnapshot subjectSnap) {
+                                            String subjectCode = "";
+                                            for (DataSnapshot s : subjectSnap.getChildren()) {
+                                                String sName = s.child("name").getValue(String.class);
+                                                if (sName != null && sName.equals(subjectName)) {
+                                                    subjectCode = s.child("code").getValue(String.class);
+                                                    break;
+                                                }
+                                            }
+
+                                            // Step 4: Final Intent Launch
+                                            Intent intent = new Intent(TakeExamActivity.this, ResultActivity.class);
+
+                                            // Student Info
+                                            intent.putExtra("studentName", fullName);
+                                            intent.putExtra("studentId", studentId);
+                                            intent.putExtra("profileImage", profileImage);
+
+                                            // Course Info
+                                            intent.putExtra("courseCode", subjectCode);
+                                            intent.putExtra("subjectName", subjectName);
+                                            intent.putExtra("teacherName", teacherName);
+
+                                            // Score Info
+                                            intent.putExtra("examTitle", examTitle);
+                                            // Note: Changed from "score" to "totalScore" for clarity/consistency
+                                            intent.putExtra("totalScore", score);
+                                            intent.putExtra("maxScore", maxScore);
+                                            intent.putExtra("deductions", totalDeductions);
+
+                                            startActivity(intent);
+                                            finish();
+                                        }
+
+                                        @Override
+                                        public void onCancelled(@NonNull DatabaseError error) {
+                                            Toast.makeText(TakeExamActivity.this, "Error loading subject: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                                        }
+                                    });
+                                    return;
+                                }
+                            }
+
+                            if (!found) {
+                                Toast.makeText(TakeExamActivity.this, "Exam not found in any teacher node", Toast.LENGTH_SHORT).show();
+                            }
+                        }
+
+                        @Override
+                        public void onCancelled(@NonNull DatabaseError error) {
+                            Toast.makeText(TakeExamActivity.this, "Error fetching exam data: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                Toast.makeText(TakeExamActivity.this, "Error fetching student info: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+
+    // ----------- AUDIO MONITORING WITH HUMAN VOICE DETECTION -------------
+    private void startAudioMonitoring() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+>>>>>>> origin/pushnyodito4
             return;
         }
 
@@ -210,5 +351,10 @@ public class TakeExamActivity extends AppCompatActivity {
             }
         });
     }
+<<<<<<< HEAD
 
 }
+=======
+}
+
+>>>>>>> origin/pushnyodito4

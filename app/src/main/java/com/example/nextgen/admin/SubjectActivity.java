@@ -4,11 +4,17 @@ import android.app.AlertDialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.text.TextUtils;
+<<<<<<< HEAD
 import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.WindowManager;
+=======
+import androidx.appcompat.app.AlertDialog;
+
+import android.view.View;
+>>>>>>> origin/pushnyodito4
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
@@ -58,6 +64,7 @@ public class SubjectActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_subject);
 
+<<<<<<< HEAD
         // CRITICAL FIX FOR SIDEBAR HEIGHT
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
                 WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS);
@@ -65,11 +72,51 @@ public class SubjectActivity extends AppCompatActivity {
         // Initialize SessionManager and Firebase Auth
         sessionManager = new SessionManager(this);
         auth = FirebaseAuth.getInstance();
+=======
+        // UI
+        btnAddSubject = findViewById(R.id.btnAddSubject);
+        recyclerSubjects = findViewById(R.id.recyclerSubjects);
+
+        // RecyclerView setup
+        recyclerSubjects.setLayoutManager(new LinearLayoutManager(this));
+        adapter = new SubjectAdapter(subjectList, new SubjectAdapter.OnSubjectActionListener() {
+            @Override
+            public void onEdit(SubjectModel subject) {
+                showEditDialog(subject);
+            }
+
+            @Override
+            public void onDelete(SubjectModel subject) {
+                new androidx.appcompat.app.AlertDialog.Builder(SubjectActivity.this)
+                        .setTitle("Delete Subject")
+                        .setMessage("Are you sure you want to delete " + subject.getName() + "?")
+                        .setPositiveButton("Yes", (dialog, which) -> {
+                            FirebaseDatabase.getInstance().getReference("Subjects")
+                                    .child(subject.getId())
+                                    .removeValue()
+                                    .addOnSuccessListener(aVoid ->
+                                            Toast.makeText(SubjectActivity.this, "Deleted successfully", Toast.LENGTH_SHORT).show())
+                                    .addOnFailureListener(e ->
+                                            Toast.makeText(SubjectActivity.this, "Failed: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+                        })
+                        .setNegativeButton("Cancel", null)
+                        .show();
+            }
+        });
+
+        recyclerSubjects.setAdapter(adapter);
+>>>>>>> origin/pushnyodito4
 
         initializeViews();
         setupClickListeners();
         setupFirebase();
         loadSubjects();
+<<<<<<< HEAD
+=======
+
+        // Add subject
+        btnAddSubject.setOnClickListener(v -> showAddSubjectDialog());
+>>>>>>> origin/pushnyodito4
     }
 
     private void initializeViews() {
@@ -273,12 +320,15 @@ public class SubjectActivity extends AppCompatActivity {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 subjectOptionList.clear();
+<<<<<<< HEAD
                 List<String> displayNames = new ArrayList<>();
 
                 // Add default option
                 subjectOptionList.add(new SubjectOption("", "Select Course Option", "", "", ""));
                 displayNames.add("Select Course Option");
 
+=======
+>>>>>>> origin/pushnyodito4
                 for (DataSnapshot ds : snapshot.getChildren()) {
                     CourseModel course = ds.getValue(CourseModel.class);
                     if (course != null) {
@@ -290,9 +340,9 @@ public class SubjectActivity extends AppCompatActivity {
                                 course.getSectionName()
                         );
                         subjectOptionList.add(option);
-                        displayNames.add(option.toString());
                     }
                 }
+<<<<<<< HEAD
 
                 if (displayNames.isEmpty()) {
                     displayNames.add("No courses available");
@@ -313,6 +363,8 @@ public class SubjectActivity extends AppCompatActivity {
                         }
                     }
                 }
+=======
+>>>>>>> origin/pushnyodito4
             }
 
             @Override
@@ -322,30 +374,52 @@ public class SubjectActivity extends AppCompatActivity {
         });
     }
 
+<<<<<<< HEAD
     private void addSubjectToFirebase(String code, String name, SubjectOption selectedOption) {
         // Validate course selection
         if (selectedOption.getCourseId().isEmpty()) {
             Toast.makeText(this, "Please select a valid course option", Toast.LENGTH_SHORT).show();
             return;
         }
+=======
 
-        String id = subjectsRef.push().getKey();
-        if (id == null) {
-            Toast.makeText(this, "Error generating ID", Toast.LENGTH_SHORT).show();
-            return;
+    private void showAddSubjectDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Add Subject");
+
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_add_subject, null);
+        EditText etCode = dialogView.findViewById(R.id.etDialogSubjectCode);
+        EditText etName = dialogView.findViewById(R.id.etDialogSubjectName);
+        Spinner spinnerDialog = dialogView.findViewById(R.id.spinnerDialogCourses);
+
+        // Populate spinner
+        List<String> displayNames = new ArrayList<>();
+        for (SubjectOption option : subjectOptionList) {
+            displayNames.add(option.toString());
         }
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, displayNames);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerDialog.setAdapter(adapter);
 
-        SubjectModel subject = new SubjectModel(
-                id,
-                code,
-                name,
-                selectedOption.getCourseId(),
-                selectedOption.getCourseName(),
-                selectedOption.getSpecializationName(),
-                selectedOption.getYearName(),
-                selectedOption.getSectionName()
-        );
+        builder.setView(dialogView);
 
+        builder.setPositiveButton("Add", (dialogInterface, i) -> {
+            String code = etCode.getText().toString().trim();
+            String name = etName.getText().toString().trim();
+>>>>>>> origin/pushnyodito4
+
+            if (code.isEmpty() || name.isEmpty()) {
+                Toast.makeText(this, "All fields are required", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            int pos = spinnerDialog.getSelectedItemPosition();
+            if (pos < 0) {
+                Toast.makeText(this, "Select a course", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+<<<<<<< HEAD
         subjectsRef.child(id).setValue(subject)
                 .addOnSuccessListener(aVoid -> {
                     Toast.makeText(this, "Subject added successfully", Toast.LENGTH_SHORT).show();
@@ -503,7 +577,36 @@ public class SubjectActivity extends AppCompatActivity {
     private void setupFirebase() {
         subjectsRef = FirebaseDatabase.getInstance().getReference("Subjects");
         coursesRef = FirebaseDatabase.getInstance().getReference("Courses");
+=======
+            SubjectOption selectedOption = subjectOptionList.get(pos);
+            String id = subjectsRef.push().getKey();
+            if (id == null) return;
+
+            SubjectModel subject = new SubjectModel(
+                    id,
+                    code,
+                    name,
+                    selectedOption.getCourseId(),
+                    selectedOption.getCourseName(),
+                    selectedOption.getSpecializationName(),
+                    selectedOption.getYearName(),
+                    selectedOption.getSectionName()
+            );
+
+            subjectsRef.child(id).setValue(subject)
+                    .addOnSuccessListener(aVoid -> Toast.makeText(this, "Subject added", Toast.LENGTH_SHORT).show())
+                    .addOnFailureListener(e -> Toast.makeText(this, "Failed: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+        });
+
+        builder.setNegativeButton("Cancel", null);
+
+        AlertDialog dialog = builder.create();
+        dialog.setCancelable(false);  // Modal: can't dismiss with back button
+        dialog.setCanceledOnTouchOutside(false); // Modal: can't tap outside
+        dialog.show();
+>>>>>>> origin/pushnyodito4
     }
+
 
     private void loadSubjects() {
         subjectsRef.addValueEventListener(new ValueEventListener() {
@@ -528,6 +631,7 @@ public class SubjectActivity extends AppCompatActivity {
             }
         });
     }
+<<<<<<< HEAD
 
     @Override
     protected void onResume() {
@@ -547,3 +651,76 @@ public class SubjectActivity extends AppCompatActivity {
         }
     }
 }
+=======
+    private void showEditDialog(SubjectModel subject) {
+        androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(this);
+        builder.setTitle("Edit Subject");
+
+        // Inflate dialog layout
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_edit_subject, null);
+        EditText etEditCode = dialogView.findViewById(R.id.etEditSubjectCode);
+        EditText etEditName = dialogView.findViewById(R.id.etEditSubjectName);
+        Spinner spinnerDialog = dialogView.findViewById(R.id.spinnerEditCourses); // Add spinner in layout
+
+        etEditCode.setText(subject.getCode());
+        etEditName.setText(subject.getName());
+
+        // Populate spinner
+        List<String> displayNames = new ArrayList<>();
+        int selectedIndex = -1;
+        for (int i = 0; i < subjectOptionList.size(); i++) {
+            SubjectOption option = subjectOptionList.get(i);
+            displayNames.add(option.toString());
+            if (option.getCourseId().equals(subject.getCourseId())) {
+                selectedIndex = i;
+            }
+        }
+        ArrayAdapter<String> spinnerAdapter = new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_item, displayNames);
+        spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerDialog.setAdapter(spinnerAdapter);
+        if (selectedIndex >= 0) spinnerDialog.setSelection(selectedIndex);
+
+        builder.setView(dialogView);
+
+        builder.setPositiveButton("Update", (dialog, which) -> {
+            String newCode = etEditCode.getText().toString().trim();
+            String newName = etEditName.getText().toString().trim();
+
+            if (newCode.isEmpty() || newName.isEmpty()) {
+                Toast.makeText(this, "Fields cannot be empty", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            int pos = spinnerDialog.getSelectedItemPosition();
+            if (pos < 0) {
+                Toast.makeText(this, "Select a course", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            SubjectOption selectedOption = subjectOptionList.get(pos);
+
+            // Update Firebase
+            DatabaseReference ref = FirebaseDatabase.getInstance().getReference("Subjects").child(subject.getId());
+            ref.setValue(new SubjectModel(
+                    subject.getId(),
+                    newCode,
+                    newName,
+                    selectedOption.getCourseId(),
+                    selectedOption.getCourseName(),
+                    selectedOption.getSpecializationName(),
+                    selectedOption.getYearName(),
+                    selectedOption.getSectionName()
+            )).addOnSuccessListener(aVoid ->
+                    Toast.makeText(this, "Subject updated successfully", Toast.LENGTH_SHORT).show()
+            ).addOnFailureListener(e ->
+                    Toast.makeText(this, "Update failed: " + e.getMessage(), Toast.LENGTH_SHORT).show()
+            );
+        });
+
+        builder.setNegativeButton("Cancel", null);
+        builder.show();
+    }
+
+
+}
+>>>>>>> origin/pushnyodito4

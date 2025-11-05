@@ -5,18 +5,20 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageButton;
 import android.widget.TextView;
+<<<<<<< HEAD
 import android.widget.Toast;
 
+=======
+>>>>>>> origin/pushnyodito4
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
-
 import com.example.nextgen.R;
-
 import java.util.List;
 
 public class SubjectAdapter extends RecyclerView.Adapter<SubjectAdapter.SubjectViewHolder> {
 
     private final List<SubjectModel> subjectList;
+<<<<<<< HEAD
     private final OnItemClickListener listener;
 
     // Interface for click listeners
@@ -26,6 +28,17 @@ public class SubjectAdapter extends RecyclerView.Adapter<SubjectAdapter.SubjectV
     }
 
     public SubjectAdapter(List<SubjectModel> subjectList, OnItemClickListener listener) {
+=======
+    private final OnSubjectActionListener listener;
+
+    // interface for edit/delete actions
+    public interface OnSubjectActionListener {
+        void onEdit(SubjectModel subject);
+        void onDelete(SubjectModel subject);
+    }
+
+    public SubjectAdapter(List<SubjectModel> subjectList, OnSubjectActionListener listener) {
+>>>>>>> origin/pushnyodito4
         this.subjectList = subjectList;
         this.listener = listener;
     }
@@ -42,7 +55,10 @@ public class SubjectAdapter extends RecyclerView.Adapter<SubjectAdapter.SubjectV
     public void onBindViewHolder(@NonNull SubjectViewHolder holder, int position) {
         SubjectModel subject = subjectList.get(position);
 
+<<<<<<< HEAD
         // Set subject data - CORRECTED METHOD NAMES
+=======
+>>>>>>> origin/pushnyodito4
         holder.tvCode.setText(subject.getCode());
         holder.tvName.setText(subject.getName());
         holder.tvCourseInfo.setText(
@@ -52,6 +68,7 @@ public class SubjectAdapter extends RecyclerView.Adapter<SubjectAdapter.SubjectV
                         subject.getSectionName()
         );
 
+<<<<<<< HEAD
         // Set click listeners for edit and delete buttons
         holder.btnEdit.setOnClickListener(v -> {
             if (listener != null) {
@@ -71,6 +88,10 @@ public class SubjectAdapter extends RecyclerView.Adapter<SubjectAdapter.SubjectV
             Toast.makeText(holder.itemView.getContext(),
                     "Subject: " + subject.getName(), Toast.LENGTH_SHORT).show();
         });
+=======
+        holder.btnEdit.setOnClickListener(v -> listener.onEdit(subject));
+        holder.btnDelete.setOnClickListener(v -> listener.onDelete(subject));
+>>>>>>> origin/pushnyodito4
     }
 
     @Override
@@ -102,8 +123,13 @@ public class SubjectAdapter extends RecyclerView.Adapter<SubjectAdapter.SubjectV
             tvCode = itemView.findViewById(R.id.tvSubjectCode);
             tvName = itemView.findViewById(R.id.tvSubjectName);
             tvCourseInfo = itemView.findViewById(R.id.tvSubjectCourseInfo);
+<<<<<<< HEAD
             btnEdit = itemView.findViewById(R.id.btnEditSubject);
             btnDelete = itemView.findViewById(R.id.btnDeleteSubject);
+=======
+            btnEdit = itemView.findViewById(R.id.btnEdit);
+            btnDelete = itemView.findViewById(R.id.btnDelete);
+>>>>>>> origin/pushnyodito4
         }
     }
 }

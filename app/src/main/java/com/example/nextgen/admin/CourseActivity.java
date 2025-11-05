@@ -63,15 +63,25 @@ public class CourseActivity extends AppCompatActivity {
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
                 WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS);
 
+<<<<<<< HEAD
         // Initialize SessionManager and Firebase Auth
         sessionManager = new SessionManager(this);
         auth = FirebaseAuth.getInstance();
+=======
+        recyclerCourses.setLayoutManager(new LinearLayoutManager(this));
+        adapter = new CourseAdapter(this, courseList, courseOptionList);
+        recyclerCourses.setAdapter(adapter);
+>>>>>>> origin/pushnyodito4
 
         initializeViews();
         setupClickListeners();
         setupFirebase();
         loadCourseOptions();
         loadCourses();
+
+        // Create adapter AFTER course options are loaded
+        adapter = new CourseAdapter(this, courseList, courseOptionList);
+        recyclerCourses.setAdapter(adapter);
     }
 
     private void initializeViews() {
@@ -187,11 +197,11 @@ public class CourseActivity extends AppCompatActivity {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 courseOptionList.clear();
-                List<String> names = new ArrayList<>();
                 for (DataSnapshot ds : snapshot.getChildren()) {
                     CourseOption option = ds.getValue(CourseOption.class);
                     if (option != null) {
                         courseOptionList.add(option);
+<<<<<<< HEAD
                         names.add(option.getSpecializationName() + " - " + option.getSectionName() + " - " + option.getYearName());
                     }
                 }
@@ -199,6 +209,14 @@ public class CourseActivity extends AppCompatActivity {
                         android.R.layout.simple_spinner_item, names);
                 adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
                 spinner.setAdapter(adapter);
+=======
+                    }
+                }
+
+                // Create adapter AFTER course options are loaded
+                adapter = new CourseAdapter(CourseActivity.this, courseList, courseOptionList);
+                recyclerCourses.setAdapter(adapter);
+>>>>>>> origin/pushnyodito4
             }
 
             @Override
@@ -359,6 +377,7 @@ public class CourseActivity extends AppCompatActivity {
     private void loadCourseOptions() {
         // This is now handled in the dialog
     }
+
 
     private void loadCourses() {
         coursesRef.addValueEventListener(new ValueEventListener() {
