@@ -216,22 +216,34 @@ public class TakeExamActivity extends AppCompatActivity {
         stopAudioMonitoring();
     }
 
+    /**
+     * 🟡 1. App Switching Detection (onPause)
+     * Nagbabago ang action kapag naabot ang MAX_SWITCHES.
+     */
     @Override
     protected void onPause() {
         super.onPause();
-        if (isFinishing()) return;
+        if (isFinishing() || countDownTimer == null) return;
 
         switchCount++;
         totalDeductions += DEDUCTION_PER_STRIKE;
 
         if (switchCount >= MAX_SWITCHES) {
-            Toast.makeText(this, "Cheating detected! Auto-submitting exam.", Toast.LENGTH_LONG).show();
-            submitExamWithZeroScore();
+            // 💡 Palitan ang Toast/Auto-submit ng showCheatingAlert
+            showCheatingAlert("You left the exam screen too many times. Cheating detected!");
+
+            // Optional: Maaari mong panatilihin ang auto-submit dito kung yan ang policy
+            // submitExamWithZeroScore(); // Kung gusto mo pa rin mag-auto-submit
         } else {
-            Toast.makeText(this, "WARNING: Switching apps detected. " + (MAX_SWITCHES - switchCount) + " attempts left.", Toast.LENGTH_LONG).show();
+            // Ibinabalik ang Toast warning para malaman ng user na may deduction
+            Toast.makeText(this, "WARNING: Switching apps detected. " + (MAX_SWITCHES - switchCount) + " attempts left. You have incurred a deduction.", Toast.LENGTH_LONG).show();
         }
     }
 
+    /**
+     * 🟡 2. Split-Screen Detection (onResume)
+     * Nagbabago ang action mula sa auto-submit patungo sa showCheatingAlert.
+     */
     @Override
     protected void onResume() {
         super.onResume();
@@ -240,8 +252,11 @@ public class TakeExamActivity extends AppCompatActivity {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N && isInMultiWindowMode()) {
             if (countDownTimer != null) countDownTimer.cancel();
             stopAudioMonitoring();
-            Toast.makeText(this, "CHEATING DETECTED: Split-screen mode. Auto-submitting.", Toast.LENGTH_LONG).show();
-            submitExamWithZeroScore();
+
+            // 💡 Palitan ang Toast/Auto-submit ng showCheatingAlert
+            showCheatingAlert("Split screen or multi-window mode is not allowed. Cheating detected!");
+
+            // Inalis ang submitExamWithZeroScore() at pinanatili ang return
             return;
         }
 
@@ -250,6 +265,10 @@ public class TakeExamActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * 🟡 3. Back Button Press Detection
+     * Nagiging simple alert na lang at inaalis ang counting logic.
+     */
     @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
         if (item.getItemId() == android.R.id.home) {
@@ -258,15 +277,6 @@ public class TakeExamActivity extends AppCompatActivity {
                 return true;
             }
 
-            switchCount++;
-            totalDeductions += DEDUCTION_PER_STRIKE;
-
-            if (switchCount >= MAX_SWITCHES) {
-                Toast.makeText(this, "CHEATING DETECTED: Auto-submitting.", Toast.LENGTH_LONG).show();
-                submitExamWithZeroScore();
-            } else {
-                Toast.makeText(this, "In-app Back Arrow detected. " + (MAX_SWITCHES - switchCount) + " attempts left.", Toast.LENGTH_LONG).show();
-            }
 
             return true;
         }
@@ -511,16 +521,10 @@ public class TakeExamActivity extends AppCompatActivity {
         audioCheatingCount = 0;
     }
 
-    // Tandaan: Ang FINAL_HUMAN_THRESHOLD ay dapat mo ring i-update sa taas ng TakeExamActivity.java
-// Halimbawa: private final float FINAL_HUMAN_THRESHOLD = 0.75f;
-// Kung wala ka pang variable sa taas, gamitin muna natin ang hardcoded value.
-
     private void startAudioClassification() {
-        // **BAGONG FINAL THRESHOLD: 0.75f**
         final float NEW_HIGH_CONFIDENCE_THRESHOLD = 0.75f;
 
         try {
-            // Tanging ang detections na may confidence na 0.75f pataas ang papayagan.
             AudioClassifier.AudioClassifierOptions options =
                     AudioClassifier.AudioClassifierOptions.builder()
                             .setMaxResults(1)
@@ -546,17 +550,19 @@ public class TakeExamActivity extends AppCompatActivity {
                                 float confidence = classification.getCategories().get(0).getScore();
 
                                 // ✅ FINAL CHEATING LOGIC: Human o Speech at Confidence >= 0.75f
-                                // Tandaan: Dahil 0.75f na ang global threshold, lahat ng lalabas na result dito ay 0.75f na.
                                 if (label.equalsIgnoreCase("human") || label.equalsIgnoreCase("speech")) {
 
                                     audioCheatingCount++;
                                     Log.w("AUDIO_TFLITE", "!!! CHEATING STRIKE " + audioCheatingCount + ": " + label + " detected! Conf: " + confidence);
 
-                                    // Auto-submit kapag umabot sa limit
+                                    // 🟡 4. Audio Detection Logic Changed
                                     if (audioCheatingCount >= MAX_AUDIO_STRIKES) {
-                                        Log.e("AUDIO_TFLITE", "!!! MAJOR CHEATING: Audio strike limit reached! Auto-submitting!");
+                                        Log.w("AUDIO_TFLITE", "!!! MAJOR CHEATING: Audio strike limit reached! Showing alert.");
                                         // Kailangan gumamit ng runOnUiThread dahil nasa background thread tayo
-                                        runOnUiThread(() -> submitExamWithZeroScore());
+                                        runOnUiThread(() -> {
+                                            showCheatingAlert("We detected human speech during your exam. Please stay silent.");
+                                            audioCheatingCount = 0; // Reset para hindi paulit-ulit
+                                        });
                                     }
 
                                 }
@@ -580,5 +586,19 @@ public class TakeExamActivity extends AppCompatActivity {
             e.printStackTrace();
             Toast.makeText(this, "Failed to load audio model.", Toast.LENGTH_SHORT).show();
         }
+    }
+
+    /**
+     * 🟢 5. Alert Dialog Method
+     * Ito ang magdi-display ng cheating alert message.
+     */
+    private void showCheatingAlert(String message) {
+        new AlertDialog.Builder(this)
+                .setTitle("Cheating Detected")
+                .setMessage(message)
+                .setIcon(android.R.drawable.ic_dialog_alert)
+                .setCancelable(false)
+                .setPositiveButton("OK", (dialog, which) -> dialog.dismiss())
+                .show();
     }
 }

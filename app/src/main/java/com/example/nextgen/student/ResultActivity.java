@@ -8,15 +8,15 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
 import com.example.nextgen.R;
-import com.google.firebase.database.FirebaseDatabase;   // 🔹 NEW
-import com.google.firebase.database.DatabaseReference; // 🔹 NEW
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.DatabaseReference;
 
 public class ResultActivity extends AppCompatActivity {
 
     private TextView tvCourseCode, tvSubjectName, tvTeacherName;
     private TextView tvStudentName, tvStudentId;
     private TextView tvScoreRaw, tvScorePercent, tvEquivalentGrade;
-    private ImageView imgProfile; // 🔹 Added for student profile
+    private ImageView imgProfile;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -40,9 +40,13 @@ public class ResultActivity extends AppCompatActivity {
         String teacherName = getIntent().getStringExtra("teacherName");
         String studentName = getIntent().getStringExtra("studentName");
         String studentId = getIntent().getStringExtra("studentId");
-        String profileImage = getIntent().getStringExtra("profileImage"); // Base64 string
-        int totalScore = getIntent().getIntExtra("totalScore", 0);
+        // String profileImage = getIntent().getStringExtra("profileImage"); // Hindi ginagamit
+
+        // --- KEY FIX DITO ---
+        int finalScore = getIntent().getIntExtra("score", 0); // 👈 TAMA NA: Ito ang pinasa ng TakeExamActivity
         int maxScore = getIntent().getIntExtra("maxScore", 0);
+        // int deductions = getIntent().getIntExtra("deductions", 0); // Optional, kung may TextView ka para dito
+        // --- END KEY FIX ---
 
         // Populate text fields
         tvCourseCode.setText(courseCode);
@@ -50,10 +54,13 @@ public class ResultActivity extends AppCompatActivity {
         tvTeacherName.setText(teacherName);
         tvStudentName.setText(studentName);
         tvStudentId.setText(studentId);
-        tvScoreRaw.setText(totalScore + "/" + maxScore);
 
-        double percent = maxScore > 0 ? (totalScore * 100.0) / maxScore : 0;
+        // --- DISPLAY FIX DITO ---
+        tvScoreRaw.setText(finalScore + "/" + maxScore); // 👈 Ginamit na ang "finalScore"
+
+        double percent = maxScore > 0 ? (finalScore * 100.0) / maxScore : 0; // 👈 Ginamit na ang "finalScore"
         tvScorePercent.setText(String.format("%.2f%%", percent));
+        // --- END DISPLAY FIX ---
 
         String grade = percent >= 75 ? "Passed" : "Failed";
         tvEquivalentGrade.setText(grade);
