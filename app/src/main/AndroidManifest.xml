@@ -41,6 +41,8 @@
         <activity android:name=".teacher.ManageExamActivity" />
         <activity android:name=".teacher.ProfileActivity" />
         <activity android:name=".teacher.Question" />
+        <activity android:name=".teacher.ExamMonitorActivity"/>
+
 
         <activity android:name=".student.StudentDashboardActivity" />
         <activity android:name=".student.StudentProfileActivity" />

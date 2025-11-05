@@ -190,12 +190,19 @@ public class ManageExamActivity extends AppCompatActivity {
                             child.child("active").getValue(Boolean.class) != null ?
                                     child.child("active").getValue(Boolean.class) : false
                     );
-                    exam.setSection(child.child("courseDisplay").getValue(String.class));
+                    String courseDisplay = child.child("courseDisplay").getValue(String.class);
+                    exam.setSection(courseDisplay); // store full display string for spinner
 
-                    // Note: You might want to update your Exam object here to store the new 'scheduledDateDisplay'
-                    // exam.setScheduledDateDisplay(child.child("scheduledDateDisplay").getValue(String.class));
+                    if (courseDisplay != null && !courseDisplay.isEmpty()) {
+                        String[] parts = courseDisplay.split(" - ");
+                        exam.setCourseName(parts.length > 0 ? parts[0] : "");
+                        exam.setSpecializationName(parts.length > 1 ? parts[1] : "");
+                        exam.setYearName(parts.length > 2 ? parts[2] : "");
+                        exam.setSectionName(parts.length > 3 ? parts[3] : "");
+                    }
 
                     examList.add(exam);
+
 
                     // Optional: save to Room for offline support
                     new Thread(() -> {
@@ -220,15 +227,6 @@ public class ManageExamActivity extends AppCompatActivity {
                             }
 
                             @Override
-                            public void onReset(Exam exam) {
-                                new Thread(() -> {
-                                    exam.setActive(false);
-                                    db.examDao().updateExam(exam);
-                                    runOnUiThread(ManageExamActivity.this::loadExams);
-                                }).start();
-                            }
-
-                            @Override
                             public void onGenerate(Exam exam) {
                                 Intent intent = new Intent(ManageExamActivity.this, GenerateQuestionsActivity.class);
                                 String examId = exam.getFirebaseKey();
@@ -246,7 +244,28 @@ public class ManageExamActivity extends AppCompatActivity {
                                     syncExamToFirebase(exam);
                                 }).start();
                             }
+
+                            // 🔹 NEW: implement onViewStudents
+                            @Override
+                            public void onViewStudents(Exam exam) {
+                                // Split courseDisplay into individual parts
+                                String[] parts = exam.getSection().split(" - ");
+                                String examCourse = parts.length > 0 ? parts[0].trim() : "";
+                                String examSpecialization = parts.length > 1 ? parts[1].trim() : "";
+                                String examYear = parts.length > 2 ? parts[2].trim() : "";
+                                String examSection = parts.length > 3 ? parts[3].trim() : "";
+
+                                Intent intent = new Intent(ManageExamActivity.this, ExamMonitorActivity.class);
+                                intent.putExtra("examCourseName", examCourse);
+                                intent.putExtra("examSpecialization", examSpecialization);
+                                intent.putExtra("examYearName", examYear);
+                                intent.putExtra("examSectionName", examSection);
+                                startActivity(intent);
+                            }
+
+
                         });
+
 
                 recyclerView.setAdapter(adapter);
             }

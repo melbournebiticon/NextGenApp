@@ -25,7 +25,7 @@ public class ExamAdapter extends RecyclerView.Adapter<ExamAdapter.ExamViewHolder
     public interface OnExamActionListener {
         void onEdit(Exam exam);
         void onDelete(Exam exam);
-        void onReset(Exam exam);
+        void onViewStudents(Exam exam);
         void onGenerate(Exam exam);
         void onActivate(Exam exam, boolean isActive);
     }
@@ -64,7 +64,8 @@ public class ExamAdapter extends RecyclerView.Adapter<ExamAdapter.ExamViewHolder
         // Button listeners
         holder.btnEdit.setOnClickListener(v -> listener.onEdit(exam));
         holder.btnDelete.setOnClickListener(v -> listener.onDelete(exam));
-        holder.btnReset.setOnClickListener(v -> listener.onReset(exam));
+        holder.btnReset.setOnClickListener(v -> listener.onViewStudents(exam));
+        holder.btnReset.setText("View"); // optional, change button text
         holder.btnGenerate.setOnClickListener(v -> listener.onGenerate(exam));
     }
 
