@@ -95,7 +95,6 @@ public class TakeExamActivity extends AppCompatActivity {
     private TensorAudio tensorAudio;
 
     private android.media.AudioRecord audioRecord;
-    private DatabaseReference studentExamRef;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -129,33 +128,6 @@ public class TakeExamActivity extends AppCompatActivity {
             return;
         }
         currentStudentUid = currentUser.getUid();
-        // Default: disable submit until teacher allows
-        btnSubmit.setEnabled(false);
-
-        DatabaseReference studentExamRef = FirebaseDatabase.getInstance()
-                .getReference("ExamStudents")
-                .child(examId)
-                .child(currentStudentUid);
-
-        studentExamRef.addValueEventListener(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot snapshot) {
-                Boolean present = snapshot.child("present").getValue(Boolean.class);
-                if (present != null && present) {
-                    btnSubmit.setEnabled(true); // teacher allows start
-                    loadQuestions();  // load the exam questions
-                } else {
-                    btnSubmit.setEnabled(false); // cannot start
-                    Toast.makeText(TakeExamActivity.this, "Waiting for teacher to allow exam.", Toast.LENGTH_SHORT).show();
-                }
-            }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) {
-                Log.e("TakeExam", "Failed to check present flag: " + error.getMessage());
-            }
-        });
-
 
         checkIfExamIsAlreadyTaken();
     }
@@ -202,39 +174,38 @@ public class TakeExamActivity extends AppCompatActivity {
     }
 
     private void startExamLoadingProcessContinued() {
-        studentExamRef = FirebaseDatabase.getInstance()
-                .getReference("ExamStudents")
-                .child(examId)
-                .child(currentStudentUid);
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N && isInMultiWindowMode()) {
+            Toast.makeText(this, "CHEATING DETECTED: Split-screen mode not allowed. Auto-submitting.", Toast.LENGTH_LONG).show();
+            submitExamWithZeroScore();
+            return;
+        }
 
-        // Fetch current status once before allowing exam
-        studentExamRef.addListenerForSingleValueEvent(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot snapshot) {
-                Boolean present = snapshot.child("present").getValue(Boolean.class);
-                if (present != null && !present) {
-                    Toast.makeText(TakeExamActivity.this,
-                            "You are not marked present by the teacher. Cannot start exam.",
-                            Toast.LENGTH_LONG).show();
-                    finish(); // block exam
-                    return;
-                }
+        tvExamTitle.setText("Exam: " + examTitle);
+        fetchExamDetailsFromFirebase();
+        questionsRef = FirebaseDatabase.getInstance().getReference("Questions").child(examId);
+        loadQuestions();
+        checkAndRequestAudioPermission();
+        btnSubmit.setOnClickListener(v -> submitExam());
 
-                // ✅ Safe to start exam
-                tvExamTitle.setText("Exam: " + examTitle);
-                fetchExamDetailsFromFirebase();
-                questionsRef = FirebaseDatabase.getInstance().getReference("Questions").child(examId);
-                loadQuestions();
-                checkAndRequestAudioPermission();
-                setupRealtimeExamListener();
-                btnSubmit.setOnClickListener(v -> submitExam());
-            }
+        // -----------------------------
+        // ✅ Listen for exam reset
+        DatabaseReference studentsRef = FirebaseDatabase.getInstance().getReference("Students");
+        studentsRef.orderByChild("uid").equalTo(currentStudentUid)
+                .addListenerForSingleValueEvent(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(@NonNull DataSnapshot snapshot) {
+                        if(snapshot.exists()){
+                            for(DataSnapshot ds : snapshot.getChildren()){
+                                String studentId = ds.child("studentId").getValue(String.class);
+                                listenForExamReset(studentId);
+                            }
+                        }
+                    }
 
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) {
-                Toast.makeText(TakeExamActivity.this, "Error checking status: " + error.getMessage(), Toast.LENGTH_SHORT).show();
-            }
-        });
+                    @Override
+                    public void onCancelled(@NonNull DatabaseError error) { }
+                });
+        // -----------------------------
     }
 
 
@@ -258,55 +229,6 @@ public class TakeExamActivity extends AppCompatActivity {
             }
         }
     }
-    private void setupRealtimeExamListener() {
-        studentExamRef = FirebaseDatabase.getInstance()
-                .getReference("ExamStudents")
-                .child(examId)
-                .child(currentStudentUid);
-
-        studentExamRef.addValueEventListener(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot snapshot) {
-                if (!snapshot.exists()) return;
-
-                Boolean present = snapshot.child("present").getValue(Boolean.class);
-                Boolean ongoing = snapshot.child("ongoing").getValue(Boolean.class);
-                Boolean reset = snapshot.child("reset").getValue(Boolean.class);
-
-                if (present != null && !present) {
-                    Toast.makeText(TakeExamActivity.this, "You are marked absent by the teacher.", Toast.LENGTH_LONG).show();
-                    finish();
-                }
-
-                if (ongoing != null && !ongoing) {
-                    btnSubmit.setEnabled(false);
-                } else {
-                    btnSubmit.setEnabled(true);
-                }
-
-                if (reset != null && reset) {
-                    resetExamSession();                  // reset exam locally
-                    studentExamRef.child("reset").setValue(false); // clear reset flag
-                }
-            }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) { }
-        });
-    }
-
-
-    private void resetExamSession() {
-        // Reset answers locally
-        for (Question q : questionList) {
-            q.setStudentAnswer(null);
-        }
-        typeIndex = 0;
-        filterQuestionsByType(questionTypeOrder[typeIndex]);
-        showNextQuestion();
-        startTimer(); // reset timer
-        Toast.makeText(this, "Exam has been reset by teacher.", Toast.LENGTH_SHORT).show();
-    }
 
     @Override
     protected void onStop() {
@@ -323,26 +245,6 @@ public class TakeExamActivity extends AppCompatActivity {
         switchCount++;
         totalDeductions += DEDUCTION_PER_STRIKE;
 
-        // Update Firebase tab violation counter
-        if (studentExamRef != null) {
-            studentExamRef.child("tabViolation").runTransaction(new com.google.firebase.database.Transaction.Handler() {
-                @NonNull
-                @Override
-                public com.google.firebase.database.Transaction.Result doTransaction(@NonNull com.google.firebase.database.MutableData currentData) {
-                    Long count = currentData.getValue(Long.class);
-                    if (count == null) count = 0L;
-                    currentData.setValue(count + 1);
-                    return com.google.firebase.database.Transaction.success(currentData);
-                }
-
-                @Override
-                public void onComplete(DatabaseError error, boolean committed, DataSnapshot snapshot) {
-                    if (error != null) Log.e("TAB_SWITCH", "Failed to update tab violation: " + error.getMessage());
-                }
-            });
-        }
-
-        // Local warning & auto-submit
         if (switchCount >= MAX_SWITCHES) {
             Toast.makeText(this, "Cheating detected! Auto-submitting exam.", Toast.LENGTH_LONG).show();
             submitExamWithZeroScore();
@@ -350,7 +252,6 @@ public class TakeExamActivity extends AppCompatActivity {
             Toast.makeText(this, "WARNING: Switching apps detected. " + (MAX_SWITCHES - switchCount) + " attempts left.", Toast.LENGTH_LONG).show();
         }
     }
-
 
     @Override
     protected void onResume() {
@@ -550,7 +451,6 @@ public class TakeExamActivity extends AppCompatActivity {
     }
 
     private void submitExam() {
-        // if (countDownTimer != null) countDownTimer.cancel(); // Uncomment if used
         stopAudioMonitoring();
 
         if (questionList.isEmpty()) {
@@ -570,27 +470,67 @@ public class TakeExamActivity extends AppCompatActivity {
 
         int finalCalculatedScore = Math.max(correctAnswers - totalDeductions, 0);
 
-        // 1. Save Score
-        saveScoreToFirebase(finalCalculatedScore, totalQuestions);
-        // 2. Redirect (This method now handles all Firebase lookups)
-        redirectToResultActivity(finalCalculatedScore, totalQuestions);
+        // Fetch studentId from Students node
+        DatabaseReference studentsRef = FirebaseDatabase.getInstance().getReference("Students");
+        studentsRef.orderByChild("uid").equalTo(currentStudentUid)
+                .addListenerForSingleValueEvent(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(@NonNull DataSnapshot snapshot) {
+                        if (snapshot.exists()) {
+                            for (DataSnapshot ds : snapshot.getChildren()) {
+                                String studentId = ds.child("studentId").getValue(String.class);
+                                // Save score using correct studentId
+                                saveScoreToFirebase(studentId, finalCalculatedScore, totalQuestions);
+                                // Redirect after saving
+                                redirectToResultActivity(finalCalculatedScore, totalQuestions);
+                            }
+                        } else {
+                            Toast.makeText(TakeExamActivity.this, "Student ID not found.", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                    @Override
+                    public void onCancelled(@NonNull DatabaseError error) {
+                        Toast.makeText(TakeExamActivity.this, "Error fetching student ID.", Toast.LENGTH_SHORT).show();
+                    }
+                });
     }
 
+
     private void submitExamWithZeroScore() {
-        // if (countDownTimer != null) countDownTimer.cancel(); // Uncomment if used
         stopAudioMonitoring();
         int maxScore = questionList.size();
 
-        // 1. Save Score
-        saveScoreToFirebase(0, maxScore);
-        // 2. Redirect (This method now handles all Firebase lookups)
-        redirectToResultActivity(0, maxScore);
+        // Fetch studentId from Students node
+        DatabaseReference studentsRef = FirebaseDatabase.getInstance().getReference("Students");
+        studentsRef.orderByChild("uid").equalTo(currentStudentUid)
+                .addListenerForSingleValueEvent(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(@NonNull DataSnapshot snapshot) {
+                        if (snapshot.exists()) {
+                            for (DataSnapshot ds : snapshot.getChildren()) {
+                                String studentId = ds.child("studentId").getValue(String.class);
+                                // Save zero score using correct studentId
+                                saveScoreToFirebase(studentId, 0, maxScore);
+                                // Redirect after saving
+                                redirectToResultActivity(0, maxScore);
+                            }
+                        } else {
+                            Toast.makeText(TakeExamActivity.this, "Student ID not found.", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+
+                    @Override
+                    public void onCancelled(@NonNull DatabaseError error) {
+                        Toast.makeText(TakeExamActivity.this, "Error fetching student ID.", Toast.LENGTH_SHORT).show();
+                    }
+                });
     }
 
-    private void saveScoreToFirebase(int score, int maxScore) {
+
+    private void saveScoreToFirebase(String studentId, int score, int maxScore) {
         DatabaseReference scoreEntryRef = FirebaseDatabase.getInstance()
                 .getReference("Scores")
-                .child(currentStudentUid)
+                .child(studentId)
                 .child(examId);
 
         scoreEntryRef.child("score").setValue(score);
@@ -598,6 +538,7 @@ public class TakeExamActivity extends AppCompatActivity {
         scoreEntryRef.child("timestamp").setValue(System.currentTimeMillis());
         scoreEntryRef.child("deductions").setValue(totalDeductions);
     }
+
 
     private void redirectToResultActivity(int score, int maxScore) {
         // NOTE: ALL Firebase lookups for Student/Exam/Subject info are moved here.
@@ -796,5 +737,54 @@ public class TakeExamActivity extends AppCompatActivity {
             Toast.makeText(this, "Failed to load audio model.", Toast.LENGTH_SHORT).show();
         }
     }
+    private void listenForExamReset(String studentId){
+        DatabaseReference resetRef = FirebaseDatabase.getInstance()
+                .getReference("ExamStudents")
+                .child(examId)
+                .child(studentId)
+                .child("reset");
+
+        resetRef.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                Boolean resetFlag = snapshot.getValue(Boolean.class);
+                if(resetFlag != null && resetFlag){
+                    // ✅ Reset detected! Handle it here
+                    handleExamReset();
+
+                    // Optional: remove the reset flag after handling
+                    resetRef.setValue(false);
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) { }
+        });
+    }
+
+    private void handleExamReset(){
+        // Stop timer & audio monitoring
+        if(countDownTimer != null) countDownTimer.cancel();
+        stopAudioMonitoring();
+
+        // Reset question list
+        for(Question q : questionList){
+            q.setStudentAnswer(null); // clear student answers
+        }
+
+        currentIndex = 0;
+        typeIndex = 0;
+        typeQuestionNumber = 1;
+
+        // Reset UI
+        filterQuestionsByType(questionTypeOrder[typeIndex]);
+        showNextQuestion();
+
+        // Restart timer
+        startTimer();
+
+        Toast.makeText(this, "Exam has been reset by your teacher.", Toast.LENGTH_LONG).show();
+    }
+
 }
 

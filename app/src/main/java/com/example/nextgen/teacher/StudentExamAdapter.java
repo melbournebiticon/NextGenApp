@@ -117,7 +117,6 @@ public class StudentExamAdapter extends RecyclerView.Adapter<StudentExamAdapter.
             holder.switchPresent.setChecked(false);
             holder.itemView.setBackgroundColor(Color.WHITE);
 
-            // ✅ Firebase: trigger reset
             if (examId != null && !examId.trim().isEmpty() &&
                     student.getStudentId() != null && !student.getStudentId().trim().isEmpty()) {
 
@@ -126,9 +125,25 @@ public class StudentExamAdapter extends RecyclerView.Adapter<StudentExamAdapter.
                         .child(examId.trim())
                         .child(student.getStudentId().trim());
 
-                studentNode.child("reset").setValue(true);  // TakeExamActivity listens to this
+                // Trigger reset for the student app
+                studentNode.child("reset").setValue(true);
+
+                // Remove any previous score
+                DatabaseReference scoreRef = FirebaseDatabase.getInstance()
+                        .getReference("Scores")
+                        .child(student.getStudentId())
+                        .child(examId.trim());
+
+                scoreRef.removeValue().addOnCompleteListener(task -> {
+                    if(task.isSuccessful()){
+                        android.util.Log.d("StudentExamAdapter", "Score reset successfully!");
+                    } else {
+                        android.util.Log.e("StudentExamAdapter", "Failed to reset score", task.getException());
+                    }
+                });
             }
         });
+
 
 
     }

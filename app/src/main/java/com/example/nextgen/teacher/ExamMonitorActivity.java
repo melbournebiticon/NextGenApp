@@ -132,6 +132,23 @@ public class ExamMonitorActivity extends AppCompatActivity {
             }
         });
     }
+    private void resetStudentExam(String studentId) {
+        DatabaseReference scoreRef = FirebaseDatabase.getInstance()
+                .getReference("Scores")
+                .child(studentId)
+                .child(examId);
+
+        scoreRef.removeValue().addOnCompleteListener(task -> {
+            if (task.isSuccessful()) {
+                Toast.makeText(ExamMonitorActivity.this, "Exam reset for student: " + studentId, Toast.LENGTH_SHORT).show();
+                // Optionally refresh the list or UI
+                loadStudents();
+            } else {
+                Toast.makeText(ExamMonitorActivity.this, "Failed to reset exam for student: " + studentId, Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
 
 
 
