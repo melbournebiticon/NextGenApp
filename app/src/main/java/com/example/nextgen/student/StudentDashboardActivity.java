@@ -1,15 +1,23 @@
 package com.example.nextgen.student;
 
-import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
+import android.view.MenuItem;
+import android.view.View;
+
+import android.os.Handler; // NEW Import for auto-refresh
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
+import androidx.core.view.GravityCompat;
+import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -17,51 +25,98 @@ import com.example.nextgen.MainActivity;
 import com.example.nextgen.R;
 import com.example.nextgen.SessionManager;
 import com.example.nextgen.admin.StudentModel;
+import com.google.android.material.navigation.NavigationView;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
-import com.google.firebase.database.*;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
 import java.util.List;
-import android.util.Log;
+import java.util.concurrent.TimeUnit;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 
+public class StudentDashboardActivity extends AppCompatActivity
+        implements NavigationView.OnNavigationItemSelectedListener {
 
-public class StudentDashboardActivity extends AppCompatActivity {
+    private static final String TAG = "StudentDashboard";
 
-    private ImageView ivProfile;
-    private TextView tvFullName, tvBirthday, tvEmail, tvContact,
-            tvCourse, tvSpecialization, tvYear, tvSection;
+    // --- Navigation Drawer Fields (KEEP) ---
+    private DrawerLayout drawerLayout;
+    private NavigationView navigationView;
+    private Toolbar toolbar;
+    private TextView navHeaderFullName, navHeaderEmail;
+    private ImageView navHeaderProfileImage;
+    // ----------------------------------------
+
     private Button btnLogout;
 
     private FirebaseAuth auth;
     private DatabaseReference studentsRef;
+    // 🏆 NEW: Reference sa Scores table
+    private DatabaseReference scoresRef;
+    // 🏆 NEW: Variable para sa UID ng kasalukuyang estudyante
+    private String currentStudentUid;
+
 
     private RecyclerView rvExams;
     private ExamAdapter examAdapter;
     private List<ExamModel> examList = new ArrayList<>();
     private DatabaseReference examsRef;
 
+    // 🏆 FIXED: Ito ang 15-minute max login window.
+    private static final long MAX_LOGIN_WINDOW_MILLIS = TimeUnit.MINUTES.toMillis(15);
+
+    // 🏆 FIXED: 3-second (3000ms) refresh interval.
+    private Handler handler = new Handler();
+    private Runnable examRefreshRunnable;
+    private final int REFRESH_INTERVAL = 3000;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_student_dashboard);
+
+        // --- 1. SETUP TOOLBAR AND NAVIGATION DRAWER ---
+        toolbar = findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
+
+        drawerLayout = findViewById(R.id.drawer_layout);
+        navigationView = findViewById(R.id.nav_view);
+        navigationView.setNavigationItemSelectedListener(this);
+
+        ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
+                this, drawerLayout, toolbar,
+                R.string.navigation_drawer_open,
+                R.string.navigation_drawer_close
+        );
+        drawerLayout.addDrawerListener(toggle);
+        toggle.syncState();
+        // ----------------------------------------------
+
+        // --- 2. INITIALIZE NAVIGATION HEADER COMPONENTS ---
+        View headerView = navigationView.getHeaderView(0);
+        navHeaderFullName = headerView.findViewById(R.id.nav_header_full_name);
+        navHeaderEmail = headerView.findViewById(R.id.nav_header_email);
+        navHeaderProfileImage = headerView.findViewById(R.id.nav_header_profile_image);
+        // --------------------------------------------------
+
 
         // RecyclerView for exams
         rvExams = findViewById(R.id.rvExams);
         rvExams.setLayoutManager(new LinearLayoutManager(this));
 
         examsRef = FirebaseDatabase.getInstance().getReference("Exams");
+        // 🏆 NEW: Initialize Scores Ref
+        scoresRef = FirebaseDatabase.getInstance().getReference("Scores");
 
-        // Initialize UI
-        ivProfile = findViewById(R.id.ivProfile);
-        tvFullName = findViewById(R.id.tvFullName);
-        tvBirthday = findViewById(R.id.tvBirthday);
-        tvEmail = findViewById(R.id.tvEmail);
-        tvContact = findViewById(R.id.tvContact);
-        tvCourse = findViewById(R.id.tvCourse);
-        tvYear = findViewById(R.id.tvYear);
-        tvSection = findViewById(R.id.tvSection);
-        tvSpecialization = findViewById(R.id.tvSpecialization);
+
+        // Initialize Main Content UI
         btnLogout = findViewById(R.id.logoutBtn);
 
         // Firebase Auth
@@ -72,6 +127,9 @@ public class StudentDashboardActivity extends AppCompatActivity {
             finish();
             return;
         }
+
+        // 🏆 I-store ang UID ng kasalukuyang user
+        currentStudentUid = currentUser.getUid();
 
         studentsRef = FirebaseDatabase.getInstance().getReference("Students");
 
@@ -85,7 +143,8 @@ public class StudentDashboardActivity extends AppCompatActivity {
                                 StudentModel student = ds.getValue(StudentModel.class);
                                 if (student != null) {
                                     populateStudentData(student);
-                                    fetchExamsForStudent(student); // <-- fetch exams after loading student
+                                    // Start the periodic fetcher instead of single fetch
+                                    startPeriodicExamFetch(student);
                                 }
                             }
                         } else {
@@ -99,75 +158,275 @@ public class StudentDashboardActivity extends AppCompatActivity {
                     }
                 });
 
-        // Logout
-        btnLogout.setOnClickListener(v -> {
-            new SessionManager(this).clearSession();
-            FirebaseAuth.getInstance().signOut();
-            Intent intent = new Intent(this, MainActivity.class);
-            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-            startActivity(intent);
-            finish();
-        });
+        // Logout Button listener
+        btnLogout.setOnClickListener(v -> handleLogout());
     }
 
-    private void populateStudentData(StudentModel student) {
-        tvFullName.setText(student.getFullName());
-        tvBirthday.setText(student.getBirthday());
-        tvEmail.setText(student.getEmail());
-        tvContact.setText(student.getContact());
-        tvCourse.setText(student.getCourseName());
-        tvSpecialization.setText(student.getSpecializationName());
-        tvYear.setText(student.getYearName());
-        tvSection.setText(student.getSectionName());
+    // 🏆 FIXED: Logic to start the periodic fetching (Added a Log)
+    private void startPeriodicExamFetch(StudentModel student) {
+        // Stop any previous callback to avoid duplicates (CRITICAL)
+        if (examRefreshRunnable != null) {
+            handler.removeCallbacks(examRefreshRunnable);
+            Log.d(TAG, "Removed previous exam refresh callbacks.");
+        }
 
-        if (student.getProfileImage() != null && !student.getProfileImage().isEmpty()) {
-            byte[] decodedBytes = android.util.Base64.decode(student.getProfileImage(), android.util.Base64.DEFAULT);
-            android.graphics.Bitmap bitmap = android.graphics.BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.length);
-            ivProfile.setImageBitmap(bitmap);
-        } else {
-            ivProfile.setImageResource(R.drawable.examinee_default);
+        examRefreshRunnable = new Runnable() {
+            @Override
+            public void run() {
+                Log.d(TAG, "Running periodic exam fetch. Interval: " + REFRESH_INTERVAL + "ms"); // Log to confirm interval
+                // Reruns the fetch logic to check current time against schedule
+                fetchExamsForStudent(student);
+                // Schedules itself to run again after REFRESH_INTERVAL
+                handler.postDelayed(this, REFRESH_INTERVAL);
+            }
+        };
+        // Start the initial fetch
+        handler.post(examRefreshRunnable);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        // 🏆 IMPORTANT: Stop the handler when the activity is paused to save battery
+        if (handler != null && examRefreshRunnable != null) {
+            handler.removeCallbacks(examRefreshRunnable);
+            Log.d(TAG, "Exam refresh stopped.");
         }
     }
 
-    // ===== Fetch exams assigned to this student's course/section =====
-    // ===== Fetch exams assigned to this student's course/section =====
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // 🏆 IMPORTANT: Resume the handler when the activity comes back to foreground
+        // Re-start the process only if a user is logged in
+        FirebaseUser currentUser = auth.getCurrentUser();
+        if (currentUser != null && studentsRef != null) {
+            studentsRef.orderByChild("uid").equalTo(currentUser.getUid())
+                    .addListenerForSingleValueEvent(new ValueEventListener() {
+                        @Override
+                        public void onDataChange(@NonNull DataSnapshot snapshot) {
+                            if (snapshot.exists()) {
+                                for (DataSnapshot ds : snapshot.getChildren()) {
+                                    StudentModel student = ds.getValue(StudentModel.class);
+                                    if (student != null) {
+                                        startPeriodicExamFetch(student);
+                                        Log.d(TAG, "Exam refresh resumed.");
+                                    }
+                                }
+                            }
+                        }
+
+                        @Override
+                        public void onCancelled(@NonNull DatabaseError error) {
+                            Log.e(TAG, "Resume failed: " + error.getMessage());
+                        }
+                    });
+        }
+    }
+
+    // --- 3. Implement Navigation Item Click Handler (NO CHANGE) ---
+    @Override
+    public boolean onNavigationItemSelected(@NonNull MenuItem item) {
+        int id = item.getItemId();
+
+        if (id == R.id.nav_dashboard) {
+            // Do nothing, we are here
+        } else if (id == R.id.nav_view_profile) {
+            // <<< START STUDENT PROFILE ACTIVITY HERE >>>
+            Intent intent = new Intent(this, StudentProfileActivity.class);
+            startActivity(intent);
+        } else if (id == R.id.nav_view_scores) {
+            // TODO: Start View Scores/Exam History Activity
+            Toast.makeText(this, "Opening Exam Scores/History", Toast.LENGTH_SHORT).show();
+        } else if (id == R.id.nav_logout) {
+            handleLogout();
+        }
+
+        drawerLayout.closeDrawer(GravityCompat.START);
+        return true;
+    }
+
+    // --- 4. Handle Back Button Press (NO CHANGE) ---
+    @Override
+    public void onBackPressed() {
+        if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
+            drawerLayout.closeDrawer(GravityCompat.START);
+        } else {
+            super.onBackPressed();
+        }
+    }
+
+    // --- 5. Centralized Logout Logic (NO CHANGE) ---
+    private void handleLogout() {
+        new SessionManager(this).clearSession();
+        FirebaseAuth.getInstance().signOut();
+        Intent intent = new Intent(this, MainActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
+        finish();
+    }
+
+    // --- 6. populateStudentData (NO CHANGE) ---
+    private void populateStudentData(StudentModel student) {
+        // Navigation Header UI
+        if (navHeaderFullName != null) {
+            navHeaderFullName.setText(student.getFullName());
+        }
+        if (navHeaderEmail != null) {
+            navHeaderEmail.setText(student.getEmail());
+        }
+
+        // Profile Image Logic (Focus only on Nav Header Image)
+        if (student.getProfileImage() != null && !student.getProfileImage().isEmpty()) {
+            try {
+                byte[] decodedBytes = android.util.Base64.decode(student.getProfileImage(), android.util.Base64.DEFAULT);
+                android.graphics.Bitmap bitmap = android.graphics.BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.length);
+
+                if (navHeaderProfileImage != null) {
+                    navHeaderProfileImage.setImageBitmap(bitmap);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Error decoding image: " + e.getMessage());
+                if (navHeaderProfileImage != null) {
+                    navHeaderProfileImage.setImageResource(R.drawable.examinee_default);
+                }
+            }
+        } else {
+            if (navHeaderProfileImage != null) {
+                navHeaderProfileImage.setImageResource(R.drawable.examinee_default);
+            }
+        }
+    }
+
+    // ===== Fetch exams assigned to this student's course/section (FIXED Counter Logic) =====
     private void fetchExamsForStudent(StudentModel student) {
-        // Build the courseDisplay string to match Firebase
         String studentCourseDisplay = student.getCourseName()
                 + " - " + student.getSpecializationName()
                 + " - " + student.getYearName()
                 + " - " + student.getSectionName();
 
-        Log.d("DEBUG_COURSE_DISPLAY", "Querying exams for: " + studentCourseDisplay);
+        long currentTime = System.currentTimeMillis();
+        SimpleDateFormat sdf = new SimpleDateFormat("MMM dd, yyyy hh:mm a", Locale.getDefault());
 
         examsRef.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 examList.clear();
+
+                // 🏆 I-filter muna ang lahat ng eligible exams
+                List<DataSnapshot> eligibleExams = new ArrayList<>();
                 for (DataSnapshot teacherSnap : snapshot.getChildren()) {
                     for (DataSnapshot examSnap : teacherSnap.getChildren()) {
                         ExamModel exam = examSnap.getValue(ExamModel.class);
-                        if (exam != null &&
+                        Long scheduledAtLong = examSnap.child("scheduledAt").getValue(Long.class);
+                        Integer durationMinutesInt = examSnap.child("durationMinutes").getValue(Integer.class);
+
+                        // Only include exams that match the course, are active, and have required fields
+                        if (exam != null && scheduledAtLong != null && durationMinutesInt != null &&
                                 exam.getCourseDisplay().equals(studentCourseDisplay) &&
                                 exam.isActive()) {
-                            examList.add(exam);
+                            eligibleExams.add(examSnap);
                         }
                     }
                 }
-                if (examList.isEmpty()) {
-                    Toast.makeText(StudentDashboardActivity.this, "No exams found for your course.", Toast.LENGTH_SHORT).show();
+
+                final int totalEligibleExams = eligibleExams.size();
+                final int[] examsProcessed = {0}; // Counter para sa natapos na i-check sa Scores
+
+                if (totalEligibleExams == 0) {
+                    updateExamRecyclerView();
+                    return; // Walang exams, tapos na.
                 }
-                examAdapter = new ExamAdapter(StudentDashboardActivity.this, examList);
-                rvExams.setAdapter(examAdapter);
+
+                for (DataSnapshot examSnap : eligibleExams) {
+                    ExamModel exam = examSnap.getValue(ExamModel.class);
+                    String examId = examSnap.getKey();
+
+                    // Set basic data (safe na ito dahil na-filter na)
+                    exam.setExamId(examId);
+                    exam.setScheduledAt(examSnap.child("scheduledAt").getValue(Long.class));
+                    exam.setDurationMinutes(examSnap.child("durationMinutes").getValue(Integer.class));
+
+                    // 🏆 NEW STEP: Check if the exam has been taken
+                    scoresRef.child(currentStudentUid).child(examId).addListenerForSingleValueEvent(new ValueEventListener() {
+                        @Override
+                        public void onDataChange(@NonNull DataSnapshot scoreSnapshot) {
+                            if (scoreSnapshot.exists()) {
+                                // 🛑 EXAM TAKEN LOGIC
+                                exam.setStatus("TAKEN");
+                                exam.setAvailable(false);
+                            } else {
+                                // 🔄 EXAM NOT TAKEN - Proceed with Time Logic
+                                long scheduledTime = exam.getScheduledAt();
+                                long examStartTimeWindow = scheduledTime;
+                                long examEndLoginWindow = scheduledTime + MAX_LOGIN_WINDOW_MILLIS;
+
+                                String status = "";
+                                if (currentTime < examStartTimeWindow) {
+                                    String formattedTime = sdf.format(new Date(scheduledTime));
+                                    status = "Scheduled: Starts at " + formattedTime;
+                                    exam.setStatus(status);
+                                    exam.setAvailable(false);
+                                } else if (currentTime >= examStartTimeWindow && currentTime <= examEndLoginWindow) {
+                                    String formattedLoginEnd = sdf.format(new Date(examEndLoginWindow));
+                                    status = "AVAILABLE NOW (Login closes at " + formattedLoginEnd + ")";
+                                    exam.setStatus(status);
+                                    exam.setAvailable(true);
+                                } else {
+                                    String formattedLoginEnd = sdf.format(new Date(examEndLoginWindow));
+                                    status = "EXPIRED: Login window closed at " + formattedLoginEnd;
+                                    exam.setStatus(status);
+                                    exam.setAvailable(false);
+                                }
+                            }
+
+                            // I-fetch ang readable date
+                            String readableDate = examSnap.child("scheduledDateDisplay").getValue(String.class);
+                            if (readableDate != null) {
+                                exam.setScheduledDateDisplay(readableDate);
+                            } else {
+                                exam.setScheduledDateDisplay(sdf.format(new Date(exam.getScheduledAt())));
+                            }
+
+                            examList.add(exam);
+
+                            // 🏆 CRITICAL: Check if ALL eligible exams are processed
+                            examsProcessed[0]++;
+                            if (examsProcessed[0] == totalEligibleExams) {
+                                Log.d(TAG, "All " + totalEligibleExams + " exams processed. Updating RecyclerView.");
+                                updateExamRecyclerView();
+                            }
+                        }
+
+                        @Override
+                        public void onCancelled(@NonNull DatabaseError scoreError) {
+                            Log.e(TAG, "Failed to check score for exam " + exam.getExamTitle() + ": " + scoreError.getMessage());
+
+                            // 🏆 CRITICAL: I-count pa rin ito kahit nag-error ang score check, para hindi ma-stuck ang logic.
+                            examsProcessed[0]++;
+                            if (examsProcessed[0] == totalEligibleExams) {
+                                updateExamRecyclerView();
+                            }
+                        }
+                    });
+                }
             }
 
             @Override
-            public void onCancelled(@NonNull DatabaseError error) { }
+            public void onCancelled(@NonNull DatabaseError error) {
+                Toast.makeText(StudentDashboardActivity.this, "Failed to fetch exams: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+            }
         });
     }
 
+    // 🏆 NEW: Helper method to update RecyclerView after all async score checks are done
+    private void updateExamRecyclerView() {
+        if (examList.isEmpty()) {
+            Toast.makeText(StudentDashboardActivity.this, "No active or future exams found for your course.", Toast.LENGTH_SHORT).show();
+        }
 
-
-
-
+        examAdapter = new ExamAdapter(StudentDashboardActivity.this, examList);
+        rvExams.setAdapter(examAdapter);
+        Log.d(TAG, "Exam list updated with " + examList.size() + " exams.");
+    }
 }

@@ -3,7 +3,7 @@ package com.example.nextgen.admin;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ImageButton;
+import android.widget.Button;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -60,7 +60,7 @@ public class SectionAdapter extends RecyclerView.Adapter<SectionAdapter.SectionV
 
     public static class SectionViewHolder extends RecyclerView.ViewHolder {
         TextView tvSectionName, tvSpecYear;
-        ImageButton btnEdit, btnDelete;
+        Button btnEdit, btnDelete;
 
         public SectionViewHolder(@NonNull View itemView) {
             super(itemView);

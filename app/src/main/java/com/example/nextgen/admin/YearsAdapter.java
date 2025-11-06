@@ -45,11 +45,16 @@ public class YearsAdapter extends RecyclerView.Adapter<YearsAdapter.ViewHolder> 
 
         holder.deleteBtn.setOnClickListener(v -> {
             new AlertDialog.Builder(context)
-                    .setTitle("Delete")
-                    .setMessage("Delete this year?")
+                    .setTitle("Delete Year")
+                    .setMessage("Are you sure you want to delete " + model.getName() + "?")
                     .setPositiveButton("Yes", (dialog, which) -> {
-                        dbRef.child(model.getId()).removeValue();
-                        Toast.makeText(context, "Deleted", Toast.LENGTH_SHORT).show();
+                        dbRef.child(model.getId()).removeValue()
+                                .addOnSuccessListener(aVoid -> {
+                                    Toast.makeText(context, "Year deleted", Toast.LENGTH_SHORT).show();
+                                })
+                                .addOnFailureListener(e -> {
+                                    Toast.makeText(context, "Failed to delete: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                                });
                     })
                     .setNegativeButton("No", null)
                     .show();

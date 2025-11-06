@@ -6,8 +6,8 @@ import android.text.InputType;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.EditText;
-import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -118,7 +118,8 @@ public class CourseAdapter extends RecyclerView.Adapter<CourseAdapter.ViewHolder
 
     public static class ViewHolder extends RecyclerView.ViewHolder {
         TextView tvCourseName;
-        ImageButton btnEdit, btnDelete;
+        // PALITAN MO ITO:
+        Button btnEdit, btnDelete;  // DAPAT Button, HINDI ImageButton
 
         public ViewHolder(@NonNull View itemView) {
             super(itemView);

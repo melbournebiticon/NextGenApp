@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content">
+    android:layout_height="wrap_content"
+    android:background="#F5F5F5">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -9,65 +10,125 @@
         android:orientation="vertical"
         android:padding="16dp">
 
+        <!-- Header -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Edit Examinee"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:textColor="#003366"
+            android:layout_marginBottom="20dp"
+            android:padding="12dp"
+            android:background="#E3F2FD"/>
+
+        <!-- Full Name Input -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Full Name"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="#003366"
+            android:layout_marginBottom="4dp"/>
+
         <EditText
             android:id="@+id/etEditFullName"
             android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:hint="Enter full name"
+            android:layout_marginBottom="16dp"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:background="@drawable/edit_text_background"
+            android:textSize="14sp"/>
+
+        <!-- Birthday Input -->
+        <TextView
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Full Name"
-            android:inputType="textPersonName" />
+            android:text="Birthday"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="#003366"
+            android:layout_marginBottom="4dp"/>
 
         <EditText
             android:id="@+id/etEditBirthday"
             android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:hint="MM/DD/YYYY"
+            android:layout_marginBottom="16dp"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:background="@drawable/edit_text_background"
+            android:textSize="14sp"
+            android:focusable="false"
+            android:clickable="true"/>
+
+        <!-- Email Input -->
+        <TextView
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Birthday (YYYY-MM-DD)"
-            android:inputType="date" />
+            android:text="Email"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="#003366"
+            android:layout_marginBottom="4dp"/>
 
         <EditText
             android:id="@+id/etEditEmail"
             android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:hint="Enter email address"
+            android:layout_marginBottom="16dp"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:inputType="textEmailAddress"
+            android:background="@drawable/edit_text_background"
+            android:textSize="14sp"/>
+
+        <!-- Contact Input -->
+        <TextView
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Email"
-            android:inputType="textEmailAddress" />
+            android:text="Contact Number"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="#003366"
+            android:layout_marginBottom="4dp"/>
 
         <EditText
             android:id="@+id/etEditContact"
             android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:hint="Enter contact number"
+            android:layout_marginBottom="24dp"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:inputType="phone"
+            android:background="@drawable/edit_text_background"
+            android:textSize="14sp"/>
+
+        <!-- Course Selection Section -->
+        <TextView
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Contact Number"
-            android:inputType="phone" />
+            android:text="Select Course"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="#003366"
+            android:layout_marginBottom="8dp"/>
 
         <Spinner
             android:id="@+id/spinnerEditCourses"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:spinnerMode="dropdown"
-            android:layout_marginTop="8dp" />
-
-        <ImageView
-            android:id="@+id/ivEditProfile"
-            android:layout_width="80dp"
-            android:layout_height="80dp"
-            android:layout_gravity="center"
-            android:src="@drawable/examinee_default"
-            android:scaleType="centerCrop"
-            android:contentDescription="Profile Image"/>
-
-        <ProgressBar
-            android:id="@+id/progressBarUpload"
-            style="?android:attr/progressBarStyleHorizontal"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:max="100"
-            android:visibility="gone"/>
-
-        <TextView
-            android:id="@+id/tvUploadProgress"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="0%"
-            android:visibility="gone"/>
-
+            android:layout_height="50dp"
+            android:layout_marginBottom="24dp"
+            android:background="@drawable/edit_text_background"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"/>
 
     </LinearLayout>
 </ScrollView>

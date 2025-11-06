@@ -1,57 +1,129 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content">
+    android:layout_height="wrap_content"
+    android:background="#F5F5F5">
 
     <LinearLayout
-        android:orientation="vertical"
-        android:padding="16dp"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- Header -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Add Teacher"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:textColor="#003366"
+            android:layout_marginBottom="20dp"
+            android:padding="12dp"
+            android:background="#E3F2FD"/>
+
+        <!-- Full Name Input -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Full Name"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="#003366"
+            android:layout_marginBottom="4dp"/>
 
         <EditText
             android:id="@+id/etFullName"
-            android:hint="Full Name"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"/>
+            android:layout_height="50dp"
+            android:hint="Enter full name"
+            android:layout_marginBottom="16dp"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:background="@drawable/edit_text_background"
+            android:textSize="14sp"/>
+
+        <!-- Birthday Input -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Birthday"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="#003366"
+            android:layout_marginBottom="4dp"/>
 
         <EditText
             android:id="@+id/etBirthday"
-            android:hint="Birthday (MM/DD/YYYY)"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:hint="MM/DD/YYYY"
+            android:layout_marginBottom="16dp"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:background="@drawable/edit_text_background"
+            android:textSize="14sp"
+            android:focusable="false"
+            android:clickable="true"/>
+
+        <!-- Email Input -->
+        <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:inputType="date"/>
+            android:text="Email"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="#003366"
+            android:layout_marginBottom="4dp"/>
 
         <EditText
             android:id="@+id/etEmail"
-            android:hint="Email"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:hint="Enter email address"
+            android:layout_marginBottom="24dp"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:inputType="textEmailAddress"
+            android:background="@drawable/edit_text_background"
+            android:textSize="14sp"/>
+
+        <!-- Course Selection Section -->
+        <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:inputType="textEmailAddress"/>
-
-        <TextView
             android:text="Select Course(s)"
+            android:textSize="16sp"
             android:textStyle="bold"
-            android:layout_marginTop="12dp"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
+            android:textColor="#003366"
+            android:layout_marginBottom="8dp"/>
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recyclerCourseSelection"
             android:layout_width="match_parent"
-            android:layout_height="150dp"/>
+            android:layout_height="150dp"
+            android:layout_marginBottom="16dp"
+            android:background="@drawable/recycler_background_blue"/>
 
+        <!-- Subjects Selection Section -->
         <TextView
-            android:text="Subjects"
-            android:textStyle="bold"
-            android:layout_marginTop="12dp"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"/>
+            android:layout_height="wrap_content"
+            android:text="Select Subjects"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="#003366"
+            android:layout_marginBottom="8dp"/>
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recyclerSubjects"
             android:layout_width="match_parent"
-            android:layout_height="150dp"/>
+            android:layout_height="150dp"
+            android:layout_marginBottom="24dp"
+            android:background="@drawable/recycler_background_blue"/>
+
+        <!-- REMOVED: Button layout from XML since AlertDialog provides its own buttons -->
+
     </LinearLayout>
 </ScrollView>
