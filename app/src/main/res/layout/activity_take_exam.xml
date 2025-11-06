@@ -1,33 +1,58 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="vertical"
-    android:padding="16dp"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:padding="16dp"
+    android:background="#F5F5F5"> <LinearLayout
+    android:id="@+id/headerLayout"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingBottom="12dp">
 
-    <!-- Exam Title -->
     <TextView
         android:id="@+id/tvExamTitle"
-        android:text="Exam Title"
-        android:textSize="20sp"
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:paddingBottom="16dp"/>
-
-    <!-- RecyclerView for questions -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rvQuestions"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
         android:layout_weight="1"
-        android:paddingBottom="16dp"/>
+        android:text="Sample Exam Title"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:textColor="#333333"/>
 
-    <!-- Submit Button -->
+    <TextView
+        android:id="@+id/tvTimer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="00:00"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:textColor="#D32F2F"
+        android:paddingStart="8dp"
+        tools:ignore="RtlSymmetry" />
+
+</LinearLayout>
+
     <Button
         android:id="@+id/btnSubmitExam"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
         android:text="Submit Exam"
         android:textColor="@android:color/white"
-        android:padding="12dp"/>
-</LinearLayout>
+        android:backgroundTint="#1976D2"
+        android:padding="14dp"
+        android:elevation="4dp"/>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvQuestions"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_below="@id/headerLayout"
+        android:layout_above="@id/btnSubmitExam"
+        android:paddingTop="8dp"
+        android:clipToPadding="false"/>
+
+</RelativeLayout>

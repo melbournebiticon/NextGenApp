@@ -2,8 +2,11 @@ package com.example.nextgen.teacher;
 
 import androidx.room.Entity;
 import androidx.room.PrimaryKey;
+import androidx.room.Ignore;
+
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Locale;
 
 /**
@@ -18,18 +21,20 @@ public class Exam {
 
     private String subject;
     private String examName;
-    private int durationMinutes;
-    private long scheduledAt; // epoch millis
-    private String section;   // can represent courseDisplay (e.g. BSIT - 3A)
-    private boolean active;   // indicates whether the exam is activated
+    private int durationMinutes;  // ✅ duration now safely handled by Room & Firebase
+    private long scheduledAt;     // ✅ timestamp in milliseconds
+    private String section;       // ✅ used as courseDisplay (e.g., BSIT - 3A)
+    private boolean active;
     private String firebaseKey;
-    private String teacherId; // 🔹 identifies which teacher owns this exam
+    private String teacherId;
 
     // ===== Constructors =====
     public Exam() {
-        // required empty constructor for Firebase and Room
+        // Required empty constructor for Firebase and Room
     }
 
+    // Mark this constructor with @Ignore since Room only needs the no-arg constructor
+    @Ignore
     public Exam(String subject, String examName, int durationMinutes, long scheduledAt, String section) {
         this.subject = subject;
         this.examName = examName;
@@ -61,20 +66,21 @@ public class Exam {
     public void setFirebaseKey(String firebaseKey) { this.firebaseKey = firebaseKey; }
     public void setTeacherId(String teacherId) { this.teacherId = teacherId; }
 
-    // ===== Convenience Methods =====
+    // ===== Utility / Display Methods =====
     public String getFormattedSchedule() {
+        if (scheduledAt <= 0) return "Not scheduled";
         SimpleDateFormat sdf = new SimpleDateFormat("MMM dd, yyyy hh:mm a", Locale.getDefault());
         return sdf.format(new Date(scheduledAt));
     }
 
-    // 🔹 Optional readable label for RecyclerView or logs
+    // Label for RecyclerView or logs
     public String getDisplayName() {
         return examName + " (" + subject + ")";
     }
 
-    // 🔹 Converts to simple map-like representation (optional for Firebase)
-    public java.util.HashMap<String, Object> toMap() {
-        java.util.HashMap<String, Object> map = new java.util.HashMap<>();
+    // ===== Firebase Mapping =====
+    public HashMap<String, Object> toMap() {
+        HashMap<String, Object> map = new HashMap<>();
         map.put("subject", subject);
         map.put("examName", examName);
         map.put("durationMinutes", durationMinutes);

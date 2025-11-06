@@ -10,13 +10,14 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.nextgen.R;
-import com.example.nextgen.admin.StudentModel;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class StudentAdapter extends RecyclerView.Adapter<StudentAdapter.StudentViewHolder> {
 
-    private final List<StudentModel> studentList;
+    private List<StudentModel> studentList;
+    private final List<StudentModel> originalStudentList; // Store original list for filtering
     private final OnStudentActionListener listener;
 
     public interface OnStudentActionListener {
@@ -25,7 +26,8 @@ public class StudentAdapter extends RecyclerView.Adapter<StudentAdapter.StudentV
     }
 
     public StudentAdapter(List<StudentModel> studentList, OnStudentActionListener listener) {
-        this.studentList = studentList;
+        this.studentList = studentList != null ? studentList : new ArrayList<>();
+        this.originalStudentList = new ArrayList<>(this.studentList); // Keep copy of original data
         this.listener = listener;
     }
 
@@ -45,19 +47,14 @@ public class StudentAdapter extends RecyclerView.Adapter<StudentAdapter.StudentV
         holder.tvCourse.setText(student.getCourseName());
 
         if (student.getProfileImage() != null && !student.getProfileImage().isEmpty()) {
-            if (student.getProfileImage() != null && !student.getProfileImage().isEmpty()) {
-                try {
-                    byte[] decodedBytes = android.util.Base64.decode(student.getProfileImage(), android.util.Base64.DEFAULT);
-                    android.graphics.Bitmap bitmap = android.graphics.BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.length);
-                    holder.ivProfile.setImageBitmap(bitmap);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    holder.ivProfile.setImageResource(R.drawable.examinee_default);
-                }
-            } else {
+            try {
+                byte[] decodedBytes = android.util.Base64.decode(student.getProfileImage(), android.util.Base64.DEFAULT);
+                android.graphics.Bitmap bitmap = android.graphics.BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.length);
+                holder.ivProfile.setImageBitmap(bitmap);
+            } catch (Exception e) {
+                e.printStackTrace();
                 holder.ivProfile.setImageResource(R.drawable.examinee_default);
             }
-
         } else {
             holder.ivProfile.setImageResource(R.drawable.examinee_default);
         }
@@ -69,6 +66,23 @@ public class StudentAdapter extends RecyclerView.Adapter<StudentAdapter.StudentV
     @Override
     public int getItemCount() {
         return studentList.size();
+    }
+
+    // 🔹 NEW METHOD: Update the list for search functionality
+    public void updateList(List<StudentModel> filteredList) {
+        this.studentList = filteredList;
+        notifyDataSetChanged();
+    }
+
+    // 🔹 OPTIONAL: Method to reset to original list
+    public void resetList() {
+        this.studentList = new ArrayList<>(originalStudentList);
+        notifyDataSetChanged();
+    }
+
+    // 🔹 OPTIONAL: Method to get current list (for count updates)
+    public List<StudentModel> getCurrentList() {
+        return studentList;
     }
 
     static class StudentViewHolder extends RecyclerView.ViewHolder {
@@ -85,6 +99,4 @@ public class StudentAdapter extends RecyclerView.Adapter<StudentAdapter.StudentV
             ivDelete = itemView.findViewById(R.id.ivDelete);
         }
     }
-
-
 }

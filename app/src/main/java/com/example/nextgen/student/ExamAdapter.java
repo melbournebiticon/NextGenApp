@@ -2,10 +2,14 @@ package com.example.nextgen.student;
 
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Color;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.TextView;
+import android.widget.Toast;
+
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -17,8 +21,6 @@ public class ExamAdapter extends RecyclerView.Adapter<ExamAdapter.ExamViewHolder
 
     private Context context;
     private List<ExamModel> examList;
-
-    private int examId;
 
     public ExamAdapter(Context context, List<ExamModel> examList) {
         this.context = context;
@@ -35,17 +37,53 @@ public class ExamAdapter extends RecyclerView.Adapter<ExamAdapter.ExamViewHolder
     @Override
     public void onBindViewHolder(@NonNull ExamViewHolder holder, int position) {
         ExamModel exam = examList.get(position);
+        String examStatus = exam.getStatus(); // Kukunin ang status mula sa StudentDashboardActivity
+
+        // --- 1. SET TEXT DATA ---
         holder.tvExamTitle.setText(exam.getExamTitle());
         holder.tvCourseDisplay.setText(exam.getCourseDisplay());
         holder.tvTeacherName.setText("Teacher: " + exam.getTeacherName());
+        holder.tvSchedule.setText("Schedule: " + exam.getScheduledDateDisplay());
+        holder.tvStatus.setText(examStatus);
 
-        holder.itemView.setOnClickListener(v -> {
-            android.util.Log.d("ExamAdapter", "Opening TakeExamActivity with examId=" + exam.getExamId());
-            Intent intent = new Intent(context, TakeExamActivity.class);
-            intent.putExtra("examId", exam.getExamId());
-            intent.putExtra("examTitle", exam.getExamTitle());
-            context.startActivity(intent);
-        });
+        // --- 2. SET STATUS COLORS ---
+        if (examStatus.contains("TAKEN")) {
+            holder.tvStatus.setTextColor(Color.parseColor("#9C27B0")); // Purple: TAKEN
+        } else if (exam.isAvailable()) {
+            holder.tvStatus.setTextColor(Color.parseColor("#4CAF50")); // Green: AVAILABLE NOW
+        } else if (examStatus.contains("EXPIRED")) {
+            holder.tvStatus.setTextColor(Color.parseColor("#F44336")); // Red: EXPIRED
+        } else {
+            holder.tvStatus.setTextColor(Color.parseColor("#2196F3")); // Blue: Scheduled
+        }
+
+        // --- 3. HANDLE TAKE EXAM BUTTON ---
+        if (exam.isAvailable() && !examStatus.contains("TAKEN")) {
+            holder.btnTakeExam.setVisibility(View.VISIBLE);
+            holder.btnTakeExam.setText("Take Exam");
+            holder.btnTakeExam.setBackgroundColor(Color.parseColor("#4CAF50"));
+
+            holder.btnTakeExam.setOnClickListener(v -> startTakeExamActivity(exam));
+            holder.itemView.setOnClickListener(null);
+            holder.itemView.setClickable(false);
+
+        } else {
+            holder.btnTakeExam.setVisibility(View.GONE);
+
+            holder.itemView.setClickable(true);
+            holder.itemView.setOnClickListener(v -> {
+                Toast.makeText(context, "Status: " + examStatus, Toast.LENGTH_LONG).show();
+            });
+        }
+    }
+
+    // Start TakeExamActivity
+    private void startTakeExamActivity(ExamModel exam) {
+        android.util.Log.d("ExamAdapter", "Opening TakeExamActivity with examId=" + exam.getExamId());
+        Intent intent = new Intent(context, TakeExamActivity.class);
+        intent.putExtra("examId", exam.getExamId());
+        intent.putExtra("examTitle", exam.getExamTitle());
+        context.startActivity(intent);
     }
 
     @Override
@@ -54,16 +92,22 @@ public class ExamAdapter extends RecyclerView.Adapter<ExamAdapter.ExamViewHolder
     }
 
     public static class ExamViewHolder extends RecyclerView.ViewHolder {
-        TextView tvExamTitle, tvCourseDisplay, tvTeacherName;
+        TextView tvExamTitle, tvCourseDisplay, tvTeacherName, tvSchedule, tvStatus;
+        Button btnTakeExam;
 
         public ExamViewHolder(@NonNull View itemView) {
             super(itemView);
             tvExamTitle = itemView.findViewById(R.id.tvExamTitle);
             tvCourseDisplay = itemView.findViewById(R.id.tvCourseDisplay);
             tvTeacherName = itemView.findViewById(R.id.tvTeacherName);
+            tvSchedule = itemView.findViewById(R.id.tvSchedule);
+            tvStatus = itemView.findViewById(R.id.tvStatus);
+            btnTakeExam = itemView.findViewById(R.id.btnTakeExam);
         }
     }
+
+    // Stub method (keep existing structure)
     public int getExamId() {
-        return examId;
+        return 0;
     }
 }
