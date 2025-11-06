@@ -308,12 +308,13 @@ public class StudentDashboardActivity extends AppCompatActivity
         long currentTime = System.currentTimeMillis();
         SimpleDateFormat sdf = new SimpleDateFormat("MMM dd, yyyy hh:mm a", Locale.getDefault());
 
+        String studentId = student.getStudentId(); // ✅ Use teacher-side studentId
+
         examsRef.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 examList.clear();
 
-                // 🏆 I-filter muna ang lahat ng eligible exams
                 List<DataSnapshot> eligibleExams = new ArrayList<>();
                 for (DataSnapshot teacherSnap : snapshot.getChildren()) {
                     for (DataSnapshot examSnap : teacherSnap.getChildren()) {
@@ -321,7 +322,6 @@ public class StudentDashboardActivity extends AppCompatActivity
                         Long scheduledAtLong = examSnap.child("scheduledAt").getValue(Long.class);
                         Integer durationMinutesInt = examSnap.child("durationMinutes").getValue(Integer.class);
 
-                        // Only include exams that match the course, are active, and have required fields
                         if (exam != null && scheduledAtLong != null && durationMinutesInt != null &&
                                 exam.getCourseDisplay().equals(studentCourseDisplay) &&
                                 exam.isActive()) {
@@ -331,107 +331,89 @@ public class StudentDashboardActivity extends AppCompatActivity
                 }
 
                 final int totalEligibleExams = eligibleExams.size();
-                final int[] examsProcessed = {0}; // Counter para sa natapos na i-check sa Scores
+                final int[] examsProcessed = {0};
 
                 if (totalEligibleExams == 0) {
                     updateExamRecyclerView();
-                    return; // Walang exams, tapos na.
+                    return;
                 }
 
                 for (DataSnapshot examSnap : eligibleExams) {
                     ExamModel exam = examSnap.getValue(ExamModel.class);
                     String examId = examSnap.getKey();
 
-                    // Set basic data (safe na ito dahil na-filter na)
                     exam.setExamId(examId);
                     exam.setScheduledAt(examSnap.child("scheduledAt").getValue(Long.class));
                     exam.setDurationMinutes(examSnap.child("durationMinutes").getValue(Integer.class));
 
-                    // 🏆 NEW STEP: Check if the exam has been taken
-                    scoresRef.child(currentStudentUid).child(examId).addListenerForSingleValueEvent(new ValueEventListener() {
-                        @Override
-                        public void onDataChange(@NonNull DataSnapshot scoreSnapshot) {
-                            if (scoreSnapshot.exists()) {
-                                // 🛑 EXAM TAKEN LOGIC
-                                exam.setStatus("TAKEN");
-                                exam.setAvailable(false);
-                            } else {
-                                // 🔄 EXAM NOT TAKEN - Proceed with Time Logic
-                                long scheduledTime = exam.getScheduledAt();
-                                long examStartTimeWindow = scheduledTime;
-                                long examEndLoginWindow = scheduledTime + MAX_LOGIN_WINDOW_MILLIS;
-
-                                String status = "";
-                                if (currentTime < examStartTimeWindow) {
-                                    String formattedTime = sdf.format(new Date(scheduledTime));
-                                    status = "Scheduled: Starts at " + formattedTime;
-                                    exam.setStatus(status);
-                                    exam.setAvailable(false);
-                                } else if (currentTime >= examStartTimeWindow && currentTime <= examEndLoginWindow) {
-                                    String formattedLoginEnd = sdf.format(new Date(examEndLoginWindow));
-                                    status = "AVAILABLE NOW (Login closes at " + formattedLoginEnd + ")";
-                                    exam.setStatus(status);
-                                    exam.setAvailable(true);
-                                } else {
-                                    String formattedLoginEnd = sdf.format(new Date(examEndLoginWindow));
-                                    status = "EXPIRED: Login window closed at " + formattedLoginEnd;
-                                    exam.setStatus(status);
-                                    exam.setAvailable(false);
-                                }
-                            }
-
-                            // I-fetch ang readable date
-                            String readableDate = examSnap.child("scheduledDateDisplay").getValue(String.class);
-                            if (readableDate != null) {
-                                exam.setScheduledDateDisplay(readableDate);
-                            } else {
-                                exam.setScheduledDateDisplay(sdf.format(new Date(exam.getScheduledAt())));
-                            }
-
-                            examList.add(exam);
-
-                            // 🏆 CRITICAL: Check if ALL eligible exams are processed
-                            examsProcessed[0]++;
-                            if (examsProcessed[0] == totalEligibleExams) {
-                                Log.d(TAG, "All " + totalEligibleExams + " exams processed. Updating RecyclerView.");
-                                updateExamRecyclerView();
-                            }
-                            DatabaseReference examStudentRef = FirebaseDatabase.getInstance()
-                                    .getReference("ExamStudents")
-                                    .child(examId)
-                                    .child(currentStudentUid);
-
-                            // inside fetchExamsForStudent -> after scoresRef check
-                            examStudentRef.child("present").addListenerForSingleValueEvent(new ValueEventListener() {
+                    // Check if exam has been taken
+                    scoresRef.child(studentId).child(examId) // ✅ use studentId here
+                            .addListenerForSingleValueEvent(new ValueEventListener() {
                                 @Override
-                                public void onDataChange(@NonNull DataSnapshot snapshot) {
-                                    Boolean present = snapshot.getValue(Boolean.class);
-                                    exam.setAvailable(exam.isAvailable() && (present != null && present));
-                                    // DO NOT call updateExamRecyclerView() here
+                                public void onDataChange(@NonNull DataSnapshot scoreSnapshot) {
+                                    if (scoreSnapshot.exists()) {
+                                        exam.setStatus("TAKEN");
+                                        exam.setAvailable(false);
+                                    } else {
+                                        long start = exam.getScheduledAt();
+                                        long endLogin = start + MAX_LOGIN_WINDOW_MILLIS;
+
+                                        if (currentTime < start) {
+                                            exam.setStatus("Scheduled: Starts at " + sdf.format(new Date(start)));
+                                            exam.setAvailable(false);
+                                        } else if (currentTime <= endLogin) {
+                                            exam.setStatus("AVAILABLE NOW (Login closes at " + sdf.format(new Date(endLogin)) + ")");
+                                            exam.setAvailable(true);
+                                        } else {
+                                            exam.setStatus("EXPIRED: Login window closed at " + sdf.format(new Date(endLogin)));
+                                            exam.setAvailable(false);
+                                        }
+                                    }
+
+                                    // ✅ Fetch "present" using studentId
+                                    DatabaseReference examStudentRef = FirebaseDatabase.getInstance()
+                                            .getReference("ExamStudents")
+                                            .child(examId)
+                                            .child(studentId); // ✅ use teacher-side studentId
+
+                                    examStudentRef.child("present").addListenerForSingleValueEvent(new ValueEventListener() {
+                                        @Override
+                                        public void onDataChange(@NonNull DataSnapshot presentSnap) {
+                                            Boolean present = presentSnap.getValue(Boolean.class);
+                                            Log.d(TAG, "Fetched present value: " + present + " for exam: " + exam.getExamTitle());
+
+                                            exam.setPresent(present != null && present);
+                                            exam.setAvailable(exam.isAvailable() && exam.isPresent());
+
+                                            examList.add(exam);
+                                            examsProcessed[0]++;
+                                            if (examsProcessed[0] == totalEligibleExams) {
+                                                updateExamRecyclerView();
+                                            }
+                                        }
+
+                                        @Override
+                                        public void onCancelled(@NonNull DatabaseError error) {
+                                            exam.setPresent(false);
+                                            exam.setAvailable(false);
+                                            examList.add(exam);
+                                            examsProcessed[0]++;
+                                            if (examsProcessed[0] == totalEligibleExams) {
+                                                updateExamRecyclerView();
+                                            }
+                                        }
+                                    });
+                                }
+
+                                @Override
+                                public void onCancelled(@NonNull DatabaseError error) {
                                     examsProcessed[0]++;
                                     if (examsProcessed[0] == totalEligibleExams) {
-                                        updateExamRecyclerView(); // call once after all exams processed
+                                        updateExamRecyclerView();
                                     }
                                 }
-                                @Override
-                                public void onCancelled(@NonNull DatabaseError error) {}
                             });
 
-
-                        }
-
-
-                        @Override
-                        public void onCancelled(@NonNull DatabaseError scoreError) {
-                            Log.e(TAG, "Failed to check score for exam " + exam.getExamTitle() + ": " + scoreError.getMessage());
-
-                            // 🏆 CRITICAL: I-count pa rin ito kahit nag-error ang score check, para hindi ma-stuck ang logic.
-                            examsProcessed[0]++;
-                            if (examsProcessed[0] == totalEligibleExams) {
-                                updateExamRecyclerView();
-                            }
-                        }
-                    });
                 }
             }
 

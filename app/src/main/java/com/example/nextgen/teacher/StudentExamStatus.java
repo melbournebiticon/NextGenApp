@@ -13,6 +13,8 @@ public class StudentExamStatus {
     private String year;
     private String section;
 
+    private int tabViolation;          // NEW field to track tab violations
+
     // Empty constructor required for Firebase
     public StudentExamStatus() {}
 
@@ -27,6 +29,7 @@ public class StudentExamStatus {
         this.specialization = specialization;
         this.year = year;
         this.section = section;
+        this.tabViolation = 0; // default value
     }
 
     // Getters & Setters
@@ -45,7 +48,6 @@ public class StudentExamStatus {
     public int getQuestionsAnswered() { return questionsAnswered; }
     public void setQuestionsAnswered(int questionsAnswered) { this.questionsAnswered = questionsAnswered; }
 
-    // Getters & setters for new fields
     public String getCourse() { return course; }
     public void setCourse(String course) { this.course = course; }
 
@@ -57,4 +59,8 @@ public class StudentExamStatus {
 
     public String getSection() { return section; }
     public void setSection(String section) { this.section = section; }
+
+    // NEW: Getter & Setter for tabViolation
+    public int getTabViolation() { return tabViolation; }
+    public void setTabViolation(int tabViolation) { this.tabViolation = tabViolation; }
 }

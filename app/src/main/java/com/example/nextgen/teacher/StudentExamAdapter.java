@@ -82,6 +82,11 @@ public class StudentExamAdapter extends RecyclerView.Adapter<StudentExamAdapter.
                         .child(examId.trim())
                         .child(student.getStudentId().trim());
 
+                studentNode.get().addOnSuccessListener(snapshot -> {
+                    android.util.Log.d("FirebaseCheck", "Value at path: " + snapshot.getValue());
+                });
+
+
                 // --- Add logging to check Firebase path ---
                 android.util.Log.d("StudentExamAdapter", "Firebase path: "
                         + studentNode.toString());
