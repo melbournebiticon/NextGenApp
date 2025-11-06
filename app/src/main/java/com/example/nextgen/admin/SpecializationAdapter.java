@@ -22,7 +22,6 @@ public class SpecializationAdapter extends RecyclerView.Adapter<SpecializationAd
     ArrayList<SpecializationModel> list;
     Context context;
     DatabaseReference dbRef;
-    // Add a callback for edit
     SpecializationsActivity activity;
 
     public SpecializationAdapter(ArrayList<SpecializationModel> list, SpecializationsActivity activity, DatabaseReference dbRef) {
@@ -47,11 +46,16 @@ public class SpecializationAdapter extends RecyclerView.Adapter<SpecializationAd
         // Delete button
         holder.deleteBtn.setOnClickListener(v -> {
             new AlertDialog.Builder(context)
-                    .setTitle("Delete")
-                    .setMessage("Delete this specialization?")
+                    .setTitle("Delete Specialization")
+                    .setMessage("Are you sure you want to delete " + model.getName() + "?")
                     .setPositiveButton("Yes", (dialog, which) -> {
-                        dbRef.child(model.getId()).removeValue();
-                        Toast.makeText(context, "Deleted", Toast.LENGTH_SHORT).show();
+                        dbRef.child(model.getId()).removeValue()
+                                .addOnSuccessListener(aVoid -> {
+                                    Toast.makeText(context, "Specialization deleted", Toast.LENGTH_SHORT).show();
+                                })
+                                .addOnFailureListener(e -> {
+                                    Toast.makeText(context, "Failed to delete: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                                });
                     })
                     .setNegativeButton("No", null)
                     .show();

@@ -1,13 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
+<<<<<<< Updated upstream
     android:layout_height="wrap_content"
     android:fillViewport="true">
+=======
+    android:layout_height="wrap_content">
+>>>>>>> Stashed changes
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
+<<<<<<< Updated upstream
         android:padding="16dp"
         android:gravity="center_horizontal">
 
@@ -73,20 +78,91 @@
             android:layout_marginTop="8dp" />
 
         <!-- RecyclerView for multiple course selection -->
+=======
+        android:padding="20dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Update Teacher"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:layout_marginBottom="16dp"/>
+
+        <EditText
+            android:id="@+id/etEditFullName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Full Name"
+            android:layout_marginBottom="12dp"
+            android:padding="12dp"
+            android:background="@drawable/edit_text_background"/>
+
+        <EditText
+            android:id="@+id/etEditBirthday"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Birthday"
+            android:layout_marginBottom="12dp"
+            android:padding="12dp"
+            android:inputType="date"
+            android:background="@drawable/edit_text_background"/>
+
+        <EditText
+            android:id="@+id/etEditEmail"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Email"
+            android:layout_marginBottom="16dp"
+            android:padding="12dp"
+            android:inputType="textEmailAddress"
+            android:background="@drawable/edit_text_background"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Select Course(s)"
+            android:textStyle="bold"
+            android:textSize="14sp"
+            android:layout_marginBottom="8dp"/>
+
+>>>>>>> Stashed changes
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recyclerEditCourses"
             android:layout_width="match_parent"
             android:layout_height="120dp"
+<<<<<<< Updated upstream
             android:layout_marginTop="8dp"
             android:scrollbars="vertical" />
 
         <!-- RecyclerView for subjects -->
+=======
+            android:layout_marginBottom="16dp"
+            android:background="@drawable/recycler_background"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Select Subjects"
+            android:textStyle="bold"
+            android:textSize="14sp"
+            android:layout_marginBottom="8dp"/>
+
+>>>>>>> Stashed changes
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recyclerEditSubjects"
             android:layout_width="match_parent"
             android:layout_height="150dp"
+<<<<<<< Updated upstream
             android:layout_marginTop="8dp"
             android:scrollbars="vertical" />
 
     </LinearLayout>
 </ScrollView>
+=======
+            android:background="@drawable/recycler_background"/>
+
+    </LinearLayout>
+</ScrollView>
+>>>>>>> Stashed changes

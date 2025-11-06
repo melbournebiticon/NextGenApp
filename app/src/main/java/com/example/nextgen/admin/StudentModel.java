@@ -38,8 +38,6 @@ public class StudentModel {
         this.uid = uid;
     }
 
-
-
     // Getters & Setters
     public String getStudentId() { return studentId; }
     public void setStudentId(String studentId) { this.studentId = studentId; }
@@ -77,6 +75,7 @@ public class StudentModel {
     public String getUid() { return uid; }
     public void setUid(String uid) { this.uid = uid; }
 
+<<<<<<< Updated upstream
 
     public String getSectionName() {
         return sectionName;
@@ -87,3 +86,8 @@ public class StudentModel {
     }
 
 }
+=======
+    public String getSectionName() { return sectionName; }
+    public void setSectionName(String sectionName) { this.sectionName = sectionName; } // ADDED THIS SETTER
+}
+>>>>>>> Stashed changes

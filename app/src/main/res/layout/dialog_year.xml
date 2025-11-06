@@ -1,20 +1,69 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:padding="16dp"
-    android:orientation="vertical"
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content">
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:background="#FFFFFF">
 
-    <EditText
-        android:id="@+id/etYearName"
-        android:hint="Enter Year Name"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"/>
-
-    <Button
-        android:id="@+id/btnSaveYear"
-        android:text="Save"
+    <!-- Dialog Title -->
+    <TextView
+        android:id="@+id/tvDialogTitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"/>
+        android:text="Add Year"
+        android:textColor="#003366"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:layout_marginBottom="20dp" />
+
+    <!-- Year Name Input -->
+    <EditText
+        android:id="@+id/etYearName"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:hint="Enter year name"
+        android:textColor="#003366"
+        android:textSize="16sp"
+        android:maxLines="1"
+        android:background="@drawable/edittext_background"
+        android:padding="16dp"
+        android:layout_marginBottom="24dp"/>
+
+    <!-- Action Buttons -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="end">
+
+        <!-- Cancel Button -->
+        <Button
+            android:id="@+id/btnCancelYear"
+            android:layout_width="wrap_content"
+            android:layout_height="42dp"
+            android:text="Cancel"
+            android:textColor="#003366"
+            android:textSize="14sp"
+            android:background="@drawable/button_outline"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
+            android:layout_marginEnd="12dp"/>
+
+        <!-- Save Button -->
+        <Button
+            android:id="@+id/btnSaveYear"
+            android:layout_width="wrap_content"
+            android:layout_height="42dp"
+            android:text="Save"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:background="@drawable/button_primary"
+            android:paddingStart="24dp"
+            android:paddingEnd="24dp"/>
+
+    </LinearLayout>
+
 </LinearLayout>

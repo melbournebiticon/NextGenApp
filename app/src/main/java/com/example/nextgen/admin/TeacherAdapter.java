@@ -22,11 +22,18 @@ import java.util.List;
 
 public class TeacherAdapter extends RecyclerView.Adapter<TeacherAdapter.TeacherViewHolder> {
 
+<<<<<<< Updated upstream
     private final List<TeacherModel> teacherList;
     private final OnTeacherActionListener actionListener;
+=======
+    private List<TeacherModel> teacherList;
+    private final List<TeacherModel> originalTeacherList; // Store original list for filtering
+    private final OnTeacherActionListener actionListener; // 🔹 Callback for Update/Delete
+>>>>>>> Stashed changes
 
     public TeacherAdapter(List<TeacherModel> teacherList, OnTeacherActionListener actionListener) {
         this.teacherList = teacherList != null ? teacherList : new ArrayList<>();
+        this.originalTeacherList = new ArrayList<>(this.teacherList); // Keep copy of original data
         this.actionListener = actionListener;
     }
 
@@ -85,6 +92,23 @@ public class TeacherAdapter extends RecyclerView.Adapter<TeacherAdapter.TeacherV
         return teacherList.size();
     }
 
+    // 🔹 NEW METHOD: Update the list for search functionality
+    public void updateList(List<TeacherModel> filteredList) {
+        this.teacherList = filteredList;
+        notifyDataSetChanged();
+    }
+
+    // 🔹 OPTIONAL: Method to reset to original list
+    public void resetList() {
+        this.teacherList = new ArrayList<>(originalTeacherList);
+        notifyDataSetChanged();
+    }
+
+    // 🔹 OPTIONAL: Method to get current list (for count updates)
+    public List<TeacherModel> getCurrentList() {
+        return teacherList;
+    }
+
     public static class TeacherViewHolder extends RecyclerView.ViewHolder {
         TextView tvTeacherId, tvDisplayName, tvFullName, tvCourse, tvEmail, tvSubjects;
         ImageView ivProfile;
@@ -109,4 +133,8 @@ public class TeacherAdapter extends RecyclerView.Adapter<TeacherAdapter.TeacherV
         void onUpdate(TeacherModel teacher);
         void onDelete(TeacherModel teacher);
     }
+<<<<<<< Updated upstream
 }
+=======
+}
+>>>>>>> Stashed changes
