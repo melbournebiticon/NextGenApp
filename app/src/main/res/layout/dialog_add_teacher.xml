@@ -56,17 +56,6 @@
 
         <EditText
             android:id="@+id/etBirthday"
-<<<<<<< Updated upstream
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="Select Birthday"
-            android:focusable="false"
-            android:clickable="true"
-            android:inputType="none"
-            android:drawableEnd="@android:drawable/ic_menu_today"
-            android:paddingEnd="12dp" />
-
-=======
             android:layout_width="match_parent"
             android:layout_height="50dp"
             android:hint="MM/DD/YYYY"
@@ -87,7 +76,6 @@
             android:textStyle="bold"
             android:textColor="#003366"
             android:layout_marginBottom="4dp"/>
->>>>>>> Stashed changes
 
         <EditText
             android:id="@+id/etEmail"

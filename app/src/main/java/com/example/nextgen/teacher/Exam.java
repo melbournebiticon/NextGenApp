@@ -2,6 +2,7 @@ package com.example.nextgen.teacher;
 
 import androidx.room.Entity;
 import androidx.room.PrimaryKey;
+import androidx.room.Ignore;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -32,6 +33,8 @@ public class Exam {
         // Required empty constructor for Firebase and Room
     }
 
+    // Mark this constructor with @Ignore since Room only needs the no-arg constructor
+    @Ignore
     public Exam(String subject, String examName, int durationMinutes, long scheduledAt, String section) {
         this.subject = subject;
         this.examName = examName;

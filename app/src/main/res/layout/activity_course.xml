@@ -8,22 +8,6 @@
     android:fitsSystemWindows="true"
     android:background="#F5F5F5">
 
-<<<<<<< Updated upstream
-    <!-- Add Course Button -->
-    <Button
-        android:id="@+id/btnAddCourse"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="12dp"
-        android:text="Add Course" />
-
-    <!-- Divider -->
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:background="@android:color/darker_gray"
-        android:layout_marginBottom="12dp"/>
-=======
     <!-- ================= MAIN CONTENT ================= -->
     <LinearLayout
         android:layout_width="match_parent"
@@ -59,7 +43,6 @@
                 android:textSize="20sp"
                 android:layout_marginStart="16dp"
                 android:textStyle="bold"/>
->>>>>>> Stashed changes
 
             <ImageView
                 android:layout_width="28dp"
@@ -69,10 +52,6 @@
                 android:contentDescription="Courses Icon"/>
         </LinearLayout>
 
-<<<<<<< Updated upstream
-</LinearLayout>
-
-=======
         <!-- Main Content - Simplified -->
         <LinearLayout
             android:layout_width="match_parent"
@@ -192,7 +171,6 @@
                             android:textColor="#003366"
                             android:textSize="16sp"
                             android:textStyle="bold"/>
-
 
                     </LinearLayout>
 
@@ -467,4 +445,3 @@
     </LinearLayout>
 
 </androidx.drawerlayout.widget.DrawerLayout>
->>>>>>> Stashed changes

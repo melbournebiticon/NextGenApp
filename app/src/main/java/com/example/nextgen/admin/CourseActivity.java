@@ -11,9 +11,6 @@ import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.Spinner;
 import android.widget.Toast;
-import android.view.View;
-import android.view.LayoutInflater;
-
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -45,7 +42,7 @@ public class CourseActivity extends AppCompatActivity {
     // ORIGINAL COMPONENTS - WALANG BINAGO
     private EditText etCourseName;
     private Button btnAddCourse;
-
+    private Spinner spinnerSections; // Only use this now
     private RecyclerView recyclerCourses;
 
     private CourseAdapter adapter;
@@ -65,6 +62,7 @@ public class CourseActivity extends AppCompatActivity {
         // ORIGINAL CODE - WALANG BINAGO
         etCourseName = findViewById(R.id.etCourseName);
         btnAddCourse = findViewById(R.id.btnAddCourse);
+        spinnerSections = findViewById(R.id.spinnerSection);
         recyclerCourses = findViewById(R.id.recyclerCourses);
 
         recyclerCourses.setLayoutManager(new LinearLayoutManager(this));
@@ -77,69 +75,11 @@ public class CourseActivity extends AppCompatActivity {
         // Load course options into spinner
         loadCourseOptions();
 
-        btnAddCourse.setOnClickListener(v -> showAddCourseDialog());
-
+        btnAddCourse.setOnClickListener(v -> addCourse());
 
         // Load all courses in RecyclerView
         loadCourses();
     }
-    private void showAddCourseDialog() {
-        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_add_course, null);
-
-        EditText etCourseNameDialog = dialogView.findViewById(R.id.etCourseName);
-        Spinner spinnerSectionsDialog = dialogView.findViewById(R.id.spinnerSection);
-
-        // Populate spinner options
-        List<String> spinnerNames = new ArrayList<>();
-        for (CourseOption option : courseOptionList) {
-            spinnerNames.add(option.getSpecializationName() + " - " +
-                    option.getSectionName() + " - " +
-                    option.getYearName());
-        }
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
-                android.R.layout.simple_spinner_item, spinnerNames);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinnerSectionsDialog.setAdapter(adapter);
-
-        new androidx.appcompat.app.AlertDialog.Builder(this)
-                .setTitle("Add Course")
-                .setView(dialogView)
-                .setPositiveButton("Add", (dialog, which) -> {
-                    String name = etCourseNameDialog.getText().toString().trim();
-                    int selectedPos = spinnerSectionsDialog.getSelectedItemPosition();
-
-                    if (TextUtils.isEmpty(name)) {
-                        Toast.makeText(this, "Enter course name", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-                    if (selectedPos < 0) {
-                        Toast.makeText(this, "Select a course option", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-
-                    CourseOption selectedOption = courseOptionList.get(selectedPos);
-                    String id = coursesRef.push().getKey();
-                    if (id == null) return;
-
-                    CourseModel course = new CourseModel(
-                            id,
-                            name,
-                            selectedOption.getSpecializationId(),
-                            selectedOption.getSpecializationName(),
-                            selectedOption.getYearId(),
-                            selectedOption.getYearName(),
-                            selectedOption.getSectionId(),
-                            selectedOption.getSectionName()
-                    );
-
-                    coursesRef.child(id).setValue(course)
-                            .addOnSuccessListener(aVoid -> Toast.makeText(this, "Course added", Toast.LENGTH_SHORT).show())
-                            .addOnFailureListener(e -> Toast.makeText(this, "Failed: " + e.getMessage(), Toast.LENGTH_SHORT).show());
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
-    }
-
 
     // DAGDAG: SIDEBAR INITIALIZATION
     private void initializeSidebar() {
@@ -322,6 +262,10 @@ public class CourseActivity extends AppCompatActivity {
 
                     }
                 }
+                ArrayAdapter<String> adapter = new ArrayAdapter<>(CourseActivity.this,
+                        android.R.layout.simple_spinner_item, names);
+                adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                spinnerSections.setAdapter(adapter);
             }
 
             @Override
@@ -329,6 +273,45 @@ public class CourseActivity extends AppCompatActivity {
         });
     }
 
+    private void addCourse() {
+        String name = etCourseName.getText().toString().trim();
+        if (TextUtils.isEmpty(name)) {
+            Toast.makeText(this, "Enter course name", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        int selectedPos = spinnerSections.getSelectedItemPosition();
+        if (selectedPos < 0) {
+            Toast.makeText(this, "Select a course option", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        CourseOption selectedOption = courseOptionList.get(selectedPos);
+
+        String id = coursesRef.push().getKey();
+        if (id == null) {
+            Toast.makeText(this, "Error generating ID", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        CourseModel course = new CourseModel(
+                id,
+                name,
+                selectedOption.getSpecializationId(),
+                selectedOption.getSpecializationName(),
+                selectedOption.getYearId(),
+                selectedOption.getYearName(),
+                selectedOption.getSectionId(),
+                selectedOption.getSectionName()
+        );
+
+        coursesRef.child(id).setValue(course)
+                .addOnSuccessListener(aVoid -> {
+                    Toast.makeText(this, "Course added", Toast.LENGTH_SHORT).show();
+                    etCourseName.setText("");
+                })
+                .addOnFailureListener(e -> Toast.makeText(this, "Failed: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+    }
 
     private void loadCourses() {
         coursesRef.addValueEventListener(new ValueEventListener() {

@@ -75,19 +75,6 @@ public class StudentModel {
     public String getUid() { return uid; }
     public void setUid(String uid) { this.uid = uid; }
 
-<<<<<<< Updated upstream
-
-    public String getSectionName() {
-        return sectionName;
-    }
-
-    public void setSectionName(String sectionName) {
-        this.sectionName = sectionName;
-    }
-
-}
-=======
     public String getSectionName() { return sectionName; }
     public void setSectionName(String sectionName) { this.sectionName = sectionName; } // ADDED THIS SETTER
 }
->>>>>>> Stashed changes

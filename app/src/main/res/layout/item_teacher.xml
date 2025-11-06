@@ -1,28 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<<<<<<< Updated upstream
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:orientation="horizontal"
-    android:padding="12dp"
-    android:gravity="center_vertical"
-    android:background="@android:color/white"
-    android:elevation="2dp"
-    android:layout_marginBottom="8dp">
-
-    <!-- 👤 Profile Image -->
-    <ImageView
-        android:id="@+id/ivProfile"
-        android:layout_width="60dp"
-        android:layout_height="60dp"
-        android:layout_marginEnd="12dp"
-        android:src="@drawable/examinee_default"
-        android:scaleType="centerCrop"
-        android:background="@drawable/profile_circle_background"
-        android:contentDescription="Teacher profile image" />
-
-    <!-- 📄 Info section -->
-=======
 <androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
@@ -32,89 +8,9 @@
     app:cardElevation="4dp"
     app:cardUseCompatPadding="true">
 
->>>>>>> Stashed changes
     <LinearLayout
-        android:orientation="vertical"
-        android:layout_width="0dp"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-<<<<<<< Updated upstream
-        android:layout_weight="1">
-
-        <TextView
-            android:id="@+id/tvTeacherId"
-            android:text="Teacher ID"
-            android:textStyle="bold"
-            android:textSize="13sp"
-            android:textColor="#000000"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content" />
-
-        <TextView
-            android:id="@+id/tvDisplayName"
-            android:text="Display Name"
-            android:textSize="14sp"
-            android:textColor="#333333"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content" />
-
-        <TextView
-            android:id="@+id/tvFullName"
-            android:text="Full Name"
-            android:textSize="14sp"
-            android:textColor="#333333"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content" />
-
-        <TextView
-            android:id="@+id/tvEmail"
-            android:text="Email"
-            android:textSize="13sp"
-            android:textColor="#555555"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="2dp" />
-
-        <TextView
-            android:id="@+id/tvCourse"
-            android:text="Course"
-            android:textSize="13sp"
-            android:textColor="#444444"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="2dp" />
-
-        <TextView
-            android:id="@+id/tvSubjects"
-            android:text="Subjects"
-            android:textSize="13sp"
-            android:textColor="#444444"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="2dp" />
-
-    </LinearLayout>
-
-    <!-- ✏️ Update Button -->
-    <ImageButton
-        android:id="@+id/btnUpdateTeacher"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:src="@android:drawable/ic_menu_edit"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:contentDescription="Update Teacher" />
-
-    <!-- ❌ Delete Button -->
-    <ImageButton
-        android:id="@+id/btnDeleteTeacher"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:src="@android:drawable/ic_menu_delete"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:contentDescription="Delete Teacher"
-        android:layout_marginStart="4dp" />
-
-</LinearLayout>
-=======
         android:orientation="vertical"
         android:padding="16dp"
         android:background="@drawable/item_background">
@@ -123,6 +19,7 @@
             android:id="@+id/tvTeacherId"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:text="Teacher ID"
             android:textStyle="bold"
             android:textSize="16sp"
             android:textColor="#333333"/>
@@ -131,6 +28,7 @@
             android:id="@+id/tvDisplayName"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:text="Display Name"
             android:textSize="14sp"
             android:textColor="#666666"
             android:layout_marginTop="4dp"/>
@@ -139,6 +37,7 @@
             android:id="@+id/tvFullName"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:text="Full Name"
             android:textSize="14sp"
             android:textColor="#666666"
             android:layout_marginTop="2dp"/>
@@ -147,6 +46,7 @@
             android:id="@+id/tvEmail"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:text="Email"
             android:textSize="14sp"
             android:textColor="#666666"
             android:layout_marginTop="2dp"/>
@@ -155,6 +55,7 @@
             android:id="@+id/tvCourse"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:text="Course"
             android:textSize="14sp"
             android:textColor="#666666"
             android:layout_marginTop="2dp"/>
@@ -163,6 +64,7 @@
             android:id="@+id/tvSubjects"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:text="Subjects"
             android:textSize="14sp"
             android:textColor="#666666"
             android:layout_marginTop="4dp"/>
@@ -199,4 +101,3 @@
 
     </LinearLayout>
 </androidx.cardview.widget.CardView>
->>>>>>> Stashed changes
