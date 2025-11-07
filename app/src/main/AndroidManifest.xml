@@ -4,6 +4,7 @@
     package="com.example.nextgen">
 
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.CAMERA" />
 
 
     <application
@@ -47,10 +48,10 @@
         <activity android:name=".student.StudentDashboardActivity" />
         <activity android:name=".student.StudentProfileActivity" />
         <activity android:name=".student.ResultActivity" />
-        <activity android:name=".student.StudentProfileActivity" /> <activity
-        android:name=".student.TakeExamActivity"
+        <activity android:name=".student.StudentProfileActivity" />
+        <activity android:name=".student.TakeExamActivity" />
+        <activity android:name=".student.StudentQRScannerActivity" />
 
-        />
 
     </application>
 

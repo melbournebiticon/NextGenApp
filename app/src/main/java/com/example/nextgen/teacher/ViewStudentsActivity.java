@@ -66,28 +66,44 @@ public class ViewStudentsActivity extends AppCompatActivity {
     private void loadCourses() {
         coursesRef.addListenerForSingleValueEvent(new com.google.firebase.database.ValueEventListener() {
             @Override
-            public void onDataChange(@NonNull DataSnapshot snapshot) {
+            public void onDataChange(@NonNull DataSnapshot courseSnapshot) {
                 courseList.clear();
                 List<String> displayNames = new ArrayList<>();
 
-                for (DataSnapshot ds : snapshot.getChildren()) {
-                    CourseModel c = ds.getValue(CourseModel.class);
-                    if (c != null) {
-                        courseList.add(c);
-                        displayNames.add(c.getName() + " - " +
-                                c.getSpecializationName() + " - " +
-                                c.getYearName() + " - " +
-                                c.getSectionName());
+                // Loop through all courses
+                for (DataSnapshot ds : courseSnapshot.getChildren()) {
+                    CourseModel course = ds.getValue(CourseModel.class);
+                    if (course != null) {
+                        String courseId = course.getId();
+
+                        // Check if there are students assigned to this course
+                        studentsRef.orderByChild("courseId").equalTo(courseId)
+                                .addListenerForSingleValueEvent(new com.google.firebase.database.ValueEventListener() {
+                                    @Override
+                                    public void onDataChange(@NonNull DataSnapshot studentSnapshot) {
+                                        if (studentSnapshot.exists()) {
+                                            courseList.add(course);
+                                            displayNames.add(course.getName() + " - " +
+                                                    course.getSpecializationName() + " - " +
+                                                    course.getYearName() + " - " +
+                                                    course.getSectionName());
+
+                                            // Update spinner when all courses are processed
+                                            ArrayAdapter<String> adapter = new ArrayAdapter<>(
+                                                    ViewStudentsActivity.this,
+                                                    android.R.layout.simple_spinner_item,
+                                                    displayNames
+                                            );
+                                            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                                            spinnerCourses.setAdapter(adapter);
+                                        }
+                                    }
+
+                                    @Override
+                                    public void onCancelled(@NonNull DatabaseError error) {}
+                                });
                     }
                 }
-
-                ArrayAdapter<String> adapter = new ArrayAdapter<>(
-                        ViewStudentsActivity.this,
-                        android.R.layout.simple_spinner_item,
-                        displayNames
-                );
-                adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-                spinnerCourses.setAdapter(adapter);
             }
 
             @Override
@@ -96,6 +112,7 @@ public class ViewStudentsActivity extends AppCompatActivity {
             }
         });
     }
+
 
     private void loadStudents(String courseId) {
         studentsRef.orderByChild("courseId").equalTo(courseId)

@@ -219,12 +219,30 @@ public class ManageExamActivity extends AppCompatActivity {
 
                             @Override
                             public void onDelete(Exam exam) {
-                                new Thread(() -> {
-                                    db.examDao().deleteById(exam.getId());
-                                    deleteExamFromFirebase(exam);
-                                    runOnUiThread(ManageExamActivity.this::loadExams);
-                                }).start();
+                                new AlertDialog.Builder(ManageExamActivity.this)
+                                        .setTitle("Delete Exam")
+                                        .setMessage("Are you sure you want to delete this exam and all its related questions?")
+                                        .setPositiveButton("Yes", (dialog, which) -> {
+                                            new Thread(() -> {
+                                                // Delete locally (Room)
+                                                db.examDao().deleteById(exam.getId());
+
+                                                // Delete from Firebase (Exams + Questions)
+                                                deleteExamFromFirebase(exam);
+
+                                                // Reload UI
+                                                runOnUiThread(() -> {
+                                                    loadExams();
+                                                    Toast.makeText(ManageExamActivity.this,
+                                                            "Deleting exam...", Toast.LENGTH_SHORT).show();
+                                                });
+                                            }).start();
+                                        })
+                                        .setNegativeButton("No", (dialog, which) -> dialog.dismiss())
+                                        .create()
+                                        .show();
                             }
+
 
                             @Override
                             public void onGenerate(Exam exam) {
@@ -283,15 +301,50 @@ public class ManageExamActivity extends AppCompatActivity {
 
     private void deleteExamFromFirebase(Exam exam) {
         if (exam.getFirebaseKey() != null && !exam.getFirebaseKey().isEmpty()) {
-            FirebaseDatabase.getInstance()
+            String teacherId = exam.getTeacherId();
+            String examId = exam.getFirebaseKey();
+
+            DatabaseReference examsRef = FirebaseDatabase.getInstance()
                     .getReference("Exams")
-                    .child(exam.getTeacherId())
-                    .child(exam.getFirebaseKey())
-                    .removeValue()
-                    .addOnSuccessListener(aVoid -> Log.d("FirebaseDelete", "Exam deleted successfully"))
-                    .addOnFailureListener(e -> Log.e("FirebaseDelete", "Failed to delete exam", e));
+                    .child(teacherId)
+                    .child(examId);
+
+            DatabaseReference questionsRef = FirebaseDatabase.getInstance()
+                    .getReference("Questions")
+                    .child(examId); // Assuming questions are stored as: Questions/{examId}
+
+            // Step 1: Delete the exam first
+            examsRef.removeValue()
+                    .addOnSuccessListener(aVoid -> {
+                        Log.d("FirebaseDelete", "Exam deleted successfully");
+
+                        // Step 2: Then delete all related questions
+                        questionsRef.removeValue()
+                                .addOnSuccessListener(qVoid -> {
+                                    Log.d("FirebaseDelete", "All related questions deleted successfully");
+                                    runOnUiThread(() ->
+                                            Toast.makeText(ManageExamActivity.this,
+                                                    "Exam and related questions deleted successfully!",
+                                                    Toast.LENGTH_SHORT).show());
+                                })
+                                .addOnFailureListener(e -> {
+                                    Log.e("FirebaseDelete", "Failed to delete related questions", e);
+                                    runOnUiThread(() ->
+                                            Toast.makeText(ManageExamActivity.this,
+                                                    "Failed to delete related questions.",
+                                                    Toast.LENGTH_SHORT).show());
+                                });
+                    })
+                    .addOnFailureListener(e -> {
+                        Log.e("FirebaseDelete", "Failed to delete exam", e);
+                        runOnUiThread(() ->
+                                Toast.makeText(ManageExamActivity.this,
+                                        "Failed to delete exam.",
+                                        Toast.LENGTH_SHORT).show());
+                    });
         }
     }
+
 
 
 

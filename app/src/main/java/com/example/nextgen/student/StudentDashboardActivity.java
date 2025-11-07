@@ -115,6 +115,12 @@ public class StudentDashboardActivity extends AppCompatActivity
         // 🏆 NEW: Initialize Scores Ref
         scoresRef = FirebaseDatabase.getInstance().getReference("Scores");
 
+        Button btnScanExam = findViewById(R.id.btnScanExam);
+        btnScanExam.setOnClickListener(v -> {
+            Intent intent = new Intent(StudentDashboardActivity.this, StudentQRScannerActivity.class);
+            startActivity(intent);
+        });
+
 
         // Initialize Main Content UI
         btnLogout = findViewById(R.id.logoutBtn);

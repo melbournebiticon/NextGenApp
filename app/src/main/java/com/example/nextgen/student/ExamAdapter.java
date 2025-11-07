@@ -10,6 +10,7 @@ import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
+
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -94,12 +95,38 @@ public class ExamAdapter extends RecyclerView.Adapter<ExamAdapter.ExamViewHolder
 
     // Start TakeExamActivity
     private void startTakeExamActivity(ExamModel exam) {
-        android.util.Log.d("ExamAdapter", "Opening TakeExamActivity with examId=" + exam.getExamId());
-        Intent intent = new Intent(context, TakeExamActivity.class);
-        intent.putExtra("examId", exam.getExamId());
-        intent.putExtra("examTitle", exam.getExamTitle());
-        context.startActivity(intent);
+        android.util.Log.d("ExamAdapter", "Starting exam: " + exam.getExamId());
+
+        // ✅ Get studentId from SessionManager or your student model
+        String studentId = com.example.nextgen.SessionManager.getStudentId(context);
+
+        if (studentId == null || studentId.isEmpty()) {
+            Toast.makeText(context, "Student ID not found.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // ✅ Update ongoing = true in Firebase
+        com.google.firebase.database.DatabaseReference ref =
+                com.google.firebase.database.FirebaseDatabase.getInstance()
+                        .getReference("ExamStudents")
+                        .child(exam.getExamId())
+                        .child(studentId);
+
+        ref.child("ongoing").setValue(true)
+                .addOnSuccessListener(aVoid -> {
+                    Toast.makeText(context, "Exam started! Marked as ongoing.", Toast.LENGTH_SHORT).show();
+
+                    // ✅ Proceed to TakeExamActivity
+                    Intent intent = new Intent(context, TakeExamActivity.class);
+                    intent.putExtra("examId", exam.getExamId());
+                    intent.putExtra("examTitle", exam.getExamTitle());
+                    context.startActivity(intent);
+                })
+                .addOnFailureListener(e -> {
+                    Toast.makeText(context, "Failed to update ongoing: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
     }
+
 
     @Override
     public int getItemCount() {

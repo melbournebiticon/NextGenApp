@@ -58,7 +58,7 @@ public class GenerateQuestionsActivity extends AppCompatActivity {
         database = FirebaseDatabase.getInstance().getReference("Questions").child(examId);
 
         tvExamInfo = findViewById(R.id.tvExamInfo);
-        tvExamInfo.setText("Exam: " + examTitle + " (ID: " + examId + ")");
+        tvExamInfo.setText("Exam: " + examTitle);
 
         spQuestionType = findViewById(R.id.spQuestionType);
         layoutMultipleChoice = findViewById(R.id.layoutMultipleChoice);

@@ -57,6 +57,14 @@
                     android:textStyle="bold"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"/>
+                <Button
+                    android:id="@+id/btnScanExam"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Scan Exam QR"
+                    android:layout_gravity="center"
+                    android:layout_marginTop="16dp" />
+
 
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/rvExams"

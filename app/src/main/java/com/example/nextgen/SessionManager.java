@@ -57,6 +57,12 @@ public class SessionManager {
     public List<String> getCourseIds() {
         return new ArrayList<>(pref.getStringSet("courseIds", new HashSet<>()));
     }
+    // ✅ Static helper method for quick access
+    public static String getStudentId(Context context) {
+        SharedPreferences pref = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+        return pref.getString(KEY_USER_ID, null);
+    }
+
 
 
     public void clearSession() {
