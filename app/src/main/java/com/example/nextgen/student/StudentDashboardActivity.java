@@ -34,12 +34,17 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
+import android.view.Menu;
+import android.view.SubMenu;
+
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+
 
 public class StudentDashboardActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener {
@@ -105,6 +110,8 @@ public class StudentDashboardActivity extends AppCompatActivity
         navHeaderEmail = headerView.findViewById(R.id.nav_header_email);
         navHeaderProfileImage = headerView.findViewById(R.id.nav_header_profile_image);
         // --------------------------------------------------
+        navigationView = findViewById(R.id.nav_view);
+        navigationView.setNavigationItemSelectedListener(this);
 
 
         // RecyclerView for exams
@@ -151,6 +158,8 @@ public class StudentDashboardActivity extends AppCompatActivity
                                     populateStudentData(student);
                                     // Start the periodic fetcher instead of single fetch
                                     startPeriodicExamFetch(student);
+
+                                    showStudentSubjects();
                                 }
                             }
                         } else {
@@ -234,23 +243,25 @@ public class StudentDashboardActivity extends AppCompatActivity
     @Override
     public boolean onNavigationItemSelected(@NonNull MenuItem item) {
         int id = item.getItemId();
+        String title = item.getTitle().toString(); // Title-based fallback for dynamic items
 
         if (id == R.id.nav_dashboard) {
-            // Do nothing, we are here
+            // Stay on dashboard
         } else if (id == R.id.nav_view_profile) {
-            // <<< START STUDENT PROFILE ACTIVITY HERE >>>
-            Intent intent = new Intent(this, StudentProfileActivity.class);
-            startActivity(intent);
+            startActivity(new Intent(this, StudentProfileActivity.class));
+        } else if (id == R.id.nav_view_activities) {
+            startActivity(new Intent(this, StudentActivitiesActivity.class));
         } else if (id == R.id.nav_view_scores) {
-            // TODO: Start View Scores/Exam History Activity
             Toast.makeText(this, "Opening Exam Scores/History", Toast.LENGTH_SHORT).show();
-        } else if (id == R.id.nav_logout) {
-            handleLogout();
+        } else {
+            // If none of the static IDs matched, treat it as a subject click
+            Toast.makeText(this, "Selected class: " + title, Toast.LENGTH_SHORT).show();
         }
 
         drawerLayout.closeDrawer(GravityCompat.START);
         return true;
     }
+
 
     // --- 4. Handle Back Button Press (NO CHANGE) ---
     @Override
@@ -440,4 +451,78 @@ public class StudentDashboardActivity extends AppCompatActivity
         rvExams.setAdapter(examAdapter);
         Log.d(TAG, "Exam list updated with " + examList.size() + " exams.");
     }
+
+    private void showStudentSubjects() {
+        String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
+        DatabaseReference studentsRef = FirebaseDatabase.getInstance().getReference("Students");
+
+        studentsRef.orderByChild("uid").equalTo(uid)
+                .addListenerForSingleValueEvent(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(@NonNull DataSnapshot studentSnapshot) {
+                        if (!studentSnapshot.exists()) return;
+
+                        for (DataSnapshot ds : studentSnapshot.getChildren()) {
+                            StudentModel student = ds.getValue(StudentModel.class);
+                            if (student == null) continue;
+
+                            DatabaseReference subjectsRef = FirebaseDatabase.getInstance().getReference("Subjects");
+                            subjectsRef.addListenerForSingleValueEvent(new ValueEventListener() {
+                                @Override
+                                public void onDataChange(@NonNull DataSnapshot snapshot) {
+                                    // ✅ Clear any previous "My Classes" submenu
+                                    Menu menu = navigationView.getMenu();
+                                    // Remove previous dynamic submenu (if any) by title
+                                    for (int i = 0; i < menu.size(); i++) {
+                                        MenuItem mi = menu.getItem(i);
+                                        if (mi.hasSubMenu() && mi.getTitle().equals("My Classes")) {
+                                            menu.removeItem(mi.getItemId());
+                                        }
+                                    }
+
+                                    // Create "My Classes" submenu
+                                    SubMenu myClassesSubMenu = menu.addSubMenu("My Classes");
+
+                                    for (DataSnapshot snap : snapshot.getChildren()) {
+                                        String code = snap.child("code").getValue(String.class);
+                                        String courseName = snap.child("courseName").getValue(String.class);
+                                        String specializationName = snap.child("specializationName").getValue(String.class);
+                                        String yearName = snap.child("yearName").getValue(String.class);
+                                        String sectionName = snap.child("sectionName").getValue(String.class);
+
+                                        if (code != null
+                                                && courseName != null && specializationName != null
+                                                && yearName != null && sectionName != null
+                                                && courseName.equals(student.getCourseName())
+                                                && specializationName.equals(student.getSpecializationName())
+                                                && yearName.equals(student.getYearName())
+                                                && sectionName.equals(student.getSectionName())) {
+
+                                            MenuItem item = myClassesSubMenu.add(code);
+                                            item.setOnMenuItemClickListener(menuItem -> {
+                                                Toast.makeText(StudentDashboardActivity.this, "Selected: " + code, Toast.LENGTH_SHORT).show();
+                                                drawerLayout.closeDrawer(GravityCompat.START);
+                                                return true;
+                                            });
+                                        }
+                                    }
+
+                                    navigationView.invalidate();
+                                }
+
+                                @Override
+                                public void onCancelled(@NonNull DatabaseError error) { }
+                            });
+                        }
+                    }
+
+                    @Override
+                    public void onCancelled(@NonNull DatabaseError error) { }
+                });
+    }
+
+
+
+
+
 }

@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Create New Activity"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="16dp"/>
+
+        <EditText
+            android:id="@+id/etActivityTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Activity Title"/>
+
+        <EditText
+            android:id="@+id/etActivityDescription"
+            android:layout_width="match_parent"
+            android:layout_height="120dp"
+            android:hint="Activity Description"
+            android:gravity="top"
+            android:inputType="textMultiLine"/>
+
+        <EditText
+            android:id="@+id/etDueDate"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Due Date (yyyy-MM-dd)"
+            android:focusable="false"/>
+
+        <Button
+            android:id="@+id/btnPickDate"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Pick Due Date"
+            android:layout_marginTop="8dp"/>
+        <Spinner
+            android:id="@+id/spTargetCourseSection"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:spinnerMode="dropdown"
+            android:layout_marginTop="16dp"/>
+
+        <Spinner
+            android:id="@+id/spTargetSubject"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:spinnerMode="dropdown"
+            android:layout_marginTop="16dp"/>
+
+
+        <Button
+            android:id="@+id/btnCreateActivity"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Post Activity"
+            android:layout_marginTop="16dp"/>
+
+    </LinearLayout>
+</ScrollView>

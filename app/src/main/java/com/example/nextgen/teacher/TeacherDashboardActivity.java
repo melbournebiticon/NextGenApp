@@ -86,7 +86,7 @@ public class TeacherDashboardActivity extends AppCompatActivity implements Navig
     TextView tvTeacherNameDisplay, tvTeacherIdDisplay, tvActiveExamsCount, tvRecentExamTitle;
 
     // Dashboard cards (Quick Actions)
-    CardView cardManageExam, cardManageExaminees, cardViewProfile;
+    CardView cardManageExam, cardManageExaminees, cardCreateActivity, cardViewProfile;
 
     // NEW: Variable para hawakan ang reference ng Profile icon
     private MenuItem profileMenuItem;
@@ -140,11 +140,18 @@ public class TeacherDashboardActivity extends AppCompatActivity implements Navig
 
         // Cards
         cardManageExam = findViewById(R.id.cardManageExam);
+        cardCreateActivity = findViewById(R.id.cardCreateActivity);
         cardManageExaminees = findViewById(R.id.cardManageExaminees);
         cardViewProfile = findViewById(R.id.cardViewProfile);
 
         // Card actions
         cardManageExam.setOnClickListener(v -> startActivity(new Intent(this, ManageExamActivity.class)));
+
+        cardCreateActivity.setOnClickListener(v -> {
+            Intent intent = new Intent(this, CreateActivityActivity.class);
+            startActivity(intent);
+        });
+
         cardManageExaminees.setOnClickListener(v -> startActivity(new Intent(this, ViewStudentsActivity.class)));
         cardViewProfile.setOnClickListener(v -> openProfile()); // Quick action card also opens profile
 

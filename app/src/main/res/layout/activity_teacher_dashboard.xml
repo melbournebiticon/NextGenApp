@@ -313,10 +313,9 @@
                         android:orientation="vertical">
 
                         <androidx.cardview.widget.CardView
-                            android:id="@+id/cardManageExams"
+                            android:id="@+id/cardCreateActivity"
                             android:layout_width="72dp"
                             android:layout_height="72dp"
-                            app:cardBackgroundColor="#FFFFFF"
                             app:cardCornerRadius="36dp"
                             app:cardElevation="4dp">
 
@@ -324,17 +323,17 @@
                                 android:layout_width="36dp"
                                 android:layout_height="36dp"
                                 android:layout_gravity="center"
-                                android:contentDescription="Manage Exams Icon"
-                                android:src="@drawable/ic_manage"
-                                android:tint="#0D47A1" />
+                                android:src="@drawable/ic_add"
+                                android:tint="#0D47A1"/>
                         </androidx.cardview.widget.CardView>
+
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="8dp"
                             android:gravity="center"
-                            android:text="Manage Exams"
+                            android:text="Create Activity"
                             android:textColor="#0D47A1"
                             android:textSize="12sp"
                             android:textStyle="bold" />
