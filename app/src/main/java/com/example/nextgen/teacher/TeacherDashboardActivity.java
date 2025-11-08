@@ -41,6 +41,24 @@ import androidx.annotation.NonNull;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
+import android.util.Base64;
+
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffXfermode;
+import android.graphics.Rect;
+import android.graphics.RectF;
+
+
+
+
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -158,8 +176,59 @@ public class TeacherDashboardActivity extends AppCompatActivity implements Navig
         MenuInflater inflater = getMenuInflater();
         inflater.inflate(R.menu.toolbar_action_menu, menu);
         profileMenuItem = menu.findItem(R.id.action_profile);
+
+        loadToolbarProfileIcon();
+
         return true;
     }
+    private void loadToolbarProfileIcon() {
+        String teacherId = sessionManager.getUserId(); // ✅ Use session, not Intent
+        if (teacherId == null || teacherId.isEmpty()) {
+            profileMenuItem.setIcon(R.drawable.tc_profile);
+            return;
+        }
+
+        DatabaseReference teacherRef = FirebaseDatabase.getInstance()
+                .getReference("Teachers")
+                .child(teacherId);
+
+        teacherRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                String base64Image = snapshot.child("profileImage").getValue(String.class);
+
+                if (base64Image != null && !base64Image.isEmpty()) {
+                    try {
+                        // Clean up possible Base64 prefix
+                        String pureBase64 = base64Image.replaceAll("^data:image/.*;base64,", "").trim();
+                        pureBase64 = pureBase64.replaceAll("\\s+", "");
+                        byte[] decodedBytes = Base64.decode(pureBase64, Base64.DEFAULT);
+                        Bitmap bitmap = BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.length);
+
+                        if (bitmap != null && profileMenuItem != null) {
+                            Bitmap circularBitmap = getCircularBitmap(bitmap);
+                            Drawable drawable = new BitmapDrawable(getResources(), circularBitmap);
+                            profileMenuItem.setIcon(drawable);
+
+                        } else {
+                            profileMenuItem.setIcon(R.drawable.tc_profile);
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        profileMenuItem.setIcon(R.drawable.tc_profile);
+                    }
+                } else {
+                    profileMenuItem.setIcon(R.drawable.tc_profile);
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                profileMenuItem.setIcon(R.drawable.tc_profile);
+            }
+        });
+    }
+
 
     @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
@@ -228,42 +297,39 @@ public class TeacherDashboardActivity extends AppCompatActivity implements Navig
                     String email = snapshot.child("email").getValue(String.class);
                     String birthday = snapshot.child("birthday").getValue(String.class);
 
-                    // Handle course display list
-                    String courseDisplay = "No Course";
-                    if (snapshot.child("courseDisplays").exists()) {
-                        Object val = snapshot.child("courseDisplays").getValue();
-                        if (val instanceof List) {
-                            List<String> list = (List<String>) val;
-                            courseDisplay = String.join(", ", list);
+                    // Base64 profile image
+                    String base64Image = snapshot.child("profileImage").getValue(String.class);
+                    if (base64Image != null && !base64Image.isEmpty()) {
+                        try {
+                            byte[] decodedBytes = Base64.decode(base64Image, Base64.NO_WRAP);
+                            Bitmap bitmap = BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.length);
+
+                            // Make the bitmap circular
+                            Bitmap circularBitmap = getCircularBitmap(bitmap);
+
+                            // Apply to both header and top card
+                            navHeaderImage.setImageBitmap(circularBitmap);
+                            ImageView imgProfile = findViewById(R.id.imgProfilePicture);
+                            imgProfile.setImageBitmap(circularBitmap);
+
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                            navHeaderImage.setImageResource(R.drawable.tc_profile);
                         }
+                    } else {
+                        navHeaderImage.setImageResource(R.drawable.tc_profile);
                     }
 
-                    // Handle subjects list
-                    String subjectsText = "No subjects assigned";
-                    if (snapshot.child("assignedSubjects").exists()) {
-                        Object val = snapshot.child("assignedSubjects").getValue();
-                        if (val instanceof List) {
-                            List<String> list = (List<String>) val;
-                            subjectsText = String.join(", ", list);
-                        }
-                    }
-
-                    // Update UI
+                    // Update text info
                     tvTeacherId.setText(id != null ? id : teacherId);
                     tvFullName.setText(fullName != null ? fullName : "No Name");
                     tvEmail.setText(email != null ? email : "No Email");
                     tvBirthday.setText(birthday != null ? birthday : "No Birthday");
-                    tvCourse.setText(courseDisplay);
-                    tvSubjects.setText(subjectsText);
 
-                    // Header info
                     navHeaderUsername.setText(fullName != null ? fullName : "Teacher");
-                    navHeaderEmail.setText(email != null ? email : "No email");
-
-                    // Dashboard top info
+                    navHeaderEmail.setText(email != null ? email : "No Email");
                     tvTeacherNameDisplay.setText("Welcome, " + (fullName != null ? fullName : "Teacher Name"));
                     tvTeacherIdDisplay.setText("ID: " + (id != null ? id : teacherId));
-                    tvActiveExamsCount = findViewById(R.id.tvActiveExamsCount);
 
                 } else {
                     Toast.makeText(TeacherDashboardActivity.this, "Teacher info not found", Toast.LENGTH_SHORT).show();
@@ -276,6 +342,8 @@ public class TeacherDashboardActivity extends AppCompatActivity implements Navig
             }
         });
     }
+
+
 
     private void loadExamData(String teacherId) {
         DatabaseReference examsRef = FirebaseDatabase.getInstance()
@@ -514,6 +582,27 @@ public class TeacherDashboardActivity extends AppCompatActivity implements Navig
         });
     }
 
+
+    private Bitmap getCircularBitmap(Bitmap bitmap) {
+        int size = Math.min(bitmap.getWidth(), bitmap.getHeight());
+        Bitmap output = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
+
+        Canvas canvas = new Canvas(output);
+        final Paint paint = new Paint();
+        final Rect rect = new Rect(0, 0, size, size);
+        final RectF rectF = new RectF(rect);
+
+        float radius = size / 2f;
+        paint.setAntiAlias(true);
+        canvas.drawARGB(0, 0, 0, 0);
+        paint.setColor(Color.BLACK);
+        canvas.drawOval(rectF, paint);
+
+        paint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC_IN));
+        canvas.drawBitmap(bitmap, null, rect, paint);
+
+        return output;
+    }
 
 
 
