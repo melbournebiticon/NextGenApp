@@ -76,7 +76,7 @@ public class MainActivity extends AppCompatActivity {
                         public void onDataChange(@NonNull DataSnapshot snapshot) {
                             if (snapshot.exists()) {
                                 for (DataSnapshot teacherSnap : snapshot.getChildren()) {
-                                    String teacherId = teacherSnap.child("id").getValue(String.class);
+                                    final String teacherId = teacherSnap.child("id").getValue(String.class);
                                     String teacherEmail = teacherSnap.child("email").getValue(String.class);
 
                                     if (teacherEmail != null) {
@@ -155,18 +155,33 @@ public class MainActivity extends AppCompatActivity {
                 public void onDataChange(@NonNull DataSnapshot snapshot) {
                     if (snapshot.exists()) {
                         String teacherEmail = snapshot.child("email").getValue(String.class);
-                        String teacherIdFromDb = snapshot.child("id").getValue(String.class);
+                        final String teacherIdFromDb = snapshot.child("id").getValue(String.class);
                         if (teacherEmail != null && teacherIdFromDb != null) {
                             auth.signInWithEmailAndPassword(teacherEmail, password)
                                     .addOnCompleteListener(task -> {
                                         if (task.isSuccessful()) {
-                                            sessionManager.saveSession(teacherIdFromDb, "teacher");
-                                            redirectUser("teacher");
-                                            finish();
+                                            FirebaseUser user = auth.getCurrentUser();
+                                            if (user != null && user.isEmailVerified()) {
+                                                sessionManager.saveSession(teacherIdFromDb, "teacher");
+                                                redirectUser("teacher");
+                                                finish();
+                                            } else {
+                                                Toast.makeText(MainActivity.this, "Please verify your email first.", Toast.LENGTH_LONG).show();
+                                                if (user != null) {
+                                                    user.sendEmailVerification()
+                                                            .addOnCompleteListener(verifyTask -> {
+                                                                if (verifyTask.isSuccessful()) {
+                                                                    Toast.makeText(MainActivity.this, "Verification email sent. Check inbox.", Toast.LENGTH_LONG).show();
+                                                                }
+                                                            });
+                                                }
+                                                auth.signOut(); // prevent login until verified
+                                            }
                                         } else {
                                             Toast.makeText(MainActivity.this, "Login Failed: " + task.getException().getMessage(), Toast.LENGTH_LONG).show();
                                         }
                                     });
+
                         } else {
                             Toast.makeText(MainActivity.this, "Teacher email or ID missing in DB", Toast.LENGTH_SHORT).show();
                         }
@@ -182,13 +197,29 @@ public class MainActivity extends AppCompatActivity {
                                         auth.signInWithEmailAndPassword(studentEmail, password)
                                                 .addOnCompleteListener(task -> {
                                                     if (task.isSuccessful()) {
-                                                        sessionManager.saveSession(inputId, "student");
-                                                        redirectUser("student");
-                                                        finish();
+                                                        FirebaseUser user = auth.getCurrentUser();
+                                                        if (user != null && user.isEmailVerified()) {
+                                                            // Proceed if email is verified
+                                                            sessionManager.saveSession(inputId, "student");
+                                                            redirectUser("student");
+                                                            finish();
+                                                        } else {
+                                                            Toast.makeText(MainActivity.this, "Please verify your email first.", Toast.LENGTH_LONG).show();
+                                                            if (user != null) {
+                                                                user.sendEmailVerification()
+                                                                        .addOnCompleteListener(verifyTask -> {
+                                                                            if (verifyTask.isSuccessful()) {
+                                                                                Toast.makeText(MainActivity.this, "Verification email sent. Check inbox.", Toast.LENGTH_LONG).show();
+                                                                            }
+                                                                        });
+                                                            }
+                                                            auth.signOut(); // Prevent login until verified
+                                                        }
                                                     } else {
                                                         Toast.makeText(MainActivity.this, "Login Failed: " + task.getException().getMessage(), Toast.LENGTH_LONG).show();
                                                     }
                                                 });
+
                                     } else {
                                         Toast.makeText(MainActivity.this, "Student email not found in DB", Toast.LENGTH_SHORT).show();
                                     }

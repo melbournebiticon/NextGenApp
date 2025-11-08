@@ -4,6 +4,11 @@
         android:id="@+id/action_view_profile"
         android:title="View Profile" />
     <item
+        android:id="@+id/action_change_password"
+        android:title="Change Password"
+        android:icon="@drawable/ic_password" />
+
+    <item
         android:id="@+id/action_logout"
         android:title="Logout" />
 </menu>

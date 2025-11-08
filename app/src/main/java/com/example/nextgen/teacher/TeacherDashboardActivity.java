@@ -18,6 +18,7 @@ import androidx.appcompat.widget.Toolbar;
 import androidx.cardview.widget.CardView;
 import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
+import android.widget.ImageView;
 
 import com.example.nextgen.MainActivity;
 import com.example.nextgen.R;
@@ -29,6 +30,16 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
+import com.google.firebase.auth.FirebaseUser;
+
+
+import android.view.View;                   // For inflating the dialog layout
+import android.widget.EditText;             // For EditText fields in dialog
+import android.widget.Toast;                // For showing Toast messages
+import androidx.appcompat.app.AlertDialog;  // For AlertDialog
+import androidx.annotation.NonNull;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -51,9 +62,10 @@ public class TeacherDashboardActivity extends AppCompatActivity implements Navig
 
     // Header views for Side Navigation
     TextView navHeaderUsername, navHeaderEmail;
+    ImageView navHeaderImage;
 
     // Dashboard summary
-    TextView tvTeacherNameDisplay, tvTeacherIdDisplay, tvTotalExams, tvRecentExamTitle;
+    TextView tvTeacherNameDisplay, tvTeacherIdDisplay, tvActiveExamsCount, tvRecentExamTitle;
 
     // Dashboard cards (Quick Actions)
     CardView cardManageExam, cardManageExaminees, cardViewProfile;
@@ -88,6 +100,7 @@ public class TeacherDashboardActivity extends AppCompatActivity implements Navig
         View headerView = navigationView.getHeaderView(0);
         navHeaderUsername = headerView.findViewById(R.id.nav_header_username);
         navHeaderEmail = headerView.findViewById(R.id.nav_header_email);
+        navHeaderImage = headerView.findViewById(R.id.nav_header_image);
 
         // Firebase + Session
         sessionManager = new SessionManager(this);
@@ -122,6 +135,8 @@ public class TeacherDashboardActivity extends AppCompatActivity implements Navig
         if (teacherId != null) {
             loadTeacherInfo(teacherId);
             loadExamData(teacherId);
+            loadActiveExamsCount(sessionManager.getUserId());
+
         } else {
             Toast.makeText(this, "Teacher ID not found in session!", Toast.LENGTH_SHORT).show();
         }
@@ -182,16 +197,18 @@ public class TeacherDashboardActivity extends AppCompatActivity implements Navig
             int itemId = menuItem.getItemId();
 
             if (itemId == R.id.action_view_profile) {
-                openProfile(); // open profile screen
+                openProfile();
                 return true;
-
             } else if (itemId == R.id.action_logout) {
-                logout(); // perform logout
+                logout();
+                return true;
+            } else if (itemId == R.id.action_change_password) {
+                showChangePasswordDialog(); // call the dialog
                 return true;
             }
-
             return false;
         });
+
 
         popup.show();
     }
@@ -246,6 +263,7 @@ public class TeacherDashboardActivity extends AppCompatActivity implements Navig
                     // Dashboard top info
                     tvTeacherNameDisplay.setText("Welcome, " + (fullName != null ? fullName : "Teacher Name"));
                     tvTeacherIdDisplay.setText("ID: " + (id != null ? id : teacherId));
+                    tvActiveExamsCount = findViewById(R.id.tvActiveExamsCount);
 
                 } else {
                     Toast.makeText(TeacherDashboardActivity.this, "Teacher info not found", Toast.LENGTH_SHORT).show();
@@ -367,4 +385,138 @@ public class TeacherDashboardActivity extends AppCompatActivity implements Navig
             super.onBackPressed();
         }
     }
+    private void showChangePasswordDialog() {
+        View view = getLayoutInflater().inflate(R.layout.dialog_change_password, null);
+
+        EditText etOldPassword = view.findViewById(R.id.etOldPassword);
+        EditText etNewPassword = view.findViewById(R.id.etNewPassword);
+        EditText etConfirmPassword = view.findViewById(R.id.etConfirmPassword);
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Change Password")
+                .setView(view)
+                .setPositiveButton("Change", null)
+                .setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss());
+
+        AlertDialog dialog = builder.create();
+
+        dialog.setOnShowListener(d -> {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+                String oldPass = etOldPassword.getText().toString().trim();
+                String newPass = etNewPassword.getText().toString().trim();
+                String confirmPass = etConfirmPassword.getText().toString().trim();
+
+                if (oldPass.isEmpty() || newPass.isEmpty() || confirmPass.isEmpty()) {
+                    Toast.makeText(this, "Please fill all fields", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+                if (!newPass.equals(confirmPass)) {
+                    Toast.makeText(this, "Passwords do not match", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+                FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+                if (user == null || user.getEmail() == null) {
+                    Toast.makeText(this, "User not found", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+                // Re-authenticate
+                com.google.firebase.auth.AuthCredential credential =
+                        com.google.firebase.auth.EmailAuthProvider.getCredential(user.getEmail(), oldPass);
+
+                user.reauthenticate(credential)
+                        .addOnSuccessListener(aVoid -> {
+                            // Update Firebase Auth password
+                            user.updatePassword(newPass)
+                                    .addOnSuccessListener(aVoid1 -> {
+                                        // ALSO update Realtime Database password field as hash
+                                        String teacherId = tvTeacherId.getText().toString();
+                                        String hashedNewPass = hashPassword(newPass);
+
+                                        teachersRef.child(teacherId).child("password")
+                                                .setValue(hashedNewPass)
+                                                .addOnSuccessListener(aVoid2 -> {
+                                                    Toast.makeText(TeacherDashboardActivity.this,
+                                                            "Password updated in Auth and Database (hashed)!", Toast.LENGTH_SHORT).show();
+                                                    dialog.dismiss();
+                                                })
+                                                .addOnFailureListener(e ->
+                                                        Toast.makeText(TeacherDashboardActivity.this,
+                                                                "Auth updated but failed in DB: " + e.getMessage(), Toast.LENGTH_SHORT).show()
+                                                );
+                                    })
+
+                                    .addOnFailureListener(e ->
+                                            Toast.makeText(TeacherDashboardActivity.this,
+                                                    "Failed to update password in Auth: " + e.getMessage(), Toast.LENGTH_SHORT).show()
+                                    );
+                        })
+                        .addOnFailureListener(e ->
+                                Toast.makeText(TeacherDashboardActivity.this,
+                                        "Old password is incorrect", Toast.LENGTH_SHORT).show()
+                        );
+            });
+        });
+
+        dialog.show();
+    }
+
+    public static String hashPassword(String password) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(password.getBytes());
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hash) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) hexString.append('0');
+                hexString.append(hex);
+            }
+            return hexString.toString();
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    private void loadActiveExamsCount(String teacherId) {
+        DatabaseReference examsRef = FirebaseDatabase.getInstance().getReference("Exams").child(teacherId);
+
+        examsRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                int activeCount = 0;
+
+                for (DataSnapshot child : snapshot.getChildren()) {
+                    Boolean isActive = child.child("active").getValue(Boolean.class);
+                    Long scheduledAt = child.child("scheduledAt").getValue(Long.class);
+                    Integer durationMinutes = child.child("durationMinutes").getValue(Integer.class);
+
+                    if (scheduledAt == null) scheduledAt = 0L;
+                    if (durationMinutes == null) durationMinutes = 0;
+
+                    long examEndTime = scheduledAt + (durationMinutes * 60 * 1000);
+
+                    if (isActive != null && isActive && System.currentTimeMillis() <= examEndTime) {
+                        activeCount++;
+                    }
+                }
+
+                if (tvActiveExamsCount != null)
+                    tvActiveExamsCount.setText(String.valueOf(activeCount));
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                Toast.makeText(TeacherDashboardActivity.this, "Error: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+
+
+
+
+
 }
