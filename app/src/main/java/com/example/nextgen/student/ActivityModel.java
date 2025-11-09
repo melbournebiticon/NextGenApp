@@ -1,7 +1,7 @@
 package com.example.nextgen.student;
 
 public class ActivityModel {
-    private String id, title, description, dueDate, courseDisplay, subject;
+    private String id, title, description, dueDate, courseDisplay, subject, subjectId;
 
     public ActivityModel() {} // required for Firebase
 
@@ -11,6 +11,7 @@ public class ActivityModel {
     public String getDueDate() { return dueDate; }
     public String getCourseDisplay() { return courseDisplay; }
     public String getSubject() { return subject; }
+    public String getSubjectId() { return subjectId; }
 
     public void setId(String id) { this.id = id; }
     public void setTitle(String title) { this.title = title; }
@@ -18,4 +19,5 @@ public class ActivityModel {
     public void setDueDate(String dueDate) { this.dueDate = dueDate; }
     public void setCourseDisplay(String courseDisplay) { this.courseDisplay = courseDisplay; }
     public void setSubject(String subject) { this.subject = subject; }
+    public void setSubjectId(String subjectId) { this.subjectId = subjectId; }
 }

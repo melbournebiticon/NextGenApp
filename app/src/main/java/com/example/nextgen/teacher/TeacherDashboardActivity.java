@@ -10,6 +10,8 @@ import android.view.View;
 import android.widget.PopupMenu;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.util.Log;
+
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.ActionBarDrawerToggle;
@@ -137,6 +139,8 @@ public class TeacherDashboardActivity extends AppCompatActivity implements Navig
         tvTeacherNameDisplay = findViewById(R.id.tvTeacherNameDisplay);
         tvTeacherIdDisplay = findViewById(R.id.tvTeacherIdDisplay);
         tvRecentExamTitle = findViewById(R.id.tvRecentExamTitle);
+        tvActiveExamsCount = findViewById(R.id.tvActiveExamsCount);
+
 
         // Cards
         cardManageExam = findViewById(R.id.cardManageExam);
@@ -568,15 +572,20 @@ public class TeacherDashboardActivity extends AppCompatActivity implements Navig
                     Long scheduledAt = child.child("scheduledAt").getValue(Long.class);
                     Integer durationMinutes = child.child("durationMinutes").getValue(Integer.class);
 
-                    if (scheduledAt == null) scheduledAt = 0L;
-                    if (durationMinutes == null) durationMinutes = 0;
-
                     long examEndTime = scheduledAt + (durationMinutes * 60 * 1000);
+
+                    Log.d("ActiveExamDebug", "ExamID: " + child.getKey()
+                            + ", active: " + isActive
+                            + ", scheduledAt: " + scheduledAt
+                            + ", durationMinutes: " + durationMinutes
+                            + ", examEndTime: " + examEndTime
+                            + ", now: " + System.currentTimeMillis());
 
                     if (isActive != null && isActive && System.currentTimeMillis() <= examEndTime) {
                         activeCount++;
                     }
                 }
+
 
                 if (tvActiveExamsCount != null)
                     tvActiveExamsCount.setText(String.valueOf(activeCount));

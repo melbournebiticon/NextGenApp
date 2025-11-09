@@ -348,7 +348,7 @@ public class ManageExamActivity extends AppCompatActivity {
 
 
 
-
+// May nabago
     // ===== ADD EXAM DIALOG (Updated with Material TimePicker) =====
     private void showAddExamDialog() {
         View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_add_exam, null);
@@ -421,18 +421,18 @@ public class ManageExamActivity extends AppCompatActivity {
                     public void onDataChange(@NonNull DataSnapshot snapshot) {
                         subjectList.clear();
                         for (DataSnapshot subjectSnap : snapshot.getChildren()) {
+                            String subjectId = subjectSnap.getKey(); // get Firebase key as ID
                             String name = subjectSnap.child("name").getValue(String.class);
                             String courseName = subjectSnap.child("courseName").getValue(String.class);
                             String specializationName = subjectSnap.child("specializationName").getValue(String.class);
                             String yearName = subjectSnap.child("yearName").getValue(String.class);
                             String sectionName = subjectSnap.child("sectionName").getValue(String.class);
 
-
-
                             String display = courseName + " - " + specializationName + " - " + yearName + " - " + sectionName;
 
-                            if (display.equals(selectedCourseDisplay) && assignedSubjects.contains(name)) {
-                                subjectList.add(name);
+                            // ✅ Check if this subject ID is assigned to the teacher AND course matches
+                            if (display.equals(selectedCourseDisplay) && assignedSubjects.contains(subjectId)) {
+                                subjectList.add(name); // add name to spinner
                             }
                         }
                         if (subjectList.isEmpty()) subjectList.add("No subjects found for this course");
@@ -560,6 +560,7 @@ public class ManageExamActivity extends AppCompatActivity {
 
 
     // ===== EDIT EXAM DIALOG (Updated with Material TimePicker) =====
+   // May bagyo may bagyo o May bago na - May nabago
     private void showEditExamDialog(Exam exam) {
         View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_add_exam, null);
 
@@ -577,15 +578,37 @@ public class ManageExamActivity extends AppCompatActivity {
         if (courseIndex >= 0) spCourse.setSelection(courseIndex);
 
 
-        ArrayAdapter<String> subjectAdapter = new ArrayAdapter<>(this,
-                android.R.layout.simple_spinner_dropdown_item, assignedSubjects);
-        spSubject.setAdapter(subjectAdapter);
+        ArrayList<String> subjectNames = new ArrayList<>();
 
-        etExamName.setText(exam.getExamName());
+        DatabaseReference subjectsRef = FirebaseDatabase.getInstance().getReference("Subjects");
+        subjectsRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                subjectNames.clear();
 
+                for (DataSnapshot subjectSnap : snapshot.getChildren()) {
+                    String subjectId = subjectSnap.getKey();
+                    String subjectName = subjectSnap.child("name").getValue(String.class);
 
-        int subjectIndex = assignedSubjects.indexOf(exam.getSubject());
-        if (subjectIndex >= 0) spSubject.setSelection(subjectIndex);
+                    // Only show subjects assigned to this teacher
+                    if (assignedSubjects.contains(subjectId)) {
+                        subjectNames.add(subjectName);
+                    }
+                }
+
+                if (subjectNames.isEmpty()) subjectNames.add("No subjects found");
+
+                ArrayAdapter<String> adapter = new ArrayAdapter<>(ManageExamActivity.this,
+                        android.R.layout.simple_spinner_dropdown_item, subjectNames);
+                spSubject.setAdapter(adapter);
+
+                int currentIndex = subjectNames.indexOf(exam.getSubject());
+                if (currentIndex >= 0) spSubject.setSelection(currentIndex);
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {}
+        });
 
         String[] durations = {"30 minutes", "60 minutes", "120 minutes"};
         spDuration.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, durations));

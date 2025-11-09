@@ -40,6 +40,7 @@ public class CreateActivityActivity extends AppCompatActivity {
 
     ArrayList<String> courseDisplayList = new ArrayList<>();
     ArrayList<String> assignedSubjects = new ArrayList<>();
+    ArrayList<String> subjectIdList = new ArrayList<>();
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -129,7 +130,7 @@ public class CreateActivityActivity extends AppCompatActivity {
         });
     }
 
-    private void loadSubjectsForCourse(String courseDisplay) {
+    private void loadSubjectsForCourse(String selectedCourseDisplay) {
         ArrayList<String> subjectList = new ArrayList<>();
         ArrayAdapter<String> subjectAdapter = new ArrayAdapter<>(this,
                 android.R.layout.simple_spinner_dropdown_item, subjectList);
@@ -139,20 +140,30 @@ public class CreateActivityActivity extends AppCompatActivity {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 subjectList.clear();
-                for (DataSnapshot subjectSnap : snapshot.getChildren()) {
-                    String subjectName = subjectSnap.child("name").getValue(String.class);
-                    String courseName = subjectSnap.child("courseName").getValue(String.class);
-                    String specialization = subjectSnap.child("specializationName").getValue(String.class);
-                    String year = subjectSnap.child("yearName").getValue(String.class);
-                    String section = subjectSnap.child("sectionName").getValue(String.class);
+                subjectIdList.clear(); // ✅ clear previous IDs
 
-                    String fullCourseDisplay = courseName + " - " + specialization + " - " + year + " - " + section;
-                    if (fullCourseDisplay.equals(courseDisplay) && assignedSubjects.contains(subjectName)) {
-                        subjectList.add(subjectName);
+                for (DataSnapshot subjectSnap : snapshot.getChildren()) {
+                    String subjectId = subjectSnap.getKey(); // Firebase key as ID
+                    String name = subjectSnap.child("name").getValue(String.class);
+                    String courseName = subjectSnap.child("courseName").getValue(String.class);
+                    String specializationName = subjectSnap.child("specializationName").getValue(String.class);
+                    String yearName = subjectSnap.child("yearName").getValue(String.class);
+                    String sectionName = subjectSnap.child("sectionName").getValue(String.class);
+
+                    String display = courseName + " - " + specializationName + " - " + yearName + " - " + sectionName;
+
+                    // ✅ Include only subjects assigned to this teacher and matching selected course
+                    if (display.equals(selectedCourseDisplay) && assignedSubjects.contains(subjectId)) {
+                        subjectList.add(name);
+                        subjectIdList.add(subjectId); // ✅ store the corresponding subject ID
                     }
                 }
 
-                if (subjectList.isEmpty()) subjectList.add("No subjects found for this course");
+                if (subjectList.isEmpty()) {
+                    subjectList.add("No subjects found for this course");
+                    subjectIdList.add(""); // to keep alignment
+                }
+
                 subjectAdapter.notifyDataSetChanged();
             }
 
@@ -162,6 +173,7 @@ public class CreateActivityActivity extends AppCompatActivity {
             }
         });
     }
+
 
     private void createActivity() {
         String title = etTitle.getText().toString().trim();
@@ -188,6 +200,7 @@ public class CreateActivityActivity extends AppCompatActivity {
         activityMap.put("dueDate", dueDate);
         activityMap.put("courseDisplay", selectedCourse);
         activityMap.put("subject", selectedSubject);
+        activityMap.put("subjectId", getSelectedSubjectId());
         activityMap.put("createdAt", System.currentTimeMillis());
 
         if (activityId != null) {
@@ -200,4 +213,12 @@ public class CreateActivityActivity extends AppCompatActivity {
                             "Failed: " + e.getMessage(), Toast.LENGTH_SHORT).show());
         }
     }
+    private String getSelectedSubjectId() {
+        int pos = spTargetSubject.getSelectedItemPosition();
+        if (pos >= 0 && pos < subjectIdList.size()) {
+            return subjectIdList.get(pos);
+        }
+        return null;
+    }
+
 }

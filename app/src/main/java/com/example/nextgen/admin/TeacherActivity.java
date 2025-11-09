@@ -258,7 +258,7 @@ public class TeacherActivity extends AppCompatActivity {
                         });
             }
         });
-
+        // May nabago
         // Show dialog
         new AlertDialog.Builder(this)
                 .setTitle("Add Teacher")
@@ -279,15 +279,16 @@ public class TeacherActivity extends AppCompatActivity {
                         return;
                     }
 
-                    List<String> assignedSubjects = new ArrayList<>();
+                    // Get selected subjects → store IDs instead of names
+                    List<String> assignedSubjectIds = new ArrayList<>();
                     for (SubjectModel s : subjectAdapterDialog.getSelectedSubjects()) {
-                        assignedSubjects.add(s.getName());
+                        assignedSubjectIds.add(s.getId());  // ✅ store ID
                     }
 
-                    // Generate teacher ID and create teacher
+// Generate teacher ID and create teacher
                     generateTeacherId(teacherId -> {
                         String[] parts = birthday.split("-"); // [YYYY, MM, DD]
-                        String year = parts[0];  // kunin last 2 digits ng year
+                        String year = parts[0];
                         String month = parts[1];
                         String day = parts[2];
                         String password = month + day + year; // MMDDYY format
@@ -301,9 +302,7 @@ public class TeacherActivity extends AppCompatActivity {
                                             c.getSpecializationName() + " - " +
                                             c.getYearName() + " - " +
                                             c.getSectionName()
-
                             );
-
                         }
 
                         TeacherModel teacher = new TeacherModel(
@@ -314,7 +313,7 @@ public class TeacherActivity extends AppCompatActivity {
                                 email,
                                 courseIds,
                                 courseDisplays,
-                                assignedSubjects,
+                                assignedSubjectIds, // ✅ use IDs
                                 password,
                                 null
                         );
@@ -323,26 +322,22 @@ public class TeacherActivity extends AppCompatActivity {
                                 .addOnCompleteListener(authTask -> {
                                     if (authTask.isSuccessful()) {
                                         FirebaseUser firebaseUser = authTask.getResult().getUser();
-                                        String uid = firebaseUser.getUid(); // ✅ get actual UID
-                                        teacher.setUid(uid); // ✅ assign UID to the object
+                                        String uid = firebaseUser.getUid();
+                                        teacher.setUid(uid);
 
-                                        // Save role under "Users"
+                                        // Save role
                                         usersRef.child(uid).child("role").setValue("teacher");
 
                                         // Save full teacher record
                                         teachersRef.child(teacherId).setValue(teacher)
-                                                .addOnSuccessListener(aVoid ->
-                                                        Toast.makeText(this, "Teacher added successfully", Toast.LENGTH_SHORT).show()
-                                                )
-                                                .addOnFailureListener(e ->
-                                                        Toast.makeText(this, "Failed to save teacher: " + e.getMessage(), Toast.LENGTH_SHORT).show()
-                                                );
+                                                .addOnSuccessListener(aVoid -> Toast.makeText(this, "Teacher added successfully", Toast.LENGTH_SHORT).show())
+                                                .addOnFailureListener(e -> Toast.makeText(this, "Failed to save teacher: " + e.getMessage(), Toast.LENGTH_SHORT).show());
                                     } else {
                                         Toast.makeText(this, "Auth failed: " + authTask.getException().getMessage(), Toast.LENGTH_SHORT).show();
                                     }
                                 });
-
                     });
+
                 })
                 .setNegativeButton("Cancel", null)
                 .show();
@@ -643,7 +638,7 @@ public class TeacherActivity extends AppCompatActivity {
 
                 if (teacher.getCourseIds() != null)
                     editCourseAdapter.setPreselectedCoursesById(teacher.getCourseIds());
-
+                // May nabago
                 // Load subjects of existing courses
                 if (teacher.getCourseIds() != null && !teacher.getCourseIds().isEmpty()) {
                     final List<SubjectModel> loadedSubjects = new ArrayList<>();
@@ -661,8 +656,16 @@ public class TeacherActivity extends AppCompatActivity {
                                         }
                                         loadedCount[0]++;
                                         if (loadedCount[0] == teacher.getCourseIds().size()) {
+                                            // Map IDs → names for pre-selection
+                                            List<String> preselectedNames = new ArrayList<>();
+                                            for (SubjectModel s : loadedSubjects) {
+                                                if (teacher.getAssignedSubjects().contains(s.getId())) {
+                                                    preselectedNames.add(s.getName());
+                                                }
+                                            }
+
                                             editSubjectAdapter.updateSubjects(loadedSubjects);
-                                            editSubjectAdapter.setPreselectedSubjects(teacher.getAssignedSubjects());
+                                            editSubjectAdapter.setPreselectedSubjects(preselectedNames);
                                         }
                                     }
 
@@ -671,6 +674,7 @@ public class TeacherActivity extends AppCompatActivity {
                                 });
                     }
                 }
+
             }
 
             @Override
@@ -722,8 +726,7 @@ public class TeacherActivity extends AppCompatActivity {
                 .show();
     }
 
-
-
+    // May nabago
     private void updateTeacherData(
             TeacherModel teacher,
             EditText etEditFullName,
@@ -732,20 +735,19 @@ public class TeacherActivity extends AppCompatActivity {
             CourseSelectionAdapter editCourseAdapter,
             SubjectSelectionAdapter editSubjectAdapter
     ) {
-        String oldEmail = teacher.getEmail();
-        String oldPassword = teacher.getBirthday().replaceAll("[^0-9]", "");
-
         teacher.setFullName(etEditFullName.getText().toString().trim());
         teacher.setBirthday(etEditBirthday.getText().toString().trim());
         teacher.setEmail(etEditEmail.getText().toString().trim());
         teacher.setDisplayName(getDisplayName(teacher.getFullName()));
 
+        // Update profile image if changed
         if (selectedImageUri != null) {
             String base64Image = convertImageToBase64(selectedImageUri);
             if (base64Image != null)
                 teacher.setProfileImage(base64Image);
         }
 
+        // Courses
         List<CourseModel> updatedCourses = editCourseAdapter.getSelectedCourses();
         List<String> courseIds = new ArrayList<>();
         List<String> courseDisplays = new ArrayList<>();
@@ -756,15 +758,20 @@ public class TeacherActivity extends AppCompatActivity {
         teacher.setCourseIds(courseIds);
         teacher.setCourseDisplays(courseDisplays);
 
-        List<String> updatedSubjects = new ArrayList<>();
+        // Subjects → store IDs
+        List<String> updatedSubjectIds = new ArrayList<>();
         for (SubjectModel s : editSubjectAdapter.getSelectedSubjects()) {
-            updatedSubjects.add(s.getName());
+            updatedSubjectIds.add(s.getId());
         }
-        teacher.setAssignedSubjects(updatedSubjects);
+        teacher.setAssignedSubjects(updatedSubjectIds);
 
-        teachersRef.child(teacher.getId()).setValue(teacher)
-                .addOnSuccessListener(aVoid -> Toast.makeText(this, "Teacher updated", Toast.LENGTH_SHORT).show());
+        // Save to Firebase
+        teachersRef.child(teacher.getId())
+                .setValue(teacher)
+                .addOnSuccessListener(aVoid -> Toast.makeText(this, "Teacher updated", Toast.LENGTH_SHORT).show())
+                .addOnFailureListener(e -> Toast.makeText(this, "Update failed: " + e.getMessage(), Toast.LENGTH_SHORT).show());
     }
+
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {

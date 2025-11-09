@@ -470,9 +470,9 @@ public class StudentDashboardActivity extends AppCompatActivity
                             subjectsRef.addListenerForSingleValueEvent(new ValueEventListener() {
                                 @Override
                                 public void onDataChange(@NonNull DataSnapshot snapshot) {
-                                    // ✅ Clear any previous "My Classes" submenu
                                     Menu menu = navigationView.getMenu();
-                                    // Remove previous dynamic submenu (if any) by title
+
+                                    // Remove previous dynamic submenu
                                     for (int i = 0; i < menu.size(); i++) {
                                         MenuItem mi = menu.getItem(i);
                                         if (mi.hasSubMenu() && mi.getTitle().equals("My Classes")) {
@@ -480,17 +480,18 @@ public class StudentDashboardActivity extends AppCompatActivity
                                         }
                                     }
 
-                                    // Create "My Classes" submenu
                                     SubMenu myClassesSubMenu = menu.addSubMenu("My Classes");
 
                                     for (DataSnapshot snap : snapshot.getChildren()) {
-                                        String code = snap.child("code").getValue(String.class);
+                                        String subjectCode = snap.child("code").getValue(String.class);
+                                        String subjectName = snap.child("name").getValue(String.class);
                                         String courseName = snap.child("courseName").getValue(String.class);
                                         String specializationName = snap.child("specializationName").getValue(String.class);
                                         String yearName = snap.child("yearName").getValue(String.class);
                                         String sectionName = snap.child("sectionName").getValue(String.class);
 
-                                        if (code != null
+                                        // Match student course/section
+                                        if (subjectCode != null && subjectName != null
                                                 && courseName != null && specializationName != null
                                                 && yearName != null && sectionName != null
                                                 && courseName.equals(student.getCourseName())
@@ -498,9 +499,17 @@ public class StudentDashboardActivity extends AppCompatActivity
                                                 && yearName.equals(student.getYearName())
                                                 && sectionName.equals(student.getSectionName())) {
 
-                                            MenuItem item = myClassesSubMenu.add(code);
+                                            final String finalSubjectName = subjectName; // Pass to activity
+                                            final String courseDisplay = courseName + " - " + specializationName + " - " + yearName + " - " + sectionName;
+
+                                            // Display subjectCode, but click passes subjectName
+                                            MenuItem item = myClassesSubMenu.add(subjectCode);
                                             item.setOnMenuItemClickListener(menuItem -> {
-                                                Toast.makeText(StudentDashboardActivity.this, "Selected: " + code, Toast.LENGTH_SHORT).show();
+                                                Intent intent = new Intent(StudentDashboardActivity.this, StudentActivitiesActivity.class);
+                                                intent.putExtra("subjectName", finalSubjectName);
+                                                intent.putExtra("subjectId", snap.getKey());
+                                                intent.putExtra("courseDisplay", courseDisplay);
+                                                startActivity(intent);
                                                 drawerLayout.closeDrawer(GravityCompat.START);
                                                 return true;
                                             });
@@ -520,6 +529,8 @@ public class StudentDashboardActivity extends AppCompatActivity
                     public void onCancelled(@NonNull DatabaseError error) { }
                 });
     }
+
+
 
 
 

@@ -217,9 +217,5 @@ public class ExamMonitorActivity extends AppCompatActivity {
     }
 
 
-
-
-
-
 }
 

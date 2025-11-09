@@ -52,7 +52,6 @@
         <activity android:name=".student.StudentProfileActivity" />
         <activity android:name=".student.TakeExamActivity" />
         <activity android:name=".student.StudentQRScannerActivity" />
-        <activity android:name=".student.StudentClassesActivity" />
         <activity android:name=".student.StudentActivitiesActivity" />
 
 

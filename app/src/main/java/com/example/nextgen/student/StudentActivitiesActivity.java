@@ -22,6 +22,9 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 import com.google.firebase.auth.FirebaseAuth;
 import com.example.nextgen.admin.StudentModel;
+import android.widget.Button;
+
+import com.google.android.material.tabs.TabLayout;
 
 
 import java.util.ArrayList;
@@ -51,64 +54,48 @@ public class StudentActivitiesActivity extends AppCompatActivity {
 
         activitiesRef = FirebaseDatabase.getInstance().getReference("Activities");
 
-        loadStudentActivities();
+        String subjectId = getIntent().getStringExtra("subjectId"); // <-- get the Firebase key
+        String courseDisplay = getIntent().getStringExtra("courseDisplay");
+
+        if (subjectId == null || courseDisplay == null) {
+            Toast.makeText(this, "No subject selected.", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+
+        loadStudentActivities(subjectId, courseDisplay);
+
+
     }
 
-    private void loadStudentActivities() {
-        // Get current student UID from FirebaseAuth
-        String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
-        DatabaseReference studentsRef = FirebaseDatabase.getInstance().getReference("Students");
-
-        studentsRef.orderByChild("uid").equalTo(uid)
+    private void loadStudentActivities(String subjectId, String courseDisplay) {
+        activitiesRef.orderByChild("courseDisplay").equalTo(courseDisplay)
                 .addListenerForSingleValueEvent(new ValueEventListener() {
                     @Override
                     public void onDataChange(@NonNull DataSnapshot snapshot) {
-                        if (!snapshot.exists()) {
-                            Toast.makeText(StudentActivitiesActivity.this, "Student not found", Toast.LENGTH_SHORT).show();
-                            return;
+                        activityList.clear();
+                        for (DataSnapshot snap : snapshot.getChildren()) {
+                            ActivityModel activity = snap.getValue(ActivityModel.class);
+                            if (activity != null && subjectId.equals(activity.getSubjectId())) { // use subjectId
+                                activityList.add(activity);
+                            }
                         }
 
-                        for (DataSnapshot ds : snapshot.getChildren()) {
-                            StudentModel student = ds.getValue(StudentModel.class);
-                            if (student == null) continue;
-
-                            String studentCourseDisplay = student.getCourseName()
-                                    + " - " + student.getSpecializationName()
-                                    + " - " + student.getYearName()
-                                    + " - " + student.getSectionName();
-
-                            // Now fetch activities using the constructed string
-                            activitiesRef.orderByChild("courseDisplay").equalTo(studentCourseDisplay)
-                                    .addListenerForSingleValueEvent(new ValueEventListener() {
-                                        @Override
-                                        public void onDataChange(@NonNull DataSnapshot snapshot) {
-                                            activityList.clear();
-                                            for (DataSnapshot snap : snapshot.getChildren()) {
-                                                ActivityModel activity = snap.getValue(ActivityModel.class);
-                                                if (activity != null) activityList.add(activity);
-                                            }
-
-                                            if (activityList.isEmpty()) {
-                                                Toast.makeText(StudentActivitiesActivity.this, "No activities yet.", Toast.LENGTH_SHORT).show();
-                                            }
-
-                                            adapter.notifyDataSetChanged();
-                                        }
-
-                                        @Override
-                                        public void onCancelled(@NonNull DatabaseError error) {
-                                            Toast.makeText(StudentActivitiesActivity.this, "Failed to load activities", Toast.LENGTH_SHORT).show();
-                                        }
-                                    });
+                        if (activityList.isEmpty()) {
+                            Toast.makeText(StudentActivitiesActivity.this, "No activities for this subject.", Toast.LENGTH_SHORT).show();
                         }
+
+                        adapter.notifyDataSetChanged();
                     }
 
                     @Override
                     public void onCancelled(@NonNull DatabaseError error) {
-                        Toast.makeText(StudentActivitiesActivity.this, "Failed to fetch student", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(StudentActivitiesActivity.this, "Failed to load activities", Toast.LENGTH_SHORT).show();
                     }
                 });
     }
+
+
 
 
     // ===== RecyclerView Adapter =====
