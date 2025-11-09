@@ -35,6 +35,8 @@ public class CreateActivityActivity extends AppCompatActivity {
     Spinner spTargetCourse, spTargetSubject;
     Button btnPickDate, btnCreate;
     Calendar calendar;
+    String teacherName; // add this
+
     DatabaseReference activitiesRef, coursesRef, subjectsRef, teacherRef;
     SessionManager sessionManager;
 
@@ -106,6 +108,9 @@ public class CreateActivityActivity extends AppCompatActivity {
                 courseDisplayList.clear();
                 assignedSubjects.clear();
 
+                // Get teacher name
+                teacherName = snapshot.child("fullName").getValue(String.class); // assuming "name" field exists
+
                 for (DataSnapshot courseSnap : snapshot.child("courseDisplays").getChildren()) {
                     String course = courseSnap.getValue(String.class);
                     if (course != null) courseDisplayList.add(course);
@@ -128,6 +133,7 @@ public class CreateActivityActivity extends AppCompatActivity {
                 Toast.makeText(CreateActivityActivity.this, "Failed to load teacher data", Toast.LENGTH_SHORT).show();
             }
         });
+
     }
 
     private void loadSubjectsForCourse(String selectedCourseDisplay) {
@@ -195,6 +201,7 @@ public class CreateActivityActivity extends AppCompatActivity {
         Map<String, Object> activityMap = new HashMap<>();
         activityMap.put("id", activityId);
         activityMap.put("teacherId", teacherId);
+        activityMap.put("teacherName", teacherName);
         activityMap.put("title", title);
         activityMap.put("description", desc);
         activityMap.put("dueDate", dueDate);

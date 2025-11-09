@@ -455,6 +455,8 @@ public class StudentDashboardActivity extends AppCompatActivity
     private void showStudentSubjects() {
         String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
         DatabaseReference studentsRef = FirebaseDatabase.getInstance().getReference("Students");
+        DatabaseReference teachersRef = FirebaseDatabase.getInstance().getReference("Teachers");
+        DatabaseReference subjectsRef = FirebaseDatabase.getInstance().getReference("Subjects");
 
         studentsRef.orderByChild("uid").equalTo(uid)
                 .addListenerForSingleValueEvent(new ValueEventListener() {
@@ -466,57 +468,79 @@ public class StudentDashboardActivity extends AppCompatActivity
                             StudentModel student = ds.getValue(StudentModel.class);
                             if (student == null) continue;
 
-                            DatabaseReference subjectsRef = FirebaseDatabase.getInstance().getReference("Subjects");
-                            subjectsRef.addListenerForSingleValueEvent(new ValueEventListener() {
+                            // Step 1: Build a map of subjectId -> teacherName
+                            teachersRef.addListenerForSingleValueEvent(new ValueEventListener() {
                                 @Override
-                                public void onDataChange(@NonNull DataSnapshot snapshot) {
-                                    Menu menu = navigationView.getMenu();
-
-                                    // Remove previous dynamic submenu
-                                    for (int i = 0; i < menu.size(); i++) {
-                                        MenuItem mi = menu.getItem(i);
-                                        if (mi.hasSubMenu() && mi.getTitle().equals("My Classes")) {
-                                            menu.removeItem(mi.getItemId());
+                                public void onDataChange(@NonNull DataSnapshot teacherSnapshot) {
+                                    final java.util.Map<String, String> subjectTeacherMap = new java.util.HashMap<>();
+                                    for (DataSnapshot tSnap : teacherSnapshot.getChildren()) {
+                                        String teacherName = tSnap.child("fullName").getValue(String.class);
+                                        DataSnapshot assignedSubjects = tSnap.child("assignedSubjects");
+                                        if (assignedSubjects.exists()) {
+                                            for (DataSnapshot subSnap : assignedSubjects.getChildren()) {
+                                                String subId = subSnap.getValue(String.class);
+                                                if (subId != null) {
+                                                    subjectTeacherMap.put(subId, teacherName);
+                                                }
+                                            }
                                         }
                                     }
 
-                                    SubMenu myClassesSubMenu = menu.addSubMenu("My Classes");
 
-                                    for (DataSnapshot snap : snapshot.getChildren()) {
-                                        String subjectCode = snap.child("code").getValue(String.class);
-                                        String subjectName = snap.child("name").getValue(String.class);
-                                        String courseName = snap.child("courseName").getValue(String.class);
-                                        String specializationName = snap.child("specializationName").getValue(String.class);
-                                        String yearName = snap.child("yearName").getValue(String.class);
-                                        String sectionName = snap.child("sectionName").getValue(String.class);
+                                    // Step 2: Fetch subjects and use map
+                                    subjectsRef.addListenerForSingleValueEvent(new ValueEventListener() {
+                                        @Override
+                                        public void onDataChange(@NonNull DataSnapshot snapshot) {
+                                            Menu menu = navigationView.getMenu();
+                                            // Clear previous submenu
+                                            for (int i = 0; i < menu.size(); i++) {
+                                                MenuItem mi = menu.getItem(i);
+                                                if (mi.hasSubMenu() && mi.getTitle().equals("My Classes")) {
+                                                    menu.removeItem(mi.getItemId());
+                                                }
+                                            }
 
-                                        // Match student course/section
-                                        if (subjectCode != null && subjectName != null
-                                                && courseName != null && specializationName != null
-                                                && yearName != null && sectionName != null
-                                                && courseName.equals(student.getCourseName())
-                                                && specializationName.equals(student.getSpecializationName())
-                                                && yearName.equals(student.getYearName())
-                                                && sectionName.equals(student.getSectionName())) {
+                                            SubMenu myClassesSubMenu = menu.addSubMenu("My Classes");
 
-                                            final String finalSubjectName = subjectName; // Pass to activity
-                                            final String courseDisplay = courseName + " - " + specializationName + " - " + yearName + " - " + sectionName;
+                                            for (DataSnapshot snap : snapshot.getChildren()) {
+                                                final String subjectId = snap.getKey();
+                                                final String subjectCode = snap.child("code").getValue(String.class);
+                                                final String subjectName = snap.child("name").getValue(String.class);
+                                                final String courseName = snap.child("courseName").getValue(String.class);
+                                                final String specializationName = snap.child("specializationName").getValue(String.class);
+                                                final String yearName = snap.child("yearName").getValue(String.class);
+                                                final String sectionName = snap.child("sectionName").getValue(String.class);
 
-                                            // Display subjectCode, but click passes subjectName
-                                            MenuItem item = myClassesSubMenu.add(subjectCode);
-                                            item.setOnMenuItemClickListener(menuItem -> {
-                                                Intent intent = new Intent(StudentDashboardActivity.this, StudentActivitiesActivity.class);
-                                                intent.putExtra("subjectName", finalSubjectName);
-                                                intent.putExtra("subjectId", snap.getKey());
-                                                intent.putExtra("courseDisplay", courseDisplay);
-                                                startActivity(intent);
-                                                drawerLayout.closeDrawer(GravityCompat.START);
-                                                return true;
-                                            });
+                                                if (subjectCode != null && courseName != null
+                                                        && courseName.equals(student.getCourseName())
+                                                        && specializationName.equals(student.getSpecializationName())
+                                                        && yearName.equals(student.getYearName())
+                                                        && sectionName.equals(student.getSectionName())) {
+
+                                                    final String teacherName = subjectTeacherMap.getOrDefault(subjectId, "N/A");
+                                                    final String courseDisplay = courseName + " - " + specializationName + " - " + yearName + " - " + sectionName;
+
+                                                    MenuItem item = myClassesSubMenu.add(subjectCode);
+                                                    item.setOnMenuItemClickListener(menuItem -> {
+                                                        Intent intent = new Intent(StudentDashboardActivity.this, StudentActivitiesActivity.class);
+                                                        intent.putExtra("subjectName", subjectName);
+                                                        intent.putExtra("subjectCode", subjectCode);
+                                                        intent.putExtra("teacherName", teacherName);
+                                                        intent.putExtra("subjectId", subjectId);
+                                                        intent.putExtra("courseDisplay", courseDisplay);
+                                                        startActivity(intent);
+                                                        drawerLayout.closeDrawer(GravityCompat.START);
+                                                        return true;
+                                                    });
+                                                }
+                                            }
+
+                                            navigationView.invalidate();
                                         }
-                                    }
 
-                                    navigationView.invalidate();
+                                        @Override
+                                        public void onCancelled(@NonNull DatabaseError error) { }
+                                    });
                                 }
 
                                 @Override
@@ -529,6 +553,7 @@ public class StudentDashboardActivity extends AppCompatActivity
                     public void onCancelled(@NonNull DatabaseError error) { }
                 });
     }
+
 
 
 

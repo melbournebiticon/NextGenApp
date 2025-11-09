@@ -6,6 +6,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.Button;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -20,16 +21,9 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
-import com.google.firebase.auth.FirebaseAuth;
-import com.example.nextgen.admin.StudentModel;
-import android.widget.Button;
-
-import com.google.android.material.tabs.TabLayout;
-
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 public class StudentActivitiesActivity extends AppCompatActivity {
 
@@ -39,12 +33,23 @@ public class StudentActivitiesActivity extends AppCompatActivity {
     List<ActivityModel> activityList;
     ActivitiesAdapter adapter;
 
+    TextView tvSubjectCode, tvSubjectName, tvTeacherName;
+    Button btnPerformance;
+
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_student_activities);
 
         sessionManager = new SessionManager(this);
+
+        // 🟩 Header Views
+        tvSubjectCode = findViewById(R.id.tvSubjectCode);
+        tvSubjectName = findViewById(R.id.tvSubjectName);
+        tvTeacherName = findViewById(R.id.tvTeacherName);
+        btnPerformance = findViewById(R.id.btnPerformance);
+
+        // 🟦 RecyclerView setup
         recyclerView = findViewById(R.id.recyclerStudentActivities);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
 
@@ -54,18 +59,32 @@ public class StudentActivitiesActivity extends AppCompatActivity {
 
         activitiesRef = FirebaseDatabase.getInstance().getReference("Activities");
 
-        String subjectId = getIntent().getStringExtra("subjectId"); // <-- get the Firebase key
+        // 🟨 Get data from intent
+        String subjectId = getIntent().getStringExtra("subjectId");
         String courseDisplay = getIntent().getStringExtra("courseDisplay");
+        String subjectCode = getIntent().getStringExtra("subjectCode");
+        String subjectName = getIntent().getStringExtra("subjectName");
+        String teacherName = getIntent().getStringExtra("teacherName");
 
+        // 🟪 Validate
         if (subjectId == null || courseDisplay == null) {
             Toast.makeText(this, "No subject selected.", Toast.LENGTH_SHORT).show();
             finish();
             return;
         }
 
+        // 🟩 Display header info
+        tvSubjectCode.setText((subjectCode != null ? subjectCode : "N/A"));
+        tvSubjectName.setText((subjectName != null ? subjectName : "N/A"));
+        tvTeacherName.setText((teacherName != null ? teacherName : "N/A"));
+
+        // 🟦 Button action
+        btnPerformance.setOnClickListener(v ->
+                Toast.makeText(this, "Performance screen coming soon!", Toast.LENGTH_SHORT).show()
+        );
+
+        // 🟧 Load activities
         loadStudentActivities(subjectId, courseDisplay);
-
-
     }
 
     private void loadStudentActivities(String subjectId, String courseDisplay) {
@@ -76,7 +95,7 @@ public class StudentActivitiesActivity extends AppCompatActivity {
                         activityList.clear();
                         for (DataSnapshot snap : snapshot.getChildren()) {
                             ActivityModel activity = snap.getValue(ActivityModel.class);
-                            if (activity != null && subjectId.equals(activity.getSubjectId())) { // use subjectId
+                            if (activity != null && subjectId.equals(activity.getSubjectId())) {
                                 activityList.add(activity);
                             }
                         }
@@ -95,12 +114,8 @@ public class StudentActivitiesActivity extends AppCompatActivity {
                 });
     }
 
-
-
-
     // ===== RecyclerView Adapter =====
     private static class ActivitiesAdapter extends RecyclerView.Adapter<ActivitiesAdapter.ViewHolder> {
-
         private final List<ActivityModel> list;
 
         public ActivitiesAdapter(List<ActivityModel> list) {
@@ -121,6 +136,7 @@ public class StudentActivitiesActivity extends AppCompatActivity {
             holder.tvSubject.setText(activity.getSubject());
             holder.tvDueDate.setText(activity.getDueDate());
             holder.tvDescription.setText(activity.getDescription());
+            holder.tvTeacher.setText(activity.getTeacherName());
         }
 
         @Override
@@ -129,7 +145,7 @@ public class StudentActivitiesActivity extends AppCompatActivity {
         }
 
         static class ViewHolder extends RecyclerView.ViewHolder {
-            TextView tvTitle, tvSubject, tvDueDate, tvDescription;
+            TextView tvTitle, tvSubject, tvDueDate, tvDescription, tvTeacher;
 
             public ViewHolder(@NonNull View itemView) {
                 super(itemView);
@@ -137,7 +153,9 @@ public class StudentActivitiesActivity extends AppCompatActivity {
                 tvSubject = itemView.findViewById(R.id.tvActivitySubject);
                 tvDueDate = itemView.findViewById(R.id.tvActivityDueDate);
                 tvDescription = itemView.findViewById(R.id.tvActivityDescription);
+                tvTeacher = itemView.findViewById(R.id.tvActivityTeacher); // new
             }
+
         }
     }
 }
