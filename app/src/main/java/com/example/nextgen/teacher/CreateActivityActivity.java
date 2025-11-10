@@ -43,6 +43,7 @@ public class CreateActivityActivity extends AppCompatActivity {
     ArrayList<String> courseDisplayList = new ArrayList<>();
     ArrayList<String> assignedSubjects = new ArrayList<>();
     ArrayList<String> subjectIdList = new ArrayList<>();
+    ArrayList<String> subjectCodeList = new ArrayList<>();
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -73,8 +74,21 @@ public class CreateActivityActivity extends AppCompatActivity {
                     this,
                     (view, year, month, dayOfMonth) -> {
                         calendar.set(year, month, dayOfMonth);
-                        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
-                        etDueDate.setText(sdf.format(calendar.getTime()));
+
+                        // After picking date, open time picker
+                        new android.app.TimePickerDialog(
+                                this,
+                                (timeView, hourOfDay, minute) -> {
+                                    calendar.set(Calendar.HOUR_OF_DAY, hourOfDay);
+                                    calendar.set(Calendar.MINUTE, minute);
+
+                                    SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
+                                    etDueDate.setText(sdf.format(calendar.getTime()));
+                                },
+                                calendar.get(Calendar.HOUR_OF_DAY),
+                                calendar.get(Calendar.MINUTE),
+                                false
+                        ).show();
                     },
                     calendar.get(Calendar.YEAR),
                     calendar.get(Calendar.MONTH),
@@ -82,6 +96,7 @@ public class CreateActivityActivity extends AppCompatActivity {
             );
             datePicker.show();
         });
+
 
         btnCreate.setOnClickListener(v -> createActivity());
 
@@ -147,10 +162,12 @@ public class CreateActivityActivity extends AppCompatActivity {
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 subjectList.clear();
                 subjectIdList.clear(); // ✅ clear previous IDs
+                subjectCodeList.clear();
 
                 for (DataSnapshot subjectSnap : snapshot.getChildren()) {
-                    String subjectId = subjectSnap.getKey(); // Firebase key as ID
+                    String subjectId = subjectSnap.getKey();
                     String name = subjectSnap.child("name").getValue(String.class);
+                    String code = subjectSnap.child("code").getValue(String.class); // ✅ fetch code
                     String courseName = subjectSnap.child("courseName").getValue(String.class);
                     String specializationName = subjectSnap.child("specializationName").getValue(String.class);
                     String yearName = subjectSnap.child("yearName").getValue(String.class);
@@ -158,12 +175,13 @@ public class CreateActivityActivity extends AppCompatActivity {
 
                     String display = courseName + " - " + specializationName + " - " + yearName + " - " + sectionName;
 
-                    // ✅ Include only subjects assigned to this teacher and matching selected course
                     if (display.equals(selectedCourseDisplay) && assignedSubjects.contains(subjectId)) {
                         subjectList.add(name);
-                        subjectIdList.add(subjectId); // ✅ store the corresponding subject ID
+                        subjectIdList.add(subjectId);
+                        subjectCodeList.add(code); // ✅ save code
                     }
                 }
+
 
                 if (subjectList.isEmpty()) {
                     subjectList.add("No subjects found for this course");
@@ -207,6 +225,7 @@ public class CreateActivityActivity extends AppCompatActivity {
         activityMap.put("dueDate", dueDate);
         activityMap.put("courseDisplay", selectedCourse);
         activityMap.put("subject", selectedSubject);
+        activityMap.put("subjectCode", getSelectedSubjectCode()); // ✅ new line
         activityMap.put("subjectId", getSelectedSubjectId());
         activityMap.put("createdAt", System.currentTimeMillis());
 
@@ -227,5 +246,13 @@ public class CreateActivityActivity extends AppCompatActivity {
         }
         return null;
     }
+    private String getSelectedSubjectCode() {
+        int pos = spTargetSubject.getSelectedItemPosition();
+        if (pos >= 0 && pos < subjectCodeList.size()) {
+            return subjectCodeList.get(pos);
+        }
+        return null;
+    }
+
 
 }

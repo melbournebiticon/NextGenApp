@@ -14,6 +14,12 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import android.content.Context;
+import android.content.Intent;
+import android.util.Log;
+
+
+
 import com.example.nextgen.R;
 import com.example.nextgen.SessionManager;
 import com.google.firebase.database.DataSnapshot;
@@ -54,7 +60,7 @@ public class StudentActivitiesActivity extends AppCompatActivity {
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
 
         activityList = new ArrayList<>();
-        adapter = new ActivitiesAdapter(activityList);
+        adapter = new ActivitiesAdapter(this, activityList);
         recyclerView.setAdapter(adapter);
 
         activitiesRef = FirebaseDatabase.getInstance().getReference("Activities");
@@ -96,7 +102,9 @@ public class StudentActivitiesActivity extends AppCompatActivity {
                         for (DataSnapshot snap : snapshot.getChildren()) {
                             ActivityModel activity = snap.getValue(ActivityModel.class);
                             if (activity != null && subjectId.equals(activity.getSubjectId())) {
+                                activity.setActivityId(snap.getKey()); // ✅ important
                                 activityList.add(activity);
+                                Log.d("StudentActivities", "Loaded activity: " + activity.getTitle() + ", ID: " + activity.getActivityId());
                             }
                         }
 
@@ -114,11 +122,14 @@ public class StudentActivitiesActivity extends AppCompatActivity {
                 });
     }
 
+
     // ===== RecyclerView Adapter =====
     private static class ActivitiesAdapter extends RecyclerView.Adapter<ActivitiesAdapter.ViewHolder> {
         private final List<ActivityModel> list;
+        private final Context context;
 
-        public ActivitiesAdapter(List<ActivityModel> list) {
+        public ActivitiesAdapter(Context context, List<ActivityModel> list) {
+            this.context = context;
             this.list = list;
         }
 
@@ -137,6 +148,20 @@ public class StudentActivitiesActivity extends AppCompatActivity {
             holder.tvDueDate.setText(activity.getDueDate());
             holder.tvDescription.setText(activity.getDescription());
             holder.tvTeacher.setText(activity.getTeacherName());
+
+            // 🟩 Handle click to open details
+            holder.itemView.setOnClickListener(v -> {
+                Intent intent = new Intent(context, ActivityDetailsActivity.class);
+                intent.putExtra("activityId", activity.getActivityId());
+                intent.putExtra("title", activity.getTitle());
+                intent.putExtra("description", activity.getDescription());
+                intent.putExtra("subjectCode", activity.getSubjectCode());
+                intent.putExtra("subjectName", activity.getSubject());
+                intent.putExtra("teacherName", activity.getTeacherName());
+                intent.putExtra("dueDate", activity.getDueDate());
+                // 🟨 Later: term, deadline, etc.
+                context.startActivity(intent);
+            });
         }
 
         @Override
@@ -153,9 +178,9 @@ public class StudentActivitiesActivity extends AppCompatActivity {
                 tvSubject = itemView.findViewById(R.id.tvActivitySubject);
                 tvDueDate = itemView.findViewById(R.id.tvActivityDueDate);
                 tvDescription = itemView.findViewById(R.id.tvActivityDescription);
-                tvTeacher = itemView.findViewById(R.id.tvActivityTeacher); // new
+                tvTeacher = itemView.findViewById(R.id.tvActivityTeacher);
             }
-
         }
     }
+
 }

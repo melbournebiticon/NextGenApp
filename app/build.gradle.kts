@@ -34,8 +34,13 @@ android {
     // ✅ Ensure .tflite model is not excluded or compressed
     packaging {
         resources {
-            // Remove exclude if you want to use yamnet.tflite or other models
-            excludes -= "**/yamnet.tflite"
+            excludes -= "**/yamnet.tflite" // Keep .tflite files
+            excludes += "META-INF/INDEX.LIST" // fix duplicate INDEX.LIST
+            excludes += "META-INF/DEPENDENCIES" // fix duplicate DEPENDENCIES
+            excludes += "META-INF/LICENSE" // optional, common duplicate
+            excludes += "META-INF/LICENSE.txt" // optional, common duplicate
+            excludes += "META-INF/NOTICE" // optional, common duplicate
+            excludes += "META-INF/NOTICE.txt" // optional, common duplicate
         }
     }
 
@@ -51,6 +56,9 @@ android {
 }
 
 dependencies {
+    implementation("com.google.auth:google-auth-library-oauth2-http:1.24.0")
+    implementation("com.squareup.okhttp3:okhttp:4.11.0")
+
     implementation("com.google.zxing:core:3.5.2")
     implementation("androidx.camera:camera-core:1.3.4")
     implementation("androidx.camera:camera-camera2:1.3.4")
