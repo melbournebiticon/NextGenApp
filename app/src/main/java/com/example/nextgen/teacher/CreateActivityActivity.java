@@ -29,6 +29,7 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 
+
 public class CreateActivityActivity extends AppCompatActivity {
 
     EditText etTitle, etDescription, etDueDate;
@@ -36,6 +37,9 @@ public class CreateActivityActivity extends AppCompatActivity {
     Button btnPickDate, btnCreate;
     Calendar calendar;
     String teacherName; // add this
+
+    Spinner spMainTerm, spSubTerm;
+
 
     DatabaseReference activitiesRef, coursesRef, subjectsRef, teacherRef;
     SessionManager sessionManager;
@@ -59,6 +63,8 @@ public class CreateActivityActivity extends AppCompatActivity {
         spTargetSubject = findViewById(R.id.spTargetSubject); // new spinner for subject
         btnPickDate = findViewById(R.id.btnPickDate);
         btnCreate = findViewById(R.id.btnCreateActivity);
+        spMainTerm = findViewById(R.id.spMainTerm);
+        spSubTerm = findViewById(R.id.spSubTerm);
 
         calendar = Calendar.getInstance();
         activitiesRef = FirebaseDatabase.getInstance().getReference("Activities");
@@ -96,6 +102,21 @@ public class CreateActivityActivity extends AppCompatActivity {
             );
             datePicker.show();
         });
+        // Populate main term spinner
+        ArrayAdapter<CharSequence> mainTermAdapter = ArrayAdapter.createFromResource(
+                this,
+                R.array.main_term_options,
+                android.R.layout.simple_spinner_dropdown_item
+        );
+        spMainTerm.setAdapter(mainTermAdapter);
+
+// Populate sub term spinner
+        ArrayAdapter<CharSequence> subTermAdapter = ArrayAdapter.createFromResource(
+                this,
+                R.array.sub_term_options,
+                android.R.layout.simple_spinner_dropdown_item
+        );
+        spSubTerm.setAdapter(subTermAdapter);
 
 
         btnCreate.setOnClickListener(v -> createActivity());
@@ -205,10 +226,13 @@ public class CreateActivityActivity extends AppCompatActivity {
         String dueDate = etDueDate.getText().toString().trim();
         String selectedCourse = spTargetCourse.getSelectedItem() != null ? spTargetCourse.getSelectedItem().toString() : "";
         String selectedSubject = spTargetSubject.getSelectedItem() != null ? spTargetSubject.getSelectedItem().toString() : "";
+        String selectedMainTerm = spMainTerm.getSelectedItem() != null ? spMainTerm.getSelectedItem().toString() : "";
+        String selectedSubTerm = spSubTerm.getSelectedItem() != null ? spSubTerm.getSelectedItem().toString() : "";
 
         if (title.isEmpty() || desc.isEmpty() || dueDate.isEmpty() ||
                 selectedCourse.isEmpty() || selectedSubject.isEmpty() ||
-                selectedSubject.equals("No subjects found for this course")) {
+                selectedSubject.equals("No subjects found for this course") ||
+                selectedMainTerm.isEmpty() || selectedSubTerm.isEmpty()) {
             Toast.makeText(this, "Please fill all fields properly", Toast.LENGTH_SHORT).show();
             return;
         }
@@ -228,6 +252,9 @@ public class CreateActivityActivity extends AppCompatActivity {
         activityMap.put("subjectCode", getSelectedSubjectCode()); // ✅ new line
         activityMap.put("subjectId", getSelectedSubjectId());
         activityMap.put("createdAt", System.currentTimeMillis());
+        activityMap.put("mainTerm", selectedMainTerm);
+        activityMap.put("subTerm", selectedSubTerm);
+
 
         if (activityId != null) {
             activitiesRef.child(activityId).setValue(activityMap)

@@ -5,9 +5,13 @@ public class StudentModel {
     private String fullName;
     private String courseId;
     private String courseName;
-    private String sectionName;   // ADD THIS
-    private String yearName;      // optional, if you want
-    private String specializationName; // optional
+    private String sectionName;
+    private String yearName;
+    private String specializationName;
+    private String uid;
+
+    // Add this to store the submission for this student
+    private SubmissionModel submission;
 
     public StudentModel() {
         // Firebase needs empty constructor
@@ -21,6 +25,7 @@ public class StudentModel {
         this.sectionName = sectionName;
     }
 
+    // Getters and setters for existing fields
     public String getStudentId() { return studentId; }
     public void setStudentId(String studentId) { this.studentId = studentId; }
 
@@ -41,4 +46,10 @@ public class StudentModel {
 
     public String getSpecializationName() { return specializationName; }
     public void setSpecializationName(String specializationName) { this.specializationName = specializationName; }
+
+    public String getUid() { return uid; }
+    public void setUid(String uid) { this.uid = uid; }
+    // Getter and setter for submission
+    public SubmissionModel getSubmission() { return submission; }
+    public void setSubmission(SubmissionModel submission) { this.submission = submission; }
 }

@@ -21,6 +21,10 @@ import androidx.cardview.widget.CardView;
 import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 import android.widget.ImageView;
+import android.view.Menu;
+import android.view.MenuItem;
+import android.view.SubMenu;
+
 
 import com.example.nextgen.MainActivity;
 import com.example.nextgen.R;
@@ -165,6 +169,7 @@ public class TeacherDashboardActivity extends AppCompatActivity implements Navig
             loadTeacherInfo(teacherId);
             loadExamData(teacherId);
             loadActiveExamsCount(sessionManager.getUserId());
+            loadMyClassesMenu(teacherId);
 
         } else {
             Toast.makeText(this, "Teacher ID not found in session!", Toast.LENGTH_SHORT).show();
@@ -435,8 +440,6 @@ public class TeacherDashboardActivity extends AppCompatActivity implements Navig
             startActivity(new Intent(this, ViewStudentsActivity.class));
         } else if (id == R.id.nav_view_profile) {
             openProfile();
-        } else if (id == R.id.nav_logout) {
-            logout();
         }
 
         drawerLayout.closeDrawer(GravityCompat.START);
@@ -619,9 +622,82 @@ public class TeacherDashboardActivity extends AppCompatActivity implements Navig
 
         return output;
     }
+    private void loadMyClassesMenu(String teacherId) {
+        DatabaseReference teacherRef = FirebaseDatabase.getInstance().getReference("Teachers").child(teacherId);
+        DatabaseReference subjectsRef = FirebaseDatabase.getInstance().getReference("Subjects");
 
+        teacherRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot teacherSnapshot) {
+                if (!teacherSnapshot.exists()) return;
 
+                List<String> subjectIds = new ArrayList<>();
+                for (DataSnapshot snap : teacherSnapshot.child("assignedSubjects").getChildren()) {
+                    String subjectId = snap.getValue(String.class);
+                    if (subjectId != null) subjectIds.add(subjectId);
+                }
 
+                // Clear old My Classes submenu
+                Menu menu = navigationView.getMenu();
+                MenuItem myClassesItem = menu.findItem(R.id.nav_my_classes);
+                final SubMenu subMenu; // must be final for inner use
+                if (myClassesItem.getSubMenu() != null) {
+                    subMenu = myClassesItem.getSubMenu();
+                    subMenu.clear();
+                } else {
+                    subMenu = menu.addSubMenu("My Classes");
+                }
 
+                // For each subject assigned to this teacher
+                for (String subjectId : subjectIds) {
+                    final String finalSubjectId = subjectId; // must be final for listener
+
+                    subjectsRef.child(finalSubjectId).addListenerForSingleValueEvent(new ValueEventListener() {
+                        @Override
+                        public void onDataChange(@NonNull DataSnapshot subjectSnap) {
+                            if (!subjectSnap.exists()) return;
+
+                            String code = subjectSnap.child("code").getValue(String.class);
+                            String name = subjectSnap.child("name").getValue(String.class);
+                            String courseName = subjectSnap.child("courseName").getValue(String.class);
+                            String specialization = subjectSnap.child("specializationName").getValue(String.class);
+                            String year = subjectSnap.child("yearName").getValue(String.class);
+                            String section = subjectSnap.child("sectionName").getValue(String.class);
+
+                            String displayText = (code != null ? code : "Unknown Code") + " - " +
+                                    (name != null ? name : "Unknown Name");
+                            String courseDisplay = (courseName != null ? courseName : "Unknown Course") + " - " +
+                                    (specialization != null ? specialization : "N/A") + " - " +
+                                    (year != null ? year : "N/A") + " - " +
+                                    (section != null ? section : "N/A");
+
+                            // ✅ Create clickable submenu item
+                            MenuItem item = subMenu.add(displayText);
+                            item.setOnMenuItemClickListener(menuItem -> {
+                                Intent intent = new Intent(TeacherDashboardActivity.this, TeacherActivitiesActivity.class);
+                                intent.putExtra("subjectId", finalSubjectId);
+                                intent.putExtra("subjectCode", code);
+                                intent.putExtra("subjectName", name);
+                                intent.putExtra("courseDisplay", courseDisplay);
+                                startActivity(intent);
+                                drawerLayout.closeDrawer(GravityCompat.START);
+                                return true;
+                            });
+                        }
+
+                        @Override
+                        public void onCancelled(@NonNull DatabaseError error) { }
+                    });
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) { }
+        });
+    }
 
 }
+
+
+
+

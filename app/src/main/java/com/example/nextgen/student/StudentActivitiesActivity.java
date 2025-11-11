@@ -160,6 +160,9 @@ public class StudentActivitiesActivity extends AppCompatActivity {
                 intent.putExtra("teacherName", activity.getTeacherName());
                 intent.putExtra("dueDate", activity.getDueDate());
                 // 🟨 Later: term, deadline, etc.
+                intent.putExtra("mainTerm", activity.getMainTerm()); // e.g., "1st Term"
+                intent.putExtra("subTerm", activity.getSubTerm());   // e.g., "Midterm"
+
                 context.startActivity(intent);
             });
         }

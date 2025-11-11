@@ -18,7 +18,10 @@ import java.util.Locale;
 
 public class ActivityDetailsFragment extends Fragment {
 
-    public static ActivityDetailsFragment newInstance(String code, String name, String teacher, String desc, String dueDate) {
+    public static ActivityDetailsFragment newInstance(
+            String code, String name, String teacher, String desc,
+            String dueDate, String mainTerm, String subTerm) {
+
         ActivityDetailsFragment fragment = new ActivityDetailsFragment();
         Bundle args = new Bundle();
         args.putString("code", code);
@@ -26,6 +29,8 @@ public class ActivityDetailsFragment extends Fragment {
         args.putString("teacher", teacher);
         args.putString("desc", desc);
         args.putString("dueDate", dueDate);
+        args.putString("mainTerm", mainTerm);
+        args.putString("subTerm", subTerm);
         fragment.setArguments(args);
         return fragment;
     }
@@ -41,6 +46,7 @@ public class ActivityDetailsFragment extends Fragment {
         TextView tvTeacher = view.findViewById(R.id.tvTeacher);
         TextView tvDesc = view.findViewById(R.id.tvDesc);
         TextView tvDeadline = view.findViewById(R.id.tvDeadline);
+        TextView tvTerm = view.findViewById(R.id.tvTerm); // 🆕 new TextView for term info
 
         Bundle args = getArguments();
         if (args != null) {
@@ -49,11 +55,14 @@ public class ActivityDetailsFragment extends Fragment {
             String teacher = args.getString("teacher", "N/A");
             String desc = args.getString("desc", "N/A");
             String dueDate = args.getString("dueDate", "N/A");
+            String mainTerm = args.getString("mainTerm", "N/A");
+            String subTerm = args.getString("subTerm", "N/A");
 
             tvCodeName.setText("Course: " + code + " - " + name);
             tvTeacher.setText("Instructor: " + teacher);
             tvDesc.setText(desc);
             tvDeadline.setText("Deadline: " + formatDeadline(dueDate));
+            tvTerm.setText(mainTerm + " - " + subTerm);
         }
 
         return view;
@@ -61,7 +70,6 @@ public class ActivityDetailsFragment extends Fragment {
 
     private String formatDeadline(String rawDate) {
         try {
-            // Try parsing both formats — just date or date+time
             SimpleDateFormat inputFormat;
             if (rawDate.contains(":")) {
                 inputFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
@@ -70,11 +78,12 @@ public class ActivityDetailsFragment extends Fragment {
             }
 
             Date date = inputFormat.parse(rawDate);
-            SimpleDateFormat outputFormat = new SimpleDateFormat("MMMM dd, yyyy (EEEE) 'at' h:mm a", Locale.getDefault());
+            SimpleDateFormat outputFormat =
+                    new SimpleDateFormat("MMMM dd, yyyy (EEEE) 'at' h:mm a", Locale.getDefault());
             return outputFormat.format(date);
         } catch (Exception e) {
             e.printStackTrace();
-            return rawDate; // fallback if parse fails
+            return rawDate;
         }
     }
 }

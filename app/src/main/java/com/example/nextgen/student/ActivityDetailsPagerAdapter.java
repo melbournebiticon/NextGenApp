@@ -9,6 +9,7 @@ public class ActivityDetailsPagerAdapter extends FragmentStateAdapter {
 
     private final String subjectCode, subjectName, teacherName, description, dueDate;
     private final String activityId;
+    private final String mainTerm, subTerm; // 🆕 added for term info
 
     public ActivityDetailsPagerAdapter(@NonNull FragmentActivity activity,
                                        String subjectCode,
@@ -16,25 +17,30 @@ public class ActivityDetailsPagerAdapter extends FragmentStateAdapter {
                                        String teacherName,
                                        String description,
                                        String dueDate,
-                                       String activityId) {
+                                       String activityId,
+                                       String mainTerm,
+                                       String subTerm) {
         super(activity);
         this.subjectCode = subjectCode;
         this.subjectName = subjectName;
         this.teacherName = teacherName;
         this.description = description;
         this.dueDate = dueDate;
-        this.activityId = activityId; // ✅ store it
+        this.activityId = activityId;
+        this.mainTerm = mainTerm;
+        this.subTerm = subTerm;
     }
 
     @NonNull
     @Override
     public Fragment createFragment(int position) {
         if (position == 0) {
+            // 🟩 Pass all activity details including term info
             return ActivityDetailsFragment.newInstance(
-                    subjectCode, subjectName, teacherName, description, dueDate
+                    subjectCode, subjectName, teacherName, description, dueDate, mainTerm, subTerm
             );
         } else {
-            // ✅ Pass both activityId and dueDate properly
+            // 🟩 "My Work" tab: still needs activityId and dueDate
             return ActivityMyWorkFragment.newInstance(activityId, dueDate);
         }
     }

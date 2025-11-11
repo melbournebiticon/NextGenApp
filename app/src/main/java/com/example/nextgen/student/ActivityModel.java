@@ -12,6 +12,10 @@ public class ActivityModel {
     private String subjectCode;  // ✅ for passing subject code
     private String teacherName;
 
+    private String mainTerm; // e.g., "1st Term", "2nd Term"
+    private String subTerm;  // e.g., "Prelim", "Midterm", "Finals"
+
+
     public ActivityModel() {} // required for Firebase
 
     // ===== Getters =====
@@ -37,4 +41,11 @@ public class ActivityModel {
     public void setSubjectId(String subjectId) { this.subjectId = subjectId; }
     public void setSubjectCode(String subjectCode) { this.subjectCode = subjectCode; }
     public void setTeacherName(String teacherName) { this.teacherName = teacherName; }
+
+    public String getMainTerm() { return mainTerm; }
+    public void setMainTerm(String mainTerm) { this.mainTerm = mainTerm; }
+
+    public String getSubTerm() { return subTerm; }
+    public void setSubTerm(String subTerm) { this.subTerm = subTerm; }
+
 }
