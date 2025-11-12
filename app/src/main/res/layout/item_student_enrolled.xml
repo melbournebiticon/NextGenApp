@@ -29,4 +29,14 @@
         android:textSize="14sp"
         android:layout_marginTop="4dp"
         android:textColor="#FF5722" />
+
+    <Button
+        android:id="@+id/btnViewWork"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="View Work"
+        android:layout_marginTop="4dp"
+        android:backgroundTint="@color/teal_700"
+        android:textColor="@android:color/white"/>
+
 </LinearLayout>

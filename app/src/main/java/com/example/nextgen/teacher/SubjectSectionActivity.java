@@ -107,6 +107,7 @@ public class SubjectSectionActivity extends AppCompatActivity {
                         for (DataSnapshot snap : snapshot.getChildren()) {
                             SubmissionModel submission = snap.getValue(SubmissionModel.class);
                             if (submission != null) {
+                                submission.setId(snap.getKey());
                                 submissionList.add(submission);
                                 Log.d("SUB_LOG", "Loaded submission: " + submission.getFileName() +
                                         " by student: " + submission.getStudentId() +

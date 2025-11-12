@@ -20,4 +20,13 @@ public class SubmissionModel {
     public String getScore() { return score; }
     public String getSubmittedAt() { return submittedAt; }
     public boolean isViewed() { return viewed; }
+    public String getSubmissionId() {
+        return id;
+    }
+
+    public void setId(String id) {
+        this.id = id;
+    }
+
+
 }
