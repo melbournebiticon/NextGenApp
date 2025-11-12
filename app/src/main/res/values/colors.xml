@@ -39,4 +39,7 @@
     <color name="secondary">@color/teal_700</color>
     <color name="on_secondary">@color/white</color>
 
+    <color name="link_color">#0645AD</color> <!-- classic blue link -->
+
+
 </resources>

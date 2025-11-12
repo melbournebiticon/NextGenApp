@@ -14,6 +14,19 @@
         android:textSize="16sp"
         android:padding="8dp" />
 
+    <!-- Deadline notice -->
+    <TextView
+        android:id="@+id/tvDeadlineNotice"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="You have not uploaded any work for this activity."
+        android:textColor="@android:color/holo_red_dark"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:visibility="gone"
+        android:padding="8dp"
+        android:layout_marginTop="8dp"/>
+
     <!-- File selection box -->
     <LinearLayout
         android:id="@+id/fileBox"
@@ -42,64 +55,75 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Select File" />
+    </LinearLayout>
 
+    <!-- Preview / Submission info container -->
+    <LinearLayout
+        android:id="@+id/previewContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="10dp"
+        android:background="#EEEEEE"
+        android:visibility="gone"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="10dp">
+
+        <!-- File name -->
         <TextView
-            android:id="@+id/tvDeadlineNotice"
-            android:layout_width="match_parent"
+            android:id="@+id/tvPreviewFileName"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="You have not uploaded any work for this activity."
-            android:textColor="@android:color/holo_red_dark"
+            android:textColor="#000"
             android:textStyle="bold"
-            android:gravity="center"
-            android:visibility="gone"
-            android:padding="8dp" />
-
-        <LinearLayout
-            android:id="@+id/previewContainer"
-            android:layout_width="match_parent"
+            android:textSize="16sp" />
+        <TextView
+            android:id="@+id/tvFileLink"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="10dp"
-            android:background="#EEEEEE"
+            android:textColor="@color/link_color"
+            android:textSize="16sp"
+            android:textStyle="bold"
             android:visibility="gone"
-            android:layout_marginTop="10dp"
-            android:layout_marginBottom="10dp">
-
-            <TextView
-                android:id="@+id/tvPreviewFileName"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textColor="#000"
-                android:textStyle="bold"
-                android:textSize="16sp" />
-            <!-- Score -->
-            <TextView
-                android:id="@+id/tvScore"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Score: Pending"
-                android:textSize="16sp"
-                android:paddingTop="4dp"/>
-
-            <!-- Viewed status -->
-            <TextView
-                android:id="@+id/tvViewed"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Viewed: No"
-                android:textSize="16sp"
-                android:paddingTop="2dp"/>
+            android:clickable="true"
+            android:focusable="true"
+            android:padding="8dp"/>
 
 
-            <ImageView
-                android:id="@+id/imgPreview"
-                android:layout_width="150dp"
-                android:layout_height="150dp"
-                android:layout_marginTop="8dp"
-                android:scaleType="centerCrop"
-                android:visibility="gone" />
-        </LinearLayout>
+        <VideoView
+            android:id="@+id/videoPreview"
+            android:layout_width="match_parent"
+            android:layout_height="200dp"
+            android:visibility="gone"
+            android:layout_marginTop="8dp"/>
 
+
+        <!-- Score -->
+        <TextView
+            android:id="@+id/tvScore"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Your score will appear here"
+            android:textSize="16sp"
+            android:paddingTop="4dp"/>
+
+        <!-- Viewed status -->
+        <TextView
+            android:id="@+id/tvViewed"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Not yet viewed"
+            android:textSize="16sp"
+            android:paddingTop="2dp"/>
+
+        <!-- Image preview -->
+        <ImageView
+            android:id="@+id/imgPreview"
+            android:layout_width="150dp"
+            android:layout_height="150dp"
+            android:layout_marginTop="8dp"
+            android:scaleType="centerCrop"
+            android:visibility="gone" />
     </LinearLayout>
 
     <!-- Submit Work button (hidden until file selected) -->

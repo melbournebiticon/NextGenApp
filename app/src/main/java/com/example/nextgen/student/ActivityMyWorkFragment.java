@@ -15,6 +15,7 @@ import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.LinearLayout;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -34,6 +35,11 @@ import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
+import android.widget.VideoView;import java.io.File;
+import java.io.FileOutputStream;
+
+
+
 
 
 import java.io.ByteArrayOutputStream;
@@ -54,6 +60,13 @@ public class ActivityMyWorkFragment extends Fragment {
 
     private DatabaseReference submissionsRef;
     private String studentId, activityId;
+    private LinearLayout previewContainer;
+    private TextView tvPreviewFileName;
+
+    private VideoView videoPreview;
+    private TextView tvFileLink;
+
+
 
     public static ActivityMyWorkFragment newInstance(String activityId, String dueDate) {
         ActivityMyWorkFragment fragment = new ActivityMyWorkFragment();
@@ -82,6 +95,14 @@ public class ActivityMyWorkFragment extends Fragment {
         tvScore = view.findViewById(R.id.tvScore);
         tvViewed = view.findViewById(R.id.tvViewed);
         imgPreview = view.findViewById(R.id.imgPreview);
+        previewContainer = view.findViewById(R.id.previewContainer);
+        tvPreviewFileName = view.findViewById(R.id.tvPreviewFileName);
+
+        videoPreview = view.findViewById(R.id.videoPreview);
+        tvFileLink = view.findViewById(R.id.tvFileLink);
+
+
+
 
         submissionsRef = FirebaseDatabase.getInstance().getReference("Submissions");
         studentId = FirebaseAuth.getInstance().getCurrentUser().getUid();
@@ -125,6 +146,7 @@ public class ActivityMyWorkFragment extends Fragment {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 boolean found = false;
+
                 for (DataSnapshot subSnap : snapshot.getChildren()) {
                     String subStudentId = subSnap.child("studentId").getValue(String.class);
                     String subActivityId = subSnap.child("activityId").getValue(String.class);
@@ -132,41 +154,124 @@ public class ActivityMyWorkFragment extends Fragment {
                     if (studentId.equals(subStudentId) && activityId.equals(subActivityId)) {
                         String fileName = subSnap.child("fileName").getValue(String.class);
                         String score = subSnap.child("score").getValue(String.class);
-                        Boolean viewed = subSnap.child("viewed").getValue(Boolean.class);
-
-                        tvStatus.setText("Already submitted:");
-                        tvFileName.setText(fileName);
-                        tvScore.setText("Score: " + (score != null ? score : "Pending"));
-                        tvViewed.setText("Viewed: " + (viewed != null && viewed ? "Yes" : "No"));
-
-                        // Show image preview if jpg/png
+                        Object viewedObj = subSnap.child("viewed").getValue();
+                        boolean viewed = viewedObj instanceof Boolean ? (Boolean) viewedObj :
+                                viewedObj instanceof String ? Boolean.parseBoolean((String) viewedObj) : false;
                         String fileData = subSnap.child("fileData").getValue(String.class);
-                        if (fileData != null && (fileName.endsWith(".jpg") || fileName.endsWith(".png"))) {
-                            byte[] decoded = Base64.decode(fileData, Base64.DEFAULT);
-                            Bitmap bitmap = BitmapFactory.decodeByteArray(decoded, 0, decoded.length);
-                            imgPreview.setImageBitmap(bitmap);
-                            imgPreview.setVisibility(View.VISIBLE);
+
+                        // 1️⃣ Already submitted
+                        tvStatus.setText("Already submitted:");
+                        previewContainer.setVisibility(View.VISIBLE);
+                        tvPreviewFileName.setText(fileName != null ? fileName : "Unknown file");
+
+                        // 2️⃣ Score / viewed
+                        if (score != null && !score.equals("Pending")) {
+                            tvScore.setText("Score: " + score);
+                            tvViewed.setText(viewed ? "Viewed by instructor" : "Not yet viewed");
+                        } else {
+                            tvScore.setText("Your score will appear here");
+                            tvViewed.setText(viewed ? "Viewed by instructor" : "Not yet viewed");
                         }
 
-                        // ✅ Hide select file button and submit button
+                        // 3️⃣ Handle preview by file type
+                        // 3️⃣ Handle preview by file type
+                        imgPreview.setVisibility(View.GONE);
+                        videoPreview.setVisibility(View.GONE);
+                        tvFileLink.setVisibility(View.GONE); // for docs
+
+                        if (fileData != null && fileName != null) {
+                            byte[] decoded = Base64.decode(fileData, Base64.DEFAULT);
+
+                            if (fileName.endsWith(".jpg") || fileName.endsWith(".png")) {
+                                Bitmap bitmap = BitmapFactory.decodeByteArray(decoded, 0, decoded.length);
+                                imgPreview.setImageBitmap(bitmap);
+                                imgPreview.setVisibility(View.VISIBLE);
+
+                            } else if (fileName.endsWith(".mp4")) {
+                                try {
+                                    File tempVideo = new File(getContext().getCacheDir(), fileName);
+                                    try (FileOutputStream fos = new FileOutputStream(tempVideo)) {
+                                        fos.write(decoded);
+                                    }
+
+                                    Uri uri = androidx.core.content.FileProvider.getUriForFile(
+                                            getContext(),
+                                            getContext().getPackageName() + ".fileprovider",
+                                            tempVideo
+                                    );
+
+                                    videoPreview.setVideoURI(uri);
+                                    videoPreview.setVisibility(View.VISIBLE);
+                                    videoPreview.start();
+
+                                } catch (Exception e) {
+                                    e.printStackTrace();
+                                }
+
+                            } else if (fileName.endsWith(".pdf") || fileName.endsWith(".docx") ||
+                                    fileName.endsWith(".xlsx") || fileName.endsWith(".txt")) {
+
+                                // Save file to cache
+                                File tempFile = new File(getContext().getCacheDir(), fileName);
+                                try (FileOutputStream fos = new FileOutputStream(tempFile)) {
+                                    fos.write(decoded);
+                                } catch (Exception e) {
+                                    e.printStackTrace();
+                                }
+
+                                // Get secure URI via FileProvider
+                                Uri fileUri = androidx.core.content.FileProvider.getUriForFile(
+                                        getContext(),
+                                        getContext().getPackageName() + ".fileprovider",
+                                        tempFile
+                                );
+
+                                tvFileLink.setText(fileName + " (Tap to open)");
+                                tvFileLink.setVisibility(View.VISIBLE);
+                                tvFileLink.setTextColor(getResources().getColor(R.color.link_color));
+                                tvFileLink.setOnClickListener(v -> {
+                                    Intent intent = new Intent(Intent.ACTION_VIEW);
+                                    if (fileName.endsWith(".pdf"))
+                                        intent.setDataAndType(fileUri, "application/pdf");
+                                    else if (fileName.endsWith(".docx"))
+                                        intent.setDataAndType(fileUri, "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+                                    else if (fileName.endsWith(".xlsx"))
+                                        intent.setDataAndType(fileUri, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+                                    else
+                                        intent.setDataAndType(fileUri, "*/*");
+
+                                    intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                                    try {
+                                        startActivity(intent);
+                                    } catch (Exception e) {
+                                        Toast.makeText(getContext(), "No app found to open this file", Toast.LENGTH_SHORT).show();
+                                    }
+                                });
+                            }
+                        }
+
+
+                        // 4️⃣ Hide buttons after submission
                         btnSelectFile.setVisibility(View.GONE);
                         btnSubmitFile.setVisibility(View.GONE);
 
                         found = true;
                         break;
                     }
-
                 }
 
                 if (!found) {
+                    // No submission yet
                     tvStatus.setText("No submission yet.");
-                    tvScore.setText("");
-                    tvViewed.setText("");
+                    previewContainer.setVisibility(View.GONE);
+                    imgPreview.setVisibility(View.GONE);
+                    videoPreview.setVisibility(View.GONE);
+                    tvFileLink.setVisibility(View.GONE);
+
                     btnSelectFile.setVisibility(View.VISIBLE);
                     btnSelectFile.setEnabled(true);
-                    btnSubmitFile.setVisibility(View.GONE); // still hidden until a file is selected
+                    btnSubmitFile.setVisibility(View.GONE);
                 }
-
             }
 
             @Override
@@ -175,6 +280,8 @@ public class ActivityMyWorkFragment extends Fragment {
             }
         });
     }
+
+
 
     private void openFilePicker() {
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
