@@ -2,30 +2,25 @@ package com.example.nextgen.admin;
 
 import android.app.DatePickerDialog;
 import android.content.Intent;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.net.Uri;
 import android.os.Bundle;
-import android.provider.MediaStore;
 import android.text.TextUtils;
-import android.util.Base64;
-import android.view.LayoutInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
-import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.ProgressBar;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
+import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
+import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -33,35 +28,23 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.nextgen.MainActivity;
 import com.example.nextgen.R;
 import com.example.nextgen.SessionManager;
+import com.google.android.material.navigation.NavigationView;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.*;
 
-import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
-public class StudentActivity extends AppCompatActivity {
-    // DAGDAG: SIDEBAR COMPONENTS
+public class StudentActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener {
+
     private DrawerLayout drawerLayout;
-    private LinearLayout sidebarLayout;
-    private ImageButton btnToggleSidebar;
-    private LinearLayout curriculumDropdown, accountsDropdown;
+    private NavigationView navigationView;
+    private Toolbar toolbar;
 
-    // DAGDAG: Sidebar state management
-    private boolean isCurriculumExpanded = false;
-    private boolean isAccountsExpanded = true;
-
-    // ORIGINAL COMPONENTS - WALANG BINAGO
-    private Spinner spEditCourse;
-    private Uri selectedImageUri;
-    private ImageView currentEditProfileView;
-
-    private EditText etFullName, etBirthday, etEmail, etContact;
-    private Spinner spinnerCourses;
     private RecyclerView recyclerStudents;
     private Button btnAddStudent;
 
@@ -87,11 +70,10 @@ public class StudentActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_student);
 
-        // DAGDAG: INITIALIZE SIDEBAR
-        initializeSidebar();
-        setInitialSidebarState();
+        // Initialize Toolbar and Navigation
+        initializeToolbarAndNavigation();
 
-        // ORIGINAL CODE - WALANG BINAGO
+        // Initialize activity views
         recyclerStudents = findViewById(R.id.recyclerStudents);
         btnAddStudent = findViewById(R.id.btnAddStudent);
 
@@ -113,7 +95,7 @@ public class StudentActivity extends AppCompatActivity {
         studentAdapter = new StudentAdapter(filteredStudentList, new StudentAdapter.OnStudentActionListener() {
             @Override
             public void onUpdate(StudentModel student) {
-                showEditStudentDialog(student); // CHANGED: Edit functionality instead of just view
+                showEditStudentDialog(student);
             }
 
             @Override
@@ -176,8 +158,32 @@ public class StudentActivity extends AppCompatActivity {
 
         loadCourses();
 
-        // CHANGED: Show popup dialog instead of direct form
+        // Show popup dialog instead of direct form
         btnAddStudent.setOnClickListener(v -> showAddStudentDialog());
+    }
+
+    private void initializeToolbarAndNavigation() {
+        // Setup Toolbar
+        toolbar = findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
+
+        // Setup Drawer Layout and Navigation
+        drawerLayout = findViewById(R.id.drawer_layout);
+        navigationView = findViewById(R.id.nav_view);
+
+        // Setup toggle button
+        ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
+                this, drawerLayout, toolbar,
+                R.string.navigation_drawer_open, R.string.navigation_drawer_close
+        );
+        drawerLayout.addDrawerListener(toggle);
+        toggle.syncState();
+
+        // Set navigation item selected listener
+        navigationView.setNavigationItemSelectedListener(this);
+
+        // Highlight current menu item
+        navigationView.setCheckedItem(R.id.nav_students);
     }
 
     // NEW: Setup enhanced UI functionality
@@ -257,84 +263,83 @@ public class StudentActivity extends AppCompatActivity {
         }
     }
 
-    // DAGDAG: Show Add Student Dialog
-    private void showAddStudentDialog() {
-        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_add_student, null);
+    @Override
+    public boolean onNavigationItemSelected(@NonNull MenuItem item) {
+        int id = item.getItemId();
 
-        EditText etFullNameDialog = dialogView.findViewById(R.id.etFullName);
-        EditText etBirthdayDialog = dialogView.findViewById(R.id.etBirthday);
-        EditText etEmailDialog = dialogView.findViewById(R.id.etEmail);
-        EditText etContactDialog = dialogView.findViewById(R.id.etContact);
-        Spinner spinnerCoursesDialog = dialogView.findViewById(R.id.spinnerCourses);
+        // Close drawer first
+        drawerLayout.closeDrawer(GravityCompat.START);
 
-        // CHANGED: Calendar picker for birthday
-        etBirthdayDialog.setFocusable(false);
-        etBirthdayDialog.setOnClickListener(v -> showDatePickerDialog(etBirthdayDialog));
+        // Handle navigation item clicks
+        if (id == R.id.nav_dashboard) {
+            startActivity(new Intent(this, AdminActivity.class));
+            finish();
+        } else if (id == R.id.nav_specializations) {
+            startActivity(new Intent(this, SpecializationsActivity.class));
+        } else if (id == R.id.nav_years) {
+            startActivity(new Intent(this, YearsActivity.class));
+        } else if (id == R.id.nav_sections) {
+            startActivity(new Intent(this, SectionsActivity.class));
+        } else if (id == R.id.nav_courses) {
+            startActivity(new Intent(this, CourseActivity.class));
+        } else if (id == R.id.nav_subjects) {
+            startActivity(new Intent(this, SubjectActivity.class));
+        } else if (id == R.id.nav_teachers) {
+            startActivity(new Intent(this, TeacherActivity.class));
+        } else if (id == R.id.nav_students) {
+            // We're already in StudentActivity
+            // Just close the drawer
+        } else if (id == R.id.nav_logout) {
+            performLogout();
+        }
 
-        // Load courses into spinner
-        ArrayAdapter<String> courseAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, new ArrayList<>());
-        courseAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinnerCoursesDialog.setAdapter(courseAdapter);
-
-        coursesRef.addListenerForSingleValueEvent(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot snapshot) {
-                List<String> displayNames = new ArrayList<>();
-                for (DataSnapshot ds : snapshot.getChildren()) {
-                    CourseModel c = ds.getValue(CourseModel.class);
-                    if (c != null) {
-                        displayNames.add(c.getName() + " - " +
-                                c.getSpecializationName() + " - " +
-                                c.getYearName() + " - " +
-                                c.getSectionName());
-                    }
-                }
-                courseAdapter.clear();
-                courseAdapter.addAll(displayNames);
-            }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) {}
-        });
-
-        new AlertDialog.Builder(this)
-                .setTitle("Add Examinee")
-                .setView(dialogView)
-                .setPositiveButton("Add", (dialog, which) -> {
-                    String fullName = etFullNameDialog.getText().toString().trim();
-                    String birthday = etBirthdayDialog.getText().toString().trim();
-                    String email = etEmailDialog.getText().toString().trim();
-                    String contact = etContactDialog.getText().toString().trim();
-                    int coursePos = spinnerCoursesDialog.getSelectedItemPosition();
-
-                    if (TextUtils.isEmpty(fullName) || TextUtils.isEmpty(birthday) ||
-                            TextUtils.isEmpty(email) || TextUtils.isEmpty(contact) || coursePos < 0) {
-                        Toast.makeText(this, "Complete all fields", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-
-                    CourseModel selectedCourse = courseOptionList.get(coursePos);
-                    addStudentToDatabase(fullName, birthday, email, contact, selectedCourse);
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
+        return true;
     }
 
-    // CHANGED: Edit student dialog instead of just view
-    private void showEditStudentDialog(StudentModel student) {
-        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_add_student, null);
+    private void performLogout() {
+        // Clear session
+        SessionManager sessionManager = new SessionManager(this);
+        sessionManager.clearSession();
 
+        // Sign out from Firebase
+        FirebaseAuth.getInstance().signOut();
+
+        // Redirect to login
+        Intent intent = new Intent(this, MainActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
+        finish();
+
+        Toast.makeText(this, "Logged out successfully", Toast.LENGTH_SHORT).show();
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
+            drawerLayout.closeDrawer(GravityCompat.START);
+        } else {
+            super.onBackPressed();
+        }
+    }
+
+    // === ISA LANG ANG SET NG METHODS PARA SA ADD/EDIT DIALOGS ===
+
+    private void showAddStudentDialog() {
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_add_student, null);
+        setupStudentDialog(dialogView, null);
+    }
+
+    private void showEditStudentDialog(StudentModel student) {
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_add_student, null);
+        setupStudentDialog(dialogView, student);
+    }
+
+    private void setupStudentDialog(View dialogView, StudentModel existingStudent) {
         EditText etFullNameDialog = dialogView.findViewById(R.id.etFullName);
         EditText etBirthdayDialog = dialogView.findViewById(R.id.etBirthday);
         EditText etEmailDialog = dialogView.findViewById(R.id.etEmail);
         EditText etContactDialog = dialogView.findViewById(R.id.etContact);
         Spinner spinnerCoursesDialog = dialogView.findViewById(R.id.spinnerCourses);
-
-        // Pre-fill existing data
-        etFullNameDialog.setText(student.getFullName());
-        etBirthdayDialog.setText(student.getBirthday());
-        etEmailDialog.setText(student.getEmail());
-        etContactDialog.setText(student.getContact());
 
         // Calendar picker for birthday
         etBirthdayDialog.setFocusable(false);
@@ -345,13 +350,24 @@ public class StudentActivity extends AppCompatActivity {
         courseAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerCoursesDialog.setAdapter(courseAdapter);
 
+        // Pre-fill data if editing
+        if (existingStudent != null) {
+            etFullNameDialog.setText(existingStudent.getFullName());
+            etBirthdayDialog.setText(existingStudent.getBirthday());
+            etEmailDialog.setText(existingStudent.getEmail());
+            etContactDialog.setText(existingStudent.getContact());
+        }
+
         coursesRef.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 List<String> displayNames = new ArrayList<>();
+                courseOptionList.clear();
+
                 for (DataSnapshot ds : snapshot.getChildren()) {
                     CourseModel c = ds.getValue(CourseModel.class);
                     if (c != null) {
+                        courseOptionList.add(c);
                         displayNames.add(c.getName() + " - " +
                                 c.getSpecializationName() + " - " +
                                 c.getYearName() + " - " +
@@ -361,14 +377,16 @@ public class StudentActivity extends AppCompatActivity {
                 courseAdapter.clear();
                 courseAdapter.addAll(displayNames);
 
-                // Set current course selection
-                String currentCourseDisplay = student.getCourseName() + " - " +
-                        student.getSpecializationName() + " - " +
-                        student.getYearName() + " - " +
-                        student.getSectionName();
-                int position = displayNames.indexOf(currentCourseDisplay);
-                if (position >= 0) {
-                    spinnerCoursesDialog.setSelection(position);
+                // Set current course selection for edit mode
+                if (existingStudent != null) {
+                    String currentCourseDisplay = existingStudent.getCourseName() + " - " +
+                            existingStudent.getSpecializationName() + " - " +
+                            existingStudent.getYearName() + " - " +
+                            existingStudent.getSectionName();
+                    int position = displayNames.indexOf(currentCourseDisplay);
+                    if (position >= 0) {
+                        spinnerCoursesDialog.setSelection(position);
+                    }
                 }
             }
 
@@ -376,67 +394,54 @@ public class StudentActivity extends AppCompatActivity {
             public void onCancelled(@NonNull DatabaseError error) {}
         });
 
-        new AlertDialog.Builder(this)
-                .setTitle("Edit Examinee")
+        AlertDialog.Builder builder = new AlertDialog.Builder(this)
                 .setView(dialogView)
-                .setPositiveButton("Update", (dialog, which) -> {
-                    String fullName = etFullNameDialog.getText().toString().trim();
-                    String birthday = etBirthdayDialog.getText().toString().trim();
-                    String email = etEmailDialog.getText().toString().trim();
-                    String contact = etContactDialog.getText().toString().trim();
-                    int coursePos = spinnerCoursesDialog.getSelectedItemPosition();
+                .setNegativeButton("Cancel", null);
 
-                    if (TextUtils.isEmpty(fullName) || TextUtils.isEmpty(birthday) ||
-                            TextUtils.isEmpty(email) || TextUtils.isEmpty(contact) || coursePos < 0) {
-                        Toast.makeText(this, "Complete all fields", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
+        if (existingStudent != null) {
+            // Edit mode
+            builder.setTitle("Edit Examinee")
+                    .setPositiveButton("Update", (dialog, which) -> {
+                        processStudentData(etFullNameDialog, etBirthdayDialog, etEmailDialog,
+                                etContactDialog, spinnerCoursesDialog, existingStudent);
+                    });
+        } else {
+            // Add mode
+            builder.setTitle("Add Examinee")
+                    .setPositiveButton("Add", (dialog, which) -> {
+                        processStudentData(etFullNameDialog, etBirthdayDialog, etEmailDialog,
+                                etContactDialog, spinnerCoursesDialog, null);
+                    });
+        }
 
-                    CourseModel selectedCourse = courseOptionList.get(coursePos);
-                    updateStudentInDatabase(student, fullName, birthday, email, contact, selectedCourse);
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
+        builder.show();
     }
 
-    // NEW: Update student in database
-    private void updateStudentInDatabase(StudentModel student, String fullName, String birthday,
-                                         String email, String contact, CourseModel selectedCourse) {
-        // Update student data
-        student.setFullName(fullName);
-        student.setBirthday(birthday);
-        student.setEmail(email);
-        student.setContact(contact);
-        student.setCourseId(selectedCourse.getId());
-        student.setCourseName(selectedCourse.getName());
-        student.setSpecializationName(selectedCourse.getSpecializationName());
-        student.setYearName(selectedCourse.getYearName());
-        student.setSectionName(selectedCourse.getSectionName());
+    private void processStudentData(EditText etFullName, EditText etBirthday, EditText etEmail,
+                                    EditText etContact, Spinner spinnerCourses, StudentModel existingStudent) {
+        String fullName = etFullName.getText().toString().trim();
+        String birthday = etBirthday.getText().toString().trim();
+        String email = etEmail.getText().toString().trim();
+        String contact = etContact.getText().toString().trim();
+        int coursePos = spinnerCourses.getSelectedItemPosition();
 
-        // Update in Firebase
-        studentsRef.child(student.getStudentId()).setValue(student)
-                .addOnSuccessListener(aVoid -> {
-                    Toast.makeText(this, "Examinee updated successfully", Toast.LENGTH_SHORT).show();
-                })
-                .addOnFailureListener(e ->
-                        Toast.makeText(this, "Update failed: " + e.getMessage(), Toast.LENGTH_SHORT).show()
-                );
+        if (TextUtils.isEmpty(fullName) || TextUtils.isEmpty(birthday) ||
+                TextUtils.isEmpty(email) || TextUtils.isEmpty(contact) || coursePos < 0) {
+            Toast.makeText(this, "Complete all fields", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
-        // Update email in Firebase Auth if changed
-        if (!student.getEmail().equals(email)) {
-            FirebaseUser user = auth.getCurrentUser();
-            if (user != null && user.getUid().equals(student.getUid())) {
-                user.updateEmail(email)
-                        .addOnCompleteListener(task -> {
-                            if (task.isSuccessful()) {
-                                Toast.makeText(this, "Email updated in authentication", Toast.LENGTH_SHORT).show();
-                            }
-                        });
-            }
+        CourseModel selectedCourse = courseOptionList.get(coursePos);
+
+        if (existingStudent != null) {
+            // Update existing student
+            updateStudentInDatabase(existingStudent, fullName, birthday, email, contact, selectedCourse);
+        } else {
+            // Add new student
+            addStudentToDatabase(fullName, birthday, email, contact, selectedCourse);
         }
     }
 
-    // DAGDAG: Date picker method
     private void showDatePickerDialog(EditText birthdayField) {
         final Calendar calendar = Calendar.getInstance();
         int year = calendar.get(Calendar.YEAR);
@@ -446,7 +451,6 @@ public class StudentActivity extends AppCompatActivity {
         DatePickerDialog datePickerDialog = new DatePickerDialog(
                 this,
                 (view, selectedYear, selectedMonth, selectedDay) -> {
-                    // Format the date as YYYY-MM-DD
                     String selectedDate = String.format("%04d-%02d-%02d",
                             selectedYear, selectedMonth + 1, selectedDay);
                     birthdayField.setText(selectedDate);
@@ -454,15 +458,12 @@ public class StudentActivity extends AppCompatActivity {
                 year, month, day
         );
 
-        // Set maximum date to today (cannot select future dates)
         datePickerDialog.getDatePicker().setMaxDate(System.currentTimeMillis());
         datePickerDialog.show();
     }
 
-    // DAGDAG: Extracted add student logic
     private void addStudentToDatabase(String fullName, String birthday, String email, String contact, CourseModel selectedCourse) {
         generateStudentId(studentId -> {
-            // Auto password from birthday: YYYYMMDD
             String password = birthday.replaceAll("[^0-9]", "");
 
             StudentModel student = new StudentModel(
@@ -476,9 +477,9 @@ public class StudentActivity extends AppCompatActivity {
                     selectedCourse.getSpecializationName(),
                     selectedCourse.getYearName(),
                     selectedCourse.getSectionName(),
-                    "",            // profileImage
+                    "", // profileImage
                     password,
-                    ""             // uid
+                    ""  // uid
             );
 
             auth.createUserWithEmailAndPassword(email, password)
@@ -487,14 +488,11 @@ public class StudentActivity extends AppCompatActivity {
                             FirebaseUser firebaseUser = authTask.getResult().getUser();
                             String uid = firebaseUser.getUid();
 
-                            // Save role in Users node
                             usersRef.child(uid).child("role").setValue("student");
                             usersRef.child(uid).child("studentId").setValue(studentId);
 
-                            // Attach UID to student model
                             student.setUid(uid);
 
-                            // Save student in Students node
                             studentsRef.child(studentId).setValue(student)
                                     .addOnSuccessListener(aVoid -> {
                                         Toast.makeText(this, "Examinee added successfully", Toast.LENGTH_SHORT).show();
@@ -509,188 +507,48 @@ public class StudentActivity extends AppCompatActivity {
         });
     }
 
-    // DAGDAG: SIDEBAR INITIALIZATION
-    private void initializeSidebar() {
-        drawerLayout = findViewById(R.id.drawerLayout);
-        sidebarLayout = findViewById(R.id.sidebarLayout);
-        btnToggleSidebar = findViewById(R.id.btnOpenSidebar);
-        curriculumDropdown = findViewById(R.id.curriculumDropdown);
-        accountsDropdown = findViewById(R.id.accountsDropdown);
+    private void updateStudentInDatabase(StudentModel student, String fullName, String birthday,
+                                         String email, String contact, CourseModel selectedCourse) {
+        student.setFullName(fullName);
+        student.setBirthday(birthday);
+        student.setEmail(email);
+        student.setContact(contact);
+        student.setCourseId(selectedCourse.getId());
+        student.setCourseName(selectedCourse.getName());
+        student.setSpecializationName(selectedCourse.getSpecializationName());
+        student.setYearName(selectedCourse.getYearName());
+        student.setSectionName(selectedCourse.getSectionName());
 
-        // Sidebar toggle
-        btnToggleSidebar.setOnClickListener(v -> {
-            if (drawerLayout.isDrawerOpen(sidebarLayout)) {
-                drawerLayout.closeDrawer(sidebarLayout);
-            } else {
-                drawerLayout.openDrawer(sidebarLayout);
+        studentsRef.child(student.getStudentId()).setValue(student)
+                .addOnSuccessListener(aVoid -> {
+                    Toast.makeText(this, "Examinee updated successfully", Toast.LENGTH_SHORT).show();
+                })
+                .addOnFailureListener(e ->
+                        Toast.makeText(this, "Update failed: " + e.getMessage(), Toast.LENGTH_SHORT).show()
+                );
+
+        if (!student.getEmail().equals(email)) {
+            FirebaseUser user = auth.getCurrentUser();
+            if (user != null && user.getUid().equals(student.getUid())) {
+                user.updateEmail(email)
+                        .addOnCompleteListener(task -> {
+                            if (task.isSuccessful()) {
+                                Toast.makeText(this, "Email updated in authentication", Toast.LENGTH_SHORT).show();
+                            }
+                        });
             }
-        });
-
-        // Setup sidebar navigation
-        setupSidebarNavigation();
-    }
-
-    // DAGDAG: Method to set initial sidebar state
-    private void setInitialSidebarState() {
-        // Set Manage Examinee button as active (highlighted)
-        Button btnManageStudents = findViewById(R.id.btnManageStudents);
-        btnManageStudents.setBackgroundResource(R.drawable.sidebar_button_pressed);
-
-        // Set accounts dropdown as expanded by default
-        accountsDropdown.setVisibility(View.VISIBLE);
-        Button btnAccountsHeader = findViewById(R.id.btnManageAccountsHeader);
-        btnAccountsHeader.setText("👤 Manage Accounts ▴");
-
-        // Set curriculum dropdown as collapsed by default
-        curriculumDropdown.setVisibility(View.GONE);
-        Button btnCurriculumHeader = findViewById(R.id.btnManageCurriculumHeader);
-        btnCurriculumHeader.setText("📘 Manage Curriculum ▾");
-    }
-
-    // DAGDAG: SIDEBAR NAVIGATION SETUP
-    private void setupSidebarNavigation() {
-        // Curriculum dropdown
-        final Button btnCurriculumHeader = findViewById(R.id.btnManageCurriculumHeader);
-        btnCurriculumHeader.setOnClickListener(v -> {
-            if (curriculumDropdown.getVisibility() == View.VISIBLE) {
-                curriculumDropdown.setVisibility(View.GONE);
-                btnCurriculumHeader.setText("📘 Manage Curriculum ▾");
-                isCurriculumExpanded = false;
-            } else {
-                curriculumDropdown.setVisibility(View.VISIBLE);
-                btnCurriculumHeader.setText("📘 Manage Curriculum ▴");
-                isCurriculumExpanded = true;
-
-                // Collapse accounts if needed for consistency
-                if (isAccountsExpanded) {
-                    accountsDropdown.setVisibility(View.GONE);
-                    Button btnAccountsHeader = findViewById(R.id.btnManageAccountsHeader);
-                    btnAccountsHeader.setText("👤 Manage Accounts ▾");
-                    isAccountsExpanded = false;
-                }
-            }
-        });
-
-        // Accounts dropdown
-        final Button btnAccountsHeader = findViewById(R.id.btnManageAccountsHeader);
-        btnAccountsHeader.setOnClickListener(v -> {
-            if (accountsDropdown.getVisibility() == View.VISIBLE) {
-                accountsDropdown.setVisibility(View.GONE);
-                btnAccountsHeader.setText("👤 Manage Accounts ▾");
-                isAccountsExpanded = false;
-            } else {
-                accountsDropdown.setVisibility(View.VISIBLE);
-                btnAccountsHeader.setText("👤 Manage Accounts ▴");
-                isAccountsExpanded = true;
-
-                // Collapse curriculum if needed for consistency
-                if (isCurriculumExpanded) {
-                    curriculumDropdown.setVisibility(View.GONE);
-                    btnCurriculumHeader.setText("📘 Manage Curriculum ▾");
-                    isCurriculumExpanded = false;
-                }
-            }
-        });
-
-        // Sidebar buttons functionality
-        setupSidebarButtons();
-    }
-
-    // DAGDAG: Setup sidebar buttons functionality
-    private void setupSidebarButtons() {
-        // Curriculum buttons
-        Button btnManageSpecializations = findViewById(R.id.btnManageSpecializations);
-        Button btnManageYears = findViewById(R.id.btnManageYears);
-        Button btnManageSections = findViewById(R.id.btnManageSections);
-        Button btnManageCourse = findViewById(R.id.btnManageCourse);
-        Button btnManageSubjects = findViewById(R.id.btnManageSubjects);
-
-        // Accounts buttons
-        Button btnManageTeachers = findViewById(R.id.btnManageTeachers);
-        Button btnManageStudents = findViewById(R.id.btnManageStudents);
-
-        // Set click listeners for sidebar buttons
-        btnManageSpecializations.setOnClickListener(v -> {
-            drawerLayout.closeDrawer(sidebarLayout);
-            startActivity(new Intent(StudentActivity.this, SpecializationsActivity.class));
-        });
-
-        btnManageYears.setOnClickListener(v -> {
-            drawerLayout.closeDrawer(sidebarLayout);
-            startActivity(new Intent(StudentActivity.this, YearsActivity.class));
-        });
-
-        btnManageSections.setOnClickListener(v -> {
-            drawerLayout.closeDrawer(sidebarLayout);
-            startActivity(new Intent(StudentActivity.this, SectionsActivity.class));
-        });
-
-        btnManageCourse.setOnClickListener(v -> {
-            drawerLayout.closeDrawer(sidebarLayout);
-            startActivity(new Intent(StudentActivity.this, CourseActivity.class));
-        });
-
-        btnManageSubjects.setOnClickListener(v -> {
-            drawerLayout.closeDrawer(sidebarLayout);
-            startActivity(new Intent(StudentActivity.this, SubjectActivity.class));
-        });
-
-        btnManageTeachers.setOnClickListener(v -> {
-            drawerLayout.closeDrawer(sidebarLayout);
-            startActivity(new Intent(StudentActivity.this, TeacherActivity.class));
-        });
-
-        // Manage Students - Close drawer lang, walang navigation
-        btnManageStudents.setOnClickListener(v -> {
-            drawerLayout.closeDrawer(sidebarLayout);
-            // Walang startActivity kasi nasa StudentActivity na tayo
-        });
-
-        // Logout button
-        Button logoutBtn = findViewById(R.id.logoutBtn);
-        logoutBtn.setOnClickListener(v -> {
-            // Clear session
-            SessionManager sessionManager = new SessionManager(this);
-            sessionManager.clearSession();
-
-            // Sign out from Firebase
-            FirebaseAuth.getInstance().signOut();
-
-            // Redirect to login
-            Intent intent = new Intent(this, MainActivity.class);
-            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-            startActivity(intent);
-            finish();
-
-            Toast.makeText(this, "Logged out successfully", Toast.LENGTH_SHORT).show();
-        });
-    }
-
-    // DAGDAG: Back pressed handling for sidebar
-    @Override
-    public void onBackPressed() {
-        if (drawerLayout != null && drawerLayout.isDrawerOpen(sidebarLayout)) {
-            drawerLayout.closeDrawer(sidebarLayout);
-        } else {
-            super.onBackPressed();
         }
     }
 
-    // ORIGINAL METHODS - WALANG BINAGO
     private void loadCourses() {
         coursesRef.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 courseOptionList.clear();
-                List<String> displayNames = new ArrayList<>();
                 for (DataSnapshot ds : snapshot.getChildren()) {
                     CourseModel c = ds.getValue(CourseModel.class);
                     if (c != null) {
                         courseOptionList.add(c);
-                        displayNames.add(c.getName() + " - " +
-                                c.getSpecializationName() + " - " +
-                                c.getYearName() + " - " +
-                                c.getSectionName());
                     }
                 }
             }

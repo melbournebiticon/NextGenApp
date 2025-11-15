@@ -3,6 +3,7 @@ package com.example.nextgen.admin;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageButton;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -15,6 +16,16 @@ import java.util.List;
 public class SubjectAdapter extends RecyclerView.Adapter<SubjectAdapter.SubjectViewHolder> {
 
     private final List<SubjectModel> subjectList;
+    private OnItemClickListener listener;
+
+    public interface OnItemClickListener {
+        void onEditClick(int position);
+        void onDeleteClick(int position);
+    }
+
+    public void setOnItemClickListener(OnItemClickListener listener) {
+        this.listener = listener;
+    }
 
     public SubjectAdapter(List<SubjectModel> subjectList) {
         this.subjectList = subjectList;
@@ -24,7 +35,7 @@ public class SubjectAdapter extends RecyclerView.Adapter<SubjectAdapter.SubjectV
     @Override
     public SubjectViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(parent.getContext())
-                .inflate(R.layout.item_subject, parent, false);
+                .inflate(R.layout.item_subject, parent, false); // Make sure this matches your XML filename
         return new SubjectViewHolder(view);
     }
 
@@ -39,6 +50,19 @@ public class SubjectAdapter extends RecyclerView.Adapter<SubjectAdapter.SubjectV
                         subject.getYearName() + " - " +
                         subject.getSectionName()
         );
+
+        // Set click listeners for buttons
+        holder.btnEdit.setOnClickListener(v -> {
+            if (listener != null) {
+                listener.onEditClick(position);
+            }
+        });
+
+        holder.btnDelete.setOnClickListener(v -> {
+            if (listener != null) {
+                listener.onDeleteClick(position);
+            }
+        });
     }
 
     @Override
@@ -48,12 +72,15 @@ public class SubjectAdapter extends RecyclerView.Adapter<SubjectAdapter.SubjectV
 
     public static class SubjectViewHolder extends RecyclerView.ViewHolder {
         TextView tvCode, tvName, tvCourseInfo;
+        ImageButton btnEdit, btnDelete;
 
         public SubjectViewHolder(@NonNull View itemView) {
             super(itemView);
             tvCode = itemView.findViewById(R.id.tvSubjectCode);
             tvName = itemView.findViewById(R.id.tvSubjectName);
             tvCourseInfo = itemView.findViewById(R.id.tvSubjectCourseInfo);
+            btnEdit = itemView.findViewById(R.id.btnEdit);
+            btnDelete = itemView.findViewById(R.id.btnDelete);
         }
     }
 }

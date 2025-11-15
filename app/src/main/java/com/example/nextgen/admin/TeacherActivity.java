@@ -7,6 +7,7 @@ import android.text.Editable;
 import android.text.TextUtils;
 import android.text.TextWatcher;
 import android.view.LayoutInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -16,8 +17,11 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
+import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -25,6 +29,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.nextgen.MainActivity;
 import com.example.nextgen.R;
 import com.example.nextgen.SessionManager;
+import com.google.android.material.navigation.NavigationView;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DataSnapshot;
@@ -38,16 +43,13 @@ import java.util.Calendar;
 import java.util.Collections;
 import java.util.List;
 
-public class TeacherActivity extends AppCompatActivity {
+public class TeacherActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener {
 
-    // SIDEBAR COMPONENTS
     private DrawerLayout drawerLayout;
-    private LinearLayout sidebarLayout;
-    private ImageButton btnToggleSidebar;
-    private LinearLayout curriculumDropdown, accountsDropdown;
+    private NavigationView navigationView;
+    private Toolbar toolbar;
 
-    private EditText etFullName, etBirthday, etEmail;
-    private RecyclerView recyclerCourseSelection, recyclerSubjects, recyclerTeachers;
+    private RecyclerView recyclerTeachers;
     private Button btnAddTeacher;
 
     // NEW UI ELEMENTS
@@ -57,33 +59,23 @@ public class TeacherActivity extends AppCompatActivity {
     private ImageButton btnClearSearch;
     private Button btnSort;
 
-    private List<SubjectModel> selectedCourseSubjects = new ArrayList<>();
-    private List<CourseModel> courseOptionList = new ArrayList<>();
     private List<TeacherModel> teacherList = new ArrayList<>();
+    private List<CourseModel> courseOptionList = new ArrayList<>();
 
     private DatabaseReference teachersRef, coursesRef, subjectsRef, usersRef;
     private FirebaseAuth auth;
 
-    private SubjectSelectionAdapter subjectAdapter;
     private TeacherAdapter teacherAdapter;
-    private CourseSelectionAdapter courseSelectionAdapter;
-
-    // DAGDAG: Sidebar state management
-    private boolean isCurriculumExpanded = false;
-    private boolean isAccountsExpanded = true; // Default expanded since we're in TeacherActivity
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_teacher);
 
-        // ========== INITIALIZE SIDEBAR ==========
-        initializeSidebar();
+        // Initialize Toolbar and Navigation
+        initializeToolbarAndNavigation();
 
-        // DAGDAG: Set initial sidebar state
-        setInitialSidebarState();
-
-        // Only activity views
+        // Initialize activity views
         recyclerTeachers = findViewById(R.id.recyclerTeachers);
         btnAddTeacher = findViewById(R.id.btnAddTeacher);
 
@@ -96,7 +88,7 @@ public class TeacherActivity extends AppCompatActivity {
         usersRef = FirebaseDatabase.getInstance().getReference("Users");
         auth = FirebaseAuth.getInstance();
 
-        // DAGDAG: Initialize new UI elements
+        // Initialize new UI elements
         initializeNewUIElements();
 
         teacherAdapter = new TeacherAdapter(teacherList, new TeacherAdapter.OnTeacherActionListener() {
@@ -144,7 +136,7 @@ public class TeacherActivity extends AppCompatActivity {
                     if (t != null) teacherList.add(t);
                 }
                 teacherAdapter.notifyDataSetChanged();
-                updateTeacherCount(); // Add this line
+                updateTeacherCount();
             }
 
             @Override
@@ -154,6 +146,30 @@ public class TeacherActivity extends AppCompatActivity {
         loadCourses();
 
         btnAddTeacher.setOnClickListener(v -> showAddTeacherDialog());
+    }
+
+    private void initializeToolbarAndNavigation() {
+        // Setup Toolbar
+        toolbar = findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
+
+        // Setup Drawer Layout and Navigation
+        drawerLayout = findViewById(R.id.drawer_layout);
+        navigationView = findViewById(R.id.nav_view);
+
+        // Setup toggle button
+        ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
+                this, drawerLayout, toolbar,
+                R.string.navigation_drawer_open, R.string.navigation_drawer_close
+        );
+        drawerLayout.addDrawerListener(toggle);
+        toggle.syncState();
+
+        // Set navigation item selected listener
+        navigationView.setNavigationItemSelectedListener(this);
+
+        // Highlight current menu item
+        navigationView.setCheckedItem(R.id.nav_teachers);
     }
 
     // ========== INITIALIZE NEW UI ELEMENTS ==========
@@ -247,187 +263,60 @@ public class TeacherActivity extends AppCompatActivity {
         updateTeacherCount();
     }
 
-    // ========== SIDEBAR INITIALIZATION ==========
-    private void initializeSidebar() {
-        drawerLayout = findViewById(R.id.drawerLayout);
-        sidebarLayout = findViewById(R.id.sidebarLayout);
-        btnToggleSidebar = findViewById(R.id.btnOpenSidebar);
-        curriculumDropdown = findViewById(R.id.curriculumDropdown);
-        accountsDropdown = findViewById(R.id.accountsDropdown);
+    @Override
+    public boolean onNavigationItemSelected(@NonNull MenuItem item) {
+        int id = item.getItemId();
 
-        // Sidebar toggle - ITO ANG MAGPAPAGANA NG MENU BURGER
-        btnToggleSidebar.setOnClickListener(v -> {
-            if (drawerLayout.isDrawerOpen(sidebarLayout)) {
-                drawerLayout.closeDrawer(sidebarLayout);
-            } else {
-                drawerLayout.openDrawer(sidebarLayout);
-            }
-        });
+        // Close drawer first
+        drawerLayout.closeDrawer(GravityCompat.START);
 
-        // Setup sidebar navigation
-        setupSidebarNavigation();
-    }
-
-    // DAGDAG: Method to set initial sidebar state
-    private void setInitialSidebarState() {
-        // Set Manage Teacher button as active
-        Button btnManageTeachers = findViewById(R.id.btnManageTeachers);
-        btnManageTeachers.setBackgroundResource(R.drawable.sidebar_button_pressed);
-
-        // Set accounts dropdown as expanded by default
-        accountsDropdown.setVisibility(View.VISIBLE);
-        Button btnAccountsHeader = findViewById(R.id.btnManageAccountsHeader);
-        btnAccountsHeader.setText("👤 Manage Accounts ▴");
-
-        // Set curriculum dropdown as collapsed by default
-        curriculumDropdown.setVisibility(View.GONE);
-        Button btnCurriculumHeader = findViewById(R.id.btnManageCurriculumHeader);
-        btnCurriculumHeader.setText("📘 Manage Curriculum ▾");
-    }
-
-    // ========== SIDEBAR NAVIGATION SETUP ==========
-    private void setupSidebarNavigation() {
-        // Curriculum dropdown - I-DECLARE ITO SA LABAS NG ONCLICK
-        final Button btnCurriculumHeader = findViewById(R.id.btnManageCurriculumHeader);
-        btnCurriculumHeader.setOnClickListener(v -> {
-            if (curriculumDropdown.getVisibility() == View.VISIBLE) {
-                curriculumDropdown.setVisibility(View.GONE);
-                btnCurriculumHeader.setText("📘 Manage Curriculum ▾");
-                isCurriculumExpanded = false;
-            } else {
-                curriculumDropdown.setVisibility(View.VISIBLE);
-                btnCurriculumHeader.setText("📘 Manage Curriculum ▴");
-                isCurriculumExpanded = true;
-
-                // DAGDAG: Collapse accounts if needed for consistency
-                if (isAccountsExpanded) {
-                    accountsDropdown.setVisibility(View.GONE);
-                    Button btnAccountsHeader = findViewById(R.id.btnManageAccountsHeader);
-                    btnAccountsHeader.setText("👤 Manage Accounts ▾");
-                    isAccountsExpanded = false;
-                }
-            }
-        });
-
-        // Accounts dropdown - I-DECLARE ITO SA LABAS NG ONCLICK
-        final Button btnAccountsHeader = findViewById(R.id.btnManageAccountsHeader);
-        btnAccountsHeader.setOnClickListener(v -> {
-            if (accountsDropdown.getVisibility() == View.VISIBLE) {
-                accountsDropdown.setVisibility(View.GONE);
-                btnAccountsHeader.setText("👤 Manage Accounts ▾");
-                isAccountsExpanded = false;
-            } else {
-                accountsDropdown.setVisibility(View.VISIBLE);
-                btnAccountsHeader.setText("👤 Manage Accounts ▴");
-                isAccountsExpanded = true;
-
-                // DAGDAG: Collapse curriculum if needed for consistency
-                if (isCurriculumExpanded) {
-                    curriculumDropdown.setVisibility(View.GONE);
-                    btnCurriculumHeader.setText("📘 Manage Curriculum ▾");
-                    isCurriculumExpanded = false;
-                }
-            }
-        });
-
-        // Sidebar buttons functionality
-        setupSidebarButtons();
-    }
-
-    private void setupSidebarButtons() {
-        // Curriculum buttons
-        Button btnManageSpecializations = findViewById(R.id.btnManageSpecializations);
-        Button btnManageYears = findViewById(R.id.btnManageYears);
-        Button btnManageSections = findViewById(R.id.btnManageSections);
-        Button btnManageCourse = findViewById(R.id.btnManageCourse);
-        Button btnManageSubjects = findViewById(R.id.btnManageSubjects);
-
-        // Accounts buttons
-        Button btnManageTeachers = findViewById(R.id.btnManageTeachers);
-        Button btnManageStudents = findViewById(R.id.btnManageStudents);
-
-        // Set click listeners for sidebar buttons
-        btnManageSpecializations.setOnClickListener(v -> {
-            drawerLayout.closeDrawer(sidebarLayout);
-            startActivity(new Intent(TeacherActivity.this, SpecializationsActivity.class));
-        });
-
-        btnManageYears.setOnClickListener(v -> {
-            drawerLayout.closeDrawer(sidebarLayout);
-            startActivity(new Intent(TeacherActivity.this, YearsActivity.class));
-        });
-
-        btnManageSections.setOnClickListener(v -> {
-            drawerLayout.closeDrawer(sidebarLayout);
-            startActivity(new Intent(TeacherActivity.this, SectionsActivity.class));
-        });
-
-        btnManageCourse.setOnClickListener(v -> {
-            drawerLayout.closeDrawer(sidebarLayout);
-            startActivity(new Intent(TeacherActivity.this, CourseActivity.class));
-        });
-
-        btnManageSubjects.setOnClickListener(v -> {
-            drawerLayout.closeDrawer(sidebarLayout);
-            startActivity(new Intent(TeacherActivity.this, SubjectActivity.class));
-        });
-
-        btnManageTeachers.setOnClickListener(v -> {
-            drawerLayout.closeDrawer(sidebarLayout);
-            // We're already in TeacherActivity, so just close the drawer
-            // DAGDAG: Highlight the active button
-            resetSidebarButtonBackgrounds();
-            btnManageTeachers.setBackgroundResource(R.drawable.sidebar_button_pressed);
-        });
-
-        btnManageStudents.setOnClickListener(v -> {
-            drawerLayout.closeDrawer(sidebarLayout);
-            startActivity(new Intent(TeacherActivity.this, StudentActivity.class));
-        });
-
-        // Logout button
-        Button logoutBtn = findViewById(R.id.logoutBtn);
-        logoutBtn.setOnClickListener(v -> {
-            // Clear session
-            SessionManager sessionManager = new SessionManager(this);
-            sessionManager.clearSession();
-
-            // Sign out from Firebase
-            FirebaseAuth.getInstance().signOut();
-
-            // Redirect to login
-            Intent intent = new Intent(this, MainActivity.class);
-            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-            startActivity(intent);
+        // Handle navigation item clicks
+        if (id == R.id.nav_dashboard) {
+            startActivity(new Intent(this, AdminActivity.class));
             finish();
+        } else if (id == R.id.nav_specializations) {
+            startActivity(new Intent(this, SpecializationsActivity.class));
+        } else if (id == R.id.nav_years) {
+            startActivity(new Intent(this, YearsActivity.class));
+        } else if (id == R.id.nav_sections) {
+            startActivity(new Intent(this, SectionsActivity.class));
+        } else if (id == R.id.nav_courses) {
+            startActivity(new Intent(this, CourseActivity.class));
+        } else if (id == R.id.nav_subjects) {
+            startActivity(new Intent(this, SubjectActivity.class));
+        } else if (id == R.id.nav_teachers) {
+            // We're already in TeacherActivity
+            // Just close the drawer
+        } else if (id == R.id.nav_students) {
+            startActivity(new Intent(this, StudentActivity.class));
+        } else if (id == R.id.nav_logout) {
+            performLogout();
+        }
 
-            Toast.makeText(this, "Logged out successfully", Toast.LENGTH_SHORT).show();
-        });
+        return true;
     }
 
-    // DAGDAG: Method to reset sidebar button backgrounds
-    private void resetSidebarButtonBackgrounds() {
-        Button btnManageSpecializations = findViewById(R.id.btnManageSpecializations);
-        Button btnManageYears = findViewById(R.id.btnManageYears);
-        Button btnManageSections = findViewById(R.id.btnManageSections);
-        Button btnManageCourse = findViewById(R.id.btnManageCourse);
-        Button btnManageSubjects = findViewById(R.id.btnManageSubjects);
-        Button btnManageTeachers = findViewById(R.id.btnManageTeachers);
-        Button btnManageStudents = findViewById(R.id.btnManageStudents);
+    private void performLogout() {
+        // Clear session
+        SessionManager sessionManager = new SessionManager(this);
+        sessionManager.clearSession();
 
-        btnManageSpecializations.setBackgroundResource(android.R.color.transparent);
-        btnManageYears.setBackgroundResource(android.R.color.transparent);
-        btnManageSections.setBackgroundResource(android.R.color.transparent);
-        btnManageCourse.setBackgroundResource(android.R.color.transparent);
-        btnManageSubjects.setBackgroundResource(android.R.color.transparent);
-        btnManageTeachers.setBackgroundResource(android.R.color.transparent);
-        btnManageStudents.setBackgroundResource(android.R.color.transparent);
+        // Sign out from Firebase
+        FirebaseAuth.getInstance().signOut();
+
+        // Redirect to login
+        Intent intent = new Intent(this, MainActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
+        finish();
+
+        Toast.makeText(this, "Logged out successfully", Toast.LENGTH_SHORT).show();
     }
 
     @Override
     public void onBackPressed() {
-        if (drawerLayout != null && drawerLayout.isDrawerOpen(sidebarLayout)) {
-            drawerLayout.closeDrawer(sidebarLayout);
+        if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
+            drawerLayout.closeDrawer(GravityCompat.START);
         } else {
             super.onBackPressed();
         }
@@ -442,7 +331,6 @@ public class TeacherActivity extends AppCompatActivity {
                     CourseModel course = ds.getValue(CourseModel.class);
                     if (course != null) courseOptionList.add(course);
                 }
-                // No need to notify anything here in activity
             }
 
             @Override
@@ -472,15 +360,15 @@ public class TeacherActivity extends AppCompatActivity {
         CourseSelectionAdapter courseAdapterDialog = new CourseSelectionAdapter(this, dialogCourses);
         recyclerCourseDialog.setAdapter(courseAdapterDialog);
 
-        // ✅ BAGO: Load ALL subjects immediately (walang course selection muna)
+        // Load ALL subjects immediately (walang course selection muna)
         List<SubjectModel> allSubjects = new ArrayList<>();
         SubjectSelectionAdapter subjectAdapterDialog = new SubjectSelectionAdapter(allSubjects);
         recyclerSubjectsDialog.setAdapter(subjectAdapterDialog);
 
-        // ✅ BAGO: Load all subjects from Firebase
+        // Load all subjects from Firebase
         loadAllSubjects(subjectAdapterDialog);
 
-        // ✅ BAGO: Magkaroon ng option para i-filter ang subjects base sa selected courses
+        // Magkaroon ng option para i-filter ang subjects base sa selected courses
         courseAdapterDialog.setOnCourseSelectionChanged(() -> {
             List<CourseModel> selectedCourses = courseAdapterDialog.getSelectedCourses();
 
@@ -493,7 +381,7 @@ public class TeacherActivity extends AppCompatActivity {
             }
         });
 
-        // FIXED: Use standard AlertDialog with built-in buttons (no custom button handling)
+        // Use standard AlertDialog with built-in buttons
         new AlertDialog.Builder(this)
                 .setView(dialogView)
                 .setPositiveButton("Add", (dialog, which) -> {
@@ -532,7 +420,7 @@ public class TeacherActivity extends AppCompatActivity {
                             );
                         }
 
-                        // ✅ FIXED: Add null for uid parameter
+                        // Add null for uid parameter
                         TeacherModel teacher = new TeacherModel(
                                 teacherId,
                                 fullName,
@@ -550,7 +438,7 @@ public class TeacherActivity extends AppCompatActivity {
                                 .addOnCompleteListener(authTask -> {
                                     if (authTask.isSuccessful()) {
                                         FirebaseUser firebaseUser = authTask.getResult().getUser();
-                                        // ✅ Set the uid after user creation
+                                        // Set the uid after user creation
                                         teacher.setUid(firebaseUser.getUid());
 
                                         usersRef.child(firebaseUser.getUid()).child("role").setValue("teacher");
@@ -567,7 +455,7 @@ public class TeacherActivity extends AppCompatActivity {
                 .show();
     }
 
-    // ✅ BAGO: Method para i-load ang lahat ng subjects
+    // Method para i-load ang lahat ng subjects
     private void loadAllSubjects(SubjectSelectionAdapter adapter) {
         subjectsRef.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
@@ -589,7 +477,7 @@ public class TeacherActivity extends AppCompatActivity {
         });
     }
 
-    // ✅ BAGO: Method para i-filter ang subjects base sa selected courses
+    // Method para i-filter ang subjects base sa selected courses
     private void filterSubjectsByCourses(List<CourseModel> selectedCourses, SubjectSelectionAdapter adapter) {
         List<SubjectModel> filteredSubjects = new ArrayList<>();
         final int[] loadedCount = {0};
@@ -645,99 +533,9 @@ public class TeacherActivity extends AppCompatActivity {
         datePickerDialog.show();
     }
 
-    private void updateSelectedSubjects() {
-        List<CourseModel> selectedCourses = courseSelectionAdapter.getSelectedCourses();
-
-        selectedCourseSubjects.clear(); // reset subjects
-        if (selectedCourses.isEmpty()) {
-            subjectAdapter.updateSubjects(selectedCourseSubjects);
-            return;
-        }
-
-        final int[] loadedCount = {0};
-        List<SubjectModel> subjects = new ArrayList<>();
-
-        for (CourseModel c : selectedCourses) {
-            subjectsRef.orderByChild("courseId").equalTo(c.getId())
-                    .addListenerForSingleValueEvent(new ValueEventListener() {
-                        @Override
-                        public void onDataChange(@NonNull DataSnapshot snapshot) {
-                            for (DataSnapshot ds : snapshot.getChildren()) {
-                                SubjectModel s = ds.getValue(SubjectModel.class);
-                                if (s != null && !subjects.contains(s)) {
-                                    subjects.add(s); // just add, do NOT auto-select
-                                }
-                            }
-                            loadedCount[0]++;
-                            if (loadedCount[0] == selectedCourses.size()) {
-                                selectedCourseSubjects.addAll(subjects);
-                                subjectAdapter.updateSubjects(selectedCourseSubjects);
-                            }
-                        }
-
-                        @Override
-                        public void onCancelled(@NonNull DatabaseError error) {
-                            loadedCount[0]++;
-                            if (loadedCount[0] == selectedCourses.size()) {
-                                selectedCourseSubjects.addAll(subjects);
-                                subjectAdapter.updateSubjects(selectedCourseSubjects);
-                            }
-                        }
-                    });
-        }
-    }
-
     // DAGDAG: ADD THIS MISSING METHOD - ITO ANG SOLUTION SA ERROR
     public void addTeacher(View view) {
         showAddTeacherDialog();
-    }
-
-    private void fetchSelectedSubjects(List<CourseModel> selectedCourses, OnSubjectsFetchedListener listener) {
-        List<SubjectModel> subjects = new ArrayList<>();
-        if (selectedCourses.isEmpty()) {
-            listener.onFetched(new ArrayList<>());
-            return;
-        }
-
-        final int[] loadedCount = {0};
-        for (CourseModel c : selectedCourses) {
-            subjectsRef.orderByChild("courseId").equalTo(c.getId())
-                    .addListenerForSingleValueEvent(new ValueEventListener() {
-                        @Override
-                        public void onDataChange(@NonNull DataSnapshot snapshot) {
-                            for (DataSnapshot ds : snapshot.getChildren()) {
-                                SubjectModel s = ds.getValue(SubjectModel.class);
-                                if (s != null && !subjects.contains(s)) {
-                                    subjects.add(s);
-                                }
-                            }
-                            loadedCount[0]++;
-                            if (loadedCount[0] == selectedCourses.size()) {
-                                listener.onFetched(subjectsToNames(subjects));
-                            }
-                        }
-
-                        @Override
-                        public void onCancelled(@NonNull DatabaseError error) {
-                            loadedCount[0]++;
-                            if (loadedCount[0] == selectedCourses.size()) {
-                                listener.onFetched(subjectsToNames(subjects));
-                            }
-                        }
-                    });
-        }
-    }
-
-    private List<String> subjectsToNames(List<SubjectModel> subjects) {
-        List<String> names = new ArrayList<>();
-        for (SubjectModel s : subjects) {
-            names.add(s.getName());
-        }
-        return names;
-    }
-
-    interface OnSubjectsFetchedListener {
-        void onFetched(List<String> assignedSubjects);
     }
 
     private String getDisplayName(String fullName) {
@@ -816,16 +614,16 @@ public class TeacherActivity extends AppCompatActivity {
                     editCourseAdapter.setPreselectedCoursesById(teacher.getCourseIds());
                 }
 
-                // ✅ BAGO: Load all subjects immediately for edit dialog
+                // Load all subjects immediately for edit dialog
                 SubjectSelectionAdapter editSubjectAdapter = new SubjectSelectionAdapter(new ArrayList<>());
                 recyclerEditSubjects.setLayoutManager(new LinearLayoutManager(TeacherActivity.this));
                 recyclerEditSubjects.setAdapter(editSubjectAdapter);
                 loadAllSubjects(editSubjectAdapter);
 
-                // ✅ BAGO: Preselect subjects based on teacher's current assigned subjects
+                // Preselect subjects based on teacher's current assigned subjects
                 editSubjectAdapter.setPreselectedSubjects(teacher.getAssignedSubjects());
 
-                // ✅ BAGO: Update subjects filtering based on course selection
+                // Update subjects filtering based on course selection
                 editCourseAdapter.setOnCourseSelectionChanged(() -> {
                     List<CourseModel> selectedCourses = editCourseAdapter.getSelectedCourses();
                     if (selectedCourses.isEmpty()) {
@@ -844,7 +642,7 @@ public class TeacherActivity extends AppCompatActivity {
             public void onCancelled(@NonNull DatabaseError error) { }
         });
 
-        // FIXED: Remove the title from AlertDialog since it's already in the layout XML
+        // Remove the title from AlertDialog since it's already in the layout XML
         new AlertDialog.Builder(this)
                 .setView(dialogView)
                 .setPositiveButton("Update", (dialog, which) -> {

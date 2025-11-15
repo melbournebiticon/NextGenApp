@@ -1,54 +1,95 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.cardview.widget.CardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="horizontal"
-    android:padding="12dp"
-    android:gravity="center_vertical">
+    android:layout_margin="8dp"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="3dp"
+    app:cardUseCompatPadding="true">
 
     <LinearLayout
-        android:layout_width="0dp"
-        android:layout_weight="1"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical">
+        android:orientation="horizontal"
+        android:padding="16dp"
+        android:gravity="center_vertical"
+        android:background="#FFFFFF">
 
-        <TextView
-            android:id="@+id/tvSubjectCode"
+        <!-- Text Content -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- Subject Code -->
+            <TextView
+                android:id="@+id/tvSubjectCode"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="SUBJ101"
+                android:textColor="#0D47A1"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="4dp" />
+
+            <!-- Subject Name -->
+            <TextView
+                android:id="@+id/tvSubjectName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Introduction to CS"
+                android:textColor="#0D47A1"
+                android:textSize="14sp"
+                android:layout_marginBottom="8dp" />
+
+            <!-- Course Info -->
+            <TextView
+                android:id="@+id/tvSubjectCourseInfo"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="BSIT SD 2B - Cybersecurity - 2nd Year - Section B"
+                android:textColor="#555555"
+                android:textSize="12sp"
+                android:background="#E3F2FD"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="4dp"
+                app:cornerRadius="6dp" />
+
+        </LinearLayout>
+
+        <!-- Action Buttons -->
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="SUBJ101"
-            android:textStyle="bold" />
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
 
-        <TextView
-            android:id="@+id/tvSubjectName"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Introduction to CS" />
+            <!-- Edit Button -->
+            <ImageButton
+                android:id="@+id/btnEdit"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:src="@drawable/ic_edit"
+                android:contentDescription="Edit"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:tint="#0D47A1"
+                android:layout_marginEnd="8dp" />
 
-        <TextView
-            android:id="@+id/tvSubjectCourseInfo"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="BSIT SD 2B - Cybersecurity - 2nd Year - Section B"
-            android:textColor="#555555"
-            android:textSize="14sp" />
+            <!-- Delete Button -->
+            <ImageButton
+                android:id="@+id/btnDelete"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:src="@drawable/ic_delete"
+                android:contentDescription="Delete"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:tint="#D32F2F" />
+
+        </LinearLayout>
 
     </LinearLayout>
 
-    <ImageButton
-        android:id="@+id/btnEdit"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:src="@android:drawable/ic_menu_edit"
-        android:contentDescription="Edit"
-        android:background="?attr/selectableItemBackgroundBorderless" />
-
-    <ImageButton
-        android:id="@+id/btnDelete"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:src="@android:drawable/ic_menu_delete"
-        android:contentDescription="Delete"
-        android:background="?attr/selectableItemBackgroundBorderless" />
-
-</LinearLayout>
+</androidx.cardview.widget.CardView>

@@ -1,11 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:orientation="vertical"
-    android:padding="24dp"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="#F0F3F9">
+    android:orientation="vertical"
+    android:padding="24dp">
 
     <!-- Subject Code Input -->
     <TextView
@@ -18,14 +16,13 @@
         android:layout_marginBottom="8dp"/>
 
     <EditText
-        android:id="@+id/etSubjectCode"
+        android:id="@+id/etEditSubjectCode"
         android:layout_width="match_parent"
         android:layout_height="50dp"
         android:hint="Enter subject code"
         android:background="@drawable/edit_text_background"
         android:padding="12dp"
         android:textSize="14sp"
-        android:textColor="#0D47A1"
         android:layout_marginBottom="16dp"/>
 
     <!-- Subject Name Input -->
@@ -39,33 +36,13 @@
         android:layout_marginBottom="8dp"/>
 
     <EditText
-        android:id="@+id/etSubjectName"
+        android:id="@+id/etEditSubjectName"
         android:layout_width="match_parent"
         android:layout_height="50dp"
         android:hint="Enter subject name"
         android:background="@drawable/edit_text_background"
         android:padding="12dp"
         android:textSize="14sp"
-        android:textColor="#0D47A1"
         android:layout_marginBottom="16dp"/>
-
-    <!-- Course Spinner -->
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Select Course"
-        android:textColor="#0D47A1"
-        android:textSize="14sp"
-        android:textStyle="bold"
-        android:layout_marginBottom="8dp"/>
-
-    <Spinner
-        android:id="@+id/spinnerCourseOption"
-        android:layout_width="match_parent"
-        android:layout_height="50dp"
-        android:background="@drawable/edit_text_background"
-        android:padding="12dp"
-        android:textSize="14sp"
-        android:layout_marginBottom="8dp"/>
 
 </LinearLayout>

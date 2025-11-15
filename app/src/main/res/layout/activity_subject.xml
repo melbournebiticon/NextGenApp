@@ -2,78 +2,57 @@
 <androidx.drawerlayout.widget.DrawerLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/drawerLayout"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/drawer_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:fitsSystemWindows="true"
-    android:background="#F5F5F5">
+    tools:context=".admin.SubjectActivity">
 
-    <!-- ================= MAIN CONTENT ================= -->
-    <LinearLayout
+    <!-- ===== MAIN CONTENT ===== -->
+    <androidx.coordinatorlayout.widget.CoordinatorLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:orientation="vertical">
+        android:background="#F0F3F9">
 
-        <!-- Enhanced Top Bar -->
-        <LinearLayout
+        <!-- ===== APP BAR WITH TOOLBAR ===== -->
+        <com.google.android.material.appbar.AppBarLayout
+            android:id="@+id/appBarLayout"
             android:layout_width="match_parent"
-            android:layout_height="64dp"
-            android:background="#003366"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
-            android:elevation="4dp">
+            android:layout_height="wrap_content"
+            android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar">
 
-            <ImageButton
-                android:id="@+id/btnOpenSidebar"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
-                android:src="@drawable/ic_menu"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:tint="#FFFFFF"
-                android:contentDescription="Menu"/>
+            <androidx.appcompat.widget.Toolbar
+                android:id="@+id/toolbar"
+                android:layout_width="match_parent"
+                android:layout_height="?attr/actionBarSize"
+                android:background="#0D47A1"
+                app:popupTheme="@style/ThemeOverlay.AppCompat.Light"
+                app:title="Manage Subjects"
+                app:titleTextColor="@android:color/white" />
+        </com.google.android.material.appbar.AppBarLayout>
 
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Manage Subjects"
-                android:textColor="#FFFFFF"
-                android:textSize="20sp"
-                android:layout_marginStart="16dp"
-                android:textStyle="bold"/>
-
-            <ImageView
-                android:layout_width="28dp"
-                android:layout_height="28dp"
-                android:src="@drawable/ic_category"
-                android:tint="#FFFFFF"
-                android:contentDescription="Subjects Icon"/>
-        </LinearLayout>
-
-        <!-- Main Content - Simplified -->
+        <!-- ===== MAIN CONTENT ===== -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:orientation="vertical"
-            android:padding="20dp"
-            android:background="#F5F5F5">
+            android:padding="16dp"
+            app:layout_behavior="@string/appbar_scrolling_view_behavior"
+            android:background="#F0F3F9">
 
             <!-- Input Section Card -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                app:cardCornerRadius="12dp"
+                app:cardCornerRadius="16dp"
                 app:cardElevation="4dp"
-                app:cardUseCompatPadding="true"
-                android:layout_marginBottom="16dp">
+                android:layout_marginBottom="24dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="20dp"
+                    android:padding="24dp"
                     android:background="#FFFFFF">
 
                     <!-- Subject Code Input -->
@@ -81,7 +60,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Subject Code"
-                        android:textColor="#003366"
+                        android:textColor="#0D47A1"
                         android:textSize="14sp"
                         android:textStyle="bold"
                         android:layout_marginBottom="8dp"/>
@@ -101,7 +80,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Subject Name"
-                        android:textColor="#003366"
+                        android:textColor="#0D47A1"
                         android:textSize="14sp"
                         android:textStyle="bold"
                         android:layout_marginBottom="8dp"/>
@@ -121,7 +100,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Select Course"
-                        android:textColor="#003366"
+                        android:textColor="#0D47A1"
                         android:textSize="14sp"
                         android:textStyle="bold"
                         android:layout_marginBottom="8dp"/>
@@ -132,21 +111,21 @@
                         android:layout_height="50dp"
                         android:background="@android:drawable/btn_dropdown"
                         android:padding="12dp"
-                        android:layout_marginBottom="16dp"/>
+                        android:layout_marginBottom="24dp"/>
 
                     <!-- Add Button -->
-                    <Button
+                    <androidx.appcompat.widget.AppCompatButton
                         android:id="@+id/btnAddSubject"
                         android:layout_width="match_parent"
                         android:layout_height="50dp"
                         android:text="Add Subject"
                         android:textSize="16sp"
                         android:textStyle="bold"
-                        android:background="@drawable/button_primary"
+                        android:backgroundTint="#0D47A1"
                         android:textColor="#FFFFFF"
-                        android:drawableStart="@drawable/ic_add"
-                        android:drawableTint="#FFFFFF"
-                        android:drawablePadding="8dp"/>
+                        android:stateListAnimator="@null"
+                        android:letterSpacing="0.02"
+                        android:padding="0dp"/>
 
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
@@ -156,9 +135,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
                 android:layout_weight="1"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="4dp"
-                app:cardUseCompatPadding="true">
+                app:cardCornerRadius="16dp"
+                app:cardElevation="4dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -179,7 +157,7 @@
                             android:layout_width="24dp"
                             android:layout_height="24dp"
                             android:src="@drawable/ic_list"
-                            android:tint="#003366"
+                            android:tint="#0D47A1"
                             android:layout_marginEnd="12dp"
                             android:contentDescription="List"/>
 
@@ -188,8 +166,8 @@
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:text="Subjects List"
-                            android:textColor="#003366"
-                            android:textSize="16sp"
+                            android:textColor="#0D47A1"
+                            android:textSize="18sp"
                             android:textStyle="bold"/>
 
                         <TextView
@@ -197,7 +175,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="0 items"
-                            android:textColor="#666666"
+                            android:textColor="#555555"
                             android:textSize="14sp"/>
                     </LinearLayout>
 
@@ -232,7 +210,7 @@
                             android:text="No Subjects Found"
                             android:textSize="16sp"
                             android:textStyle="bold"
-                            android:textColor="#666666"
+                            android:textColor="#555555"
                             android:layout_marginBottom="8dp"/>
 
                         <TextView
@@ -249,226 +227,15 @@
             </androidx.cardview.widget.CardView>
 
         </LinearLayout>
-    </LinearLayout>
+    </androidx.coordinatorlayout.widget.CoordinatorLayout>
 
-    <!-- ================= SIDEBAR - Same as others ================= -->
-    <LinearLayout
-        android:id="@+id/sidebarLayout"
-        android:layout_width="300dp"
+    <!-- ===== NAVIGATION VIEW (SIDEBAR) ===== -->
+    <com.google.android.material.navigation.NavigationView
+        android:id="@+id/nav_view"
+        android:layout_width="wrap_content"
         android:layout_height="match_parent"
         android:layout_gravity="start"
-        android:orientation="vertical"
-        android:background="#00BCD4"
-        android:padding="0dp">
-
-        <!-- Sidebar Header -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="160dp"
-            android:orientation="vertical"
-            android:gravity="center"
-            android:background="#00BCD4"
-            android:padding="20dp">
-
-            <ImageView
-                android:id="@+id/profileImage"
-                android:layout_width="80dp"
-                android:layout_height="80dp"
-                android:src="@drawable/ic_person"
-                android:scaleType="centerCrop"
-                android:background="@drawable/profile_circle_bg"
-                android:layout_marginBottom="12dp"/>
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Admin"
-                android:textColor="#FFFFFF"
-                android:textStyle="bold"
-                android:textSize="18sp"
-                android:layout_marginBottom="4dp"/>
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Administrator"
-                android:textColor="#E0F7FA"
-                android:textSize="12sp"/>
-        </LinearLayout>
-
-        <ScrollView
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:fillViewport="true"
-            android:scrollbars="none"
-            android:background="#00BCD4">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:paddingVertical="8dp">
-
-                <!-- Manage Curriculum Header -->
-                <Button
-                    android:id="@+id/btnManageCurriculumHeader"
-                    android:layout_width="match_parent"
-                    android:layout_height="52dp"
-                    android:text="📘 Manage Curriculum ▴"
-                    android:textAllCaps="false"
-                    android:textColor="#FFFFFF"
-                    android:textSize="14sp"
-                    android:gravity="start|center_vertical"
-                    android:paddingStart="20dp"
-                    android:paddingEnd="20dp"
-                    android:background="@android:color/transparent"
-                    android:drawableEnd="@drawable/ic_arrow_down"
-                    android:drawableTint="#FFFFFF"/>
-
-                <!-- Curriculum Dropdown -->
-                <LinearLayout
-                    android:id="@+id/curriculumDropdown"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:visibility="visible"
-                    android:background="#0097A7"
-                    android:paddingStart="8dp"
-                    android:paddingEnd="8dp"
-                    android:paddingTop="4dp"
-                    android:paddingBottom="4dp">
-
-                    <Button
-                        android:id="@+id/btnManageSpecializations"
-                        android:layout_width="match_parent"
-                        android:layout_height="44dp"
-                        android:text="Manage Specialization"
-                        android:textAllCaps="false"
-                        android:textColor="#FFFFFF"
-                        android:textSize="13sp"
-                        android:gravity="start|center_vertical"
-                        android:paddingStart="32dp"
-                        android:background="@android:color/transparent"/>
-
-                    <Button
-                        android:id="@+id/btnManageYears"
-                        android:layout_width="match_parent"
-                        android:layout_height="44dp"
-                        android:text="Manage Year"
-                        android:textAllCaps="false"
-                        android:textColor="#FFFFFF"
-                        android:textSize="13sp"
-                        android:gravity="start|center_vertical"
-                        android:paddingStart="32dp"
-                        android:background="@android:color/transparent"/>
-
-                    <Button
-                        android:id="@+id/btnManageSections"
-                        android:layout_width="match_parent"
-                        android:layout_height="44dp"
-                        android:text="Manage Sections"
-                        android:textAllCaps="false"
-                        android:textColor="#FFFFFF"
-                        android:textSize="13sp"
-                        android:gravity="start|center_vertical"
-                        android:paddingStart="32dp"
-                        android:background="@android:color/transparent"/>
-
-                    <Button
-                        android:id="@+id/btnManageCourse"
-                        android:layout_width="match_parent"
-                        android:layout_height="44dp"
-                        android:text="Manage Course"
-                        android:textAllCaps="false"
-                        android:textColor="#FFFFFF"
-                        android:textSize="13sp"
-                        android:gravity="start|center_vertical"
-                        android:paddingStart="32dp"
-                        android:background="@android:color/transparent"/>
-
-                    <Button
-                        android:id="@+id/btnManageSubjects"
-                        android:layout_width="match_parent"
-                        android:layout_height="44dp"
-                        android:text="Manage Subjects"
-                        android:textAllCaps="false"
-                        android:textColor="#FFFFFF"
-                        android:textSize="13sp"
-                        android:gravity="start|center_vertical"
-                        android:paddingStart="32dp"
-                        android:background="@drawable/sidebar_button_pressed"/>
-                </LinearLayout>
-
-                <!-- Manage Accounts Header -->
-                <Button
-                    android:id="@+id/btnManageAccountsHeader"
-                    android:layout_width="match_parent"
-                    android:layout_height="52dp"
-                    android:text="👤 Manage Accounts ▾"
-                    android:textAllCaps="false"
-                    android:textColor="#FFFFFF"
-                    android:textSize="14sp"
-                    android:gravity="start|center_vertical"
-                    android:paddingStart="20dp"
-                    android:paddingEnd="20dp"
-                    android:background="@android:color/transparent"
-                    android:drawableEnd="@drawable/ic_arrow_down"
-                    android:drawableTint="#FFFFFF"/>
-
-                <!-- Accounts Dropdown -->
-                <LinearLayout
-                    android:id="@+id/accountsDropdown"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:visibility="gone"
-                    android:background="#0097A7"
-                    android:paddingStart="8dp"
-                    android:paddingEnd="8dp"
-                    android:paddingTop="4dp"
-                    android:paddingBottom="4dp">
-
-                    <Button
-                        android:id="@+id/btnManageTeachers"
-                        android:layout_width="match_parent"
-                        android:layout_height="44dp"
-                        android:text="Manage Teacher"
-                        android:textAllCaps="false"
-                        android:textColor="#FFFFFF"
-                        android:textSize="13sp"
-                        android:gravity="start|center_vertical"
-                        android:paddingStart="32dp"
-                        android:background="@android:color/transparent"/>
-
-                    <Button
-                        android:id="@+id/btnManageStudents"
-                        android:layout_width="match_parent"
-                        android:layout_height="44dp"
-                        android:text="Manage Examinee"
-                        android:textAllCaps="false"
-                        android:textColor="#FFFFFF"
-                        android:textSize="13sp"
-                        android:gravity="start|center_vertical"
-                        android:paddingStart="32dp"
-                        android:background="@android:color/transparent"/>
-                </LinearLayout>
-
-                <!-- Logout -->
-                <Button
-                    android:id="@+id/logoutBtn"
-                    android:layout_width="match_parent"
-                    android:layout_height="52dp"
-                    android:text="🚪 Logout"
-                    android:textAllCaps="false"
-                    android:textColor="#FFEBEE"
-                    android:textSize="14sp"
-                    android:gravity="start|center_vertical"
-                    android:paddingStart="20dp"
-                    android:background="@android:color/transparent"
-                    android:layout_marginTop="8dp"/>
-            </LinearLayout>
-        </ScrollView>
-    </LinearLayout>
+        app:headerLayout="@layout/nav_header_admin"
+        app:menu="@menu/admin_navigation_menu" />
 
 </androidx.drawerlayout.widget.DrawerLayout>

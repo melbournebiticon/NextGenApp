@@ -1,19 +1,23 @@
 package com.example.nextgen.admin;
 
-import android.content.Intent; // DAGDAG: Import for Intent
+import android.content.Intent;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.Spinner;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
+import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -21,29 +25,26 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.nextgen.MainActivity;
 import com.example.nextgen.R;
 import com.example.nextgen.SessionManager;
+import com.google.android.material.navigation.NavigationView;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.*;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class CourseActivity extends AppCompatActivity {
+public class CourseActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener {
 
-    // DAGDAG: SIDEBAR COMPONENTS
     private DrawerLayout drawerLayout;
-    private LinearLayout sidebarLayout;
-    private ImageButton btnToggleSidebar;
-    private LinearLayout curriculumDropdown, accountsDropdown;
-
-    // DAGDAG: Sidebar state management
-    private boolean isCurriculumExpanded = true;
-    private boolean isAccountsExpanded = false;
+    private NavigationView navigationView;
+    private Toolbar toolbar;
 
     // ORIGINAL COMPONENTS - WALANG BINAGO
     private EditText etCourseName;
     private Button btnAddCourse;
-    private Spinner spinnerSections; // Only use this now
+    private Spinner spinnerSections;
     private RecyclerView recyclerCourses;
+    private LinearLayout emptyState;
+    private TextView tvCourseCount;
 
     private CourseAdapter adapter;
     private final List<CourseModel> courseList = new ArrayList<>();
@@ -55,15 +56,16 @@ public class CourseActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_course);
 
-        // DAGDAG: INITIALIZE SIDEBAR
-        initializeSidebar();
-        setInitialSidebarState();
+        // Initialize Toolbar and Navigation
+        initializeToolbarAndNavigation();
 
         // ORIGINAL CODE - WALANG BINAGO
         etCourseName = findViewById(R.id.etCourseName);
         btnAddCourse = findViewById(R.id.btnAddCourse);
         spinnerSections = findViewById(R.id.spinnerSection);
         recyclerCourses = findViewById(R.id.recyclerCourses);
+        emptyState = findViewById(R.id.emptyState);
+        tvCourseCount = findViewById(R.id.tvCourseCount); // FIXED: May ID na ito sa XML
 
         recyclerCourses.setLayoutManager(new LinearLayoutManager(this));
         adapter = new CourseAdapter(this, courseList);
@@ -81,173 +83,90 @@ public class CourseActivity extends AppCompatActivity {
         loadCourses();
     }
 
-    // DAGDAG: SIDEBAR INITIALIZATION
-    private void initializeSidebar() {
-        drawerLayout = findViewById(R.id.drawerLayout);
-        sidebarLayout = findViewById(R.id.sidebarLayout);
-        btnToggleSidebar = findViewById(R.id.btnOpenSidebar);
-        curriculumDropdown = findViewById(R.id.curriculumDropdown);
-        accountsDropdown = findViewById(R.id.accountsDropdown);
+    private void initializeToolbarAndNavigation() {
+        // Setup Toolbar
+        toolbar = findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
 
-        // Sidebar toggle
-        btnToggleSidebar.setOnClickListener(v -> {
-            if (drawerLayout.isDrawerOpen(sidebarLayout)) {
-                drawerLayout.closeDrawer(sidebarLayout);
-            } else {
-                drawerLayout.openDrawer(sidebarLayout);
-            }
-        });
+        // Setup Drawer Layout and Navigation
+        drawerLayout = findViewById(R.id.drawer_layout);
+        navigationView = findViewById(R.id.nav_view);
 
-        // Setup sidebar navigation
-        setupSidebarNavigation();
+        // Setup toggle button
+        ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
+                this, drawerLayout, toolbar,
+                R.string.navigation_drawer_open, R.string.navigation_drawer_close
+        );
+        drawerLayout.addDrawerListener(toggle);
+        toggle.syncState();
+
+        // Set navigation item selected listener
+        navigationView.setNavigationItemSelectedListener(this);
+
+        // Highlight current menu item
+        navigationView.setCheckedItem(R.id.nav_courses);
     }
 
-    // DAGDAG: Method to set initial sidebar state
-    private void setInitialSidebarState() {
-        // Set Manage Course button as active (highlighted)
-        Button btnManageCourse = findViewById(R.id.btnManageCourse);
-        btnManageCourse.setBackgroundResource(R.drawable.sidebar_button_pressed);
+    @Override
+    public boolean onNavigationItemSelected(@NonNull MenuItem item) {
+        int id = item.getItemId();
 
-        // Set curriculum dropdown as expanded by default
-        curriculumDropdown.setVisibility(View.VISIBLE);
-        Button btnCurriculumHeader = findViewById(R.id.btnManageCurriculumHeader);
-        btnCurriculumHeader.setText("📘 Manage Curriculum ▴");
+        // Close drawer first
+        drawerLayout.closeDrawer(GravityCompat.START);
 
-        // Set accounts dropdown as collapsed by default
-        accountsDropdown.setVisibility(View.GONE);
-        Button btnAccountsHeader = findViewById(R.id.btnManageAccountsHeader);
-        btnAccountsHeader.setText("👤 Manage Accounts ▾");
-    }
-
-    // DAGDAG: SIDEBAR NAVIGATION SETUP
-    private void setupSidebarNavigation() {
-        // Curriculum dropdown
-        final Button btnCurriculumHeader = findViewById(R.id.btnManageCurriculumHeader);
-        btnCurriculumHeader.setOnClickListener(v -> {
-            if (curriculumDropdown.getVisibility() == View.VISIBLE) {
-                curriculumDropdown.setVisibility(View.GONE);
-                btnCurriculumHeader.setText("📘 Manage Curriculum ▾");
-                isCurriculumExpanded = false;
-            } else {
-                curriculumDropdown.setVisibility(View.VISIBLE);
-                btnCurriculumHeader.setText("📘 Manage Curriculum ▴");
-                isCurriculumExpanded = true;
-
-                // Collapse accounts if needed for consistency
-                if (isAccountsExpanded) {
-                    accountsDropdown.setVisibility(View.GONE);
-                    Button btnAccountsHeader = findViewById(R.id.btnManageAccountsHeader);
-                    btnAccountsHeader.setText("👤 Manage Accounts ▾");
-                    isAccountsExpanded = false;
-                }
-            }
-        });
-
-        // Accounts dropdown
-        final Button btnAccountsHeader = findViewById(R.id.btnManageAccountsHeader);
-        btnAccountsHeader.setOnClickListener(v -> {
-            if (accountsDropdown.getVisibility() == View.VISIBLE) {
-                accountsDropdown.setVisibility(View.GONE);
-                btnAccountsHeader.setText("👤 Manage Accounts ▾");
-                isAccountsExpanded = false;
-            } else {
-                accountsDropdown.setVisibility(View.VISIBLE);
-                btnAccountsHeader.setText("👤 Manage Accounts ▴");
-                isAccountsExpanded = true;
-
-                // Collapse curriculum if needed for consistency
-                if (isCurriculumExpanded) {
-                    curriculumDropdown.setVisibility(View.GONE);
-                    btnCurriculumHeader.setText("📘 Manage Curriculum ▾");
-                    isCurriculumExpanded = false;
-                }
-            }
-        });
-
-        // Sidebar buttons functionality
-        setupSidebarButtons();
-    }
-
-    // DAGDAG: Setup sidebar buttons functionality
-    private void setupSidebarButtons() {
-        // Curriculum buttons
-        Button btnManageSpecializations = findViewById(R.id.btnManageSpecializations);
-        Button btnManageYears = findViewById(R.id.btnManageYears);
-        Button btnManageSections = findViewById(R.id.btnManageSections);
-        Button btnManageCourse = findViewById(R.id.btnManageCourse);
-        Button btnManageSubjects = findViewById(R.id.btnManageSubjects);
-
-        // Accounts buttons
-        Button btnManageTeachers = findViewById(R.id.btnManageTeachers);
-        Button btnManageStudents = findViewById(R.id.btnManageStudents);
-
-        // Set click listeners for sidebar buttons
-        btnManageSpecializations.setOnClickListener(v -> {
-            drawerLayout.closeDrawer(sidebarLayout);
-            startActivity(new Intent(CourseActivity.this, SpecializationsActivity.class));
-        });
-
-        btnManageYears.setOnClickListener(v -> {
-            drawerLayout.closeDrawer(sidebarLayout);
-            startActivity(new Intent(CourseActivity.this, YearsActivity.class));
-        });
-
-        btnManageSections.setOnClickListener(v -> {
-            drawerLayout.closeDrawer(sidebarLayout);
-            startActivity(new Intent(CourseActivity.this, SectionsActivity.class));
-        });
-
-        btnManageCourse.setOnClickListener(v -> {
-            drawerLayout.closeDrawer(sidebarLayout);
-            // No navigation needed since we're already in CourseActivity
-        });
-
-        btnManageSubjects.setOnClickListener(v -> {
-            drawerLayout.closeDrawer(sidebarLayout);
-            startActivity(new Intent(CourseActivity.this, SubjectActivity.class));
-        });
-
-        btnManageTeachers.setOnClickListener(v -> {
-            drawerLayout.closeDrawer(sidebarLayout);
-            startActivity(new Intent(CourseActivity.this, TeacherActivity.class));
-        });
-
-        btnManageStudents.setOnClickListener(v -> {
-            drawerLayout.closeDrawer(sidebarLayout);
-            startActivity(new Intent(CourseActivity.this, StudentActivity.class));
-        });
-
-        // Logout button
-        Button logoutBtn = findViewById(R.id.logoutBtn);
-        logoutBtn.setOnClickListener(v -> {
-            // Clear session
-            SessionManager sessionManager = new SessionManager(this);
-            sessionManager.clearSession();
-
-            // Sign out from Firebase
-            FirebaseAuth.getInstance().signOut();
-
-            // Redirect to login
-            Intent intent = new Intent(this, MainActivity.class);
-            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-            startActivity(intent);
+        // Handle navigation item clicks
+        if (id == R.id.nav_dashboard) {
+            startActivity(new Intent(this, AdminActivity.class));
             finish();
+        } else if (id == R.id.nav_specializations) {
+            startActivity(new Intent(this, SpecializationsActivity.class));
+        } else if (id == R.id.nav_years) {
+            startActivity(new Intent(this, YearsActivity.class));
+        } else if (id == R.id.nav_sections) {
+            startActivity(new Intent(this, SectionsActivity.class));
+        } else if (id == R.id.nav_courses) {
+            // We're already in CourseActivity
+        } else if (id == R.id.nav_subjects) {
+            startActivity(new Intent(this, SubjectActivity.class));
+        } else if (id == R.id.nav_teachers) {
+            startActivity(new Intent(this, TeacherActivity.class));
+        } else if (id == R.id.nav_students) {
+            startActivity(new Intent(this, StudentActivity.class));
+        } else if (id == R.id.nav_logout) {
+            performLogout();
+        }
 
-            Toast.makeText(this, "Logged out successfully", Toast.LENGTH_SHORT).show();
-        });
+        return true;
     }
 
-    // DAGDAG: Back pressed handling for sidebar
+    private void performLogout() {
+        // Clear session
+        SessionManager sessionManager = new SessionManager(this);
+        sessionManager.clearSession();
+
+        // Sign out from Firebase
+        FirebaseAuth.getInstance().signOut();
+
+        // Redirect to login
+        Intent intent = new Intent(this, MainActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
+        finish();
+
+        Toast.makeText(this, "Logged out successfully", Toast.LENGTH_SHORT).show();
+    }
+
     @Override
     public void onBackPressed() {
-        if (drawerLayout != null && drawerLayout.isDrawerOpen(sidebarLayout)) {
-            drawerLayout.closeDrawer(sidebarLayout);
+        if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
+            drawerLayout.closeDrawer(GravityCompat.START);
         } else {
             super.onBackPressed();
         }
     }
 
-    // ORIGINAL METHODS - WALANG BINAGO
+    // ========== ORIGINAL METHODS - WALANG BINAGO ==========
+
     private void loadCourseOptions() {
         courseOptionsRef.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
@@ -259,7 +178,6 @@ public class CourseActivity extends AppCompatActivity {
                     if (option != null) {
                         courseOptionList.add(option);
                         names.add(option.getSpecializationName() + " - " + option.getSectionName() + " - " + option.getYearName());
-
                     }
                 }
                 ArrayAdapter<String> adapter = new ArrayAdapter<>(CourseActivity.this,
@@ -323,10 +241,26 @@ public class CourseActivity extends AppCompatActivity {
                     if (course != null) courseList.add(course);
                 }
                 adapter.notifyDataSetChanged();
+                updateUI();
             }
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) { }
         });
+    }
+
+    private void updateUI() {
+        int count = courseList.size();
+
+        // FIXED: Hindi na kailangan ng null check kung may ID na sa XML
+        tvCourseCount.setText(count + " course" + (count != 1 ? "s" : ""));
+
+        if (courseList.isEmpty()) {
+            emptyState.setVisibility(View.VISIBLE);
+            recyclerCourses.setVisibility(View.GONE);
+        } else {
+            emptyState.setVisibility(View.GONE);
+            recyclerCourses.setVisibility(View.VISIBLE);
+        }
     }
 }
