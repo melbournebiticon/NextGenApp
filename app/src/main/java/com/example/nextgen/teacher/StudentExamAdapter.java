@@ -23,6 +23,8 @@ public class StudentExamAdapter extends RecyclerView.Adapter<StudentExamAdapter.
     private final List<StudentExamStatus> students;
     private final String examId;
 
+
+
     public StudentExamAdapter(List<StudentExamStatus> students, String examId) {
         this.students = students;
         this.examId = examId;
@@ -42,12 +44,14 @@ public class StudentExamAdapter extends RecyclerView.Adapter<StudentExamAdapter.
 
         // --- BASIC DISPLAY ---
         holder.tvStudentName.setText(student.getFullName());
+        holder.tvStudentId.setText("ID: " + student.getStudentId());
         holder.tvCourseInfo.setText("Course: "
                 + student.getCourse() + " - "
                 + student.getSpecialization() + " - "
                 + student.getYear() + " - "
                 + student.getSection());
         holder.tvCounter.setText("Answered: " + student.getQuestionsAnswered());
+
 
         // --- UI & State ---
         updateButtonUI(holder.btnMarkPresent, student.isPresent());
@@ -137,7 +141,7 @@ public class StudentExamAdapter extends RecyclerView.Adapter<StudentExamAdapter.
     // 🔹 ViewHolder
     // ------------------------------------------------------------------------
     public static class ViewHolder extends RecyclerView.ViewHolder {
-        TextView tvStudentName, tvCourseInfo, tvCounter;
+        TextView tvStudentName, tvStudentId, tvCourseInfo, tvCounter;
         Button btnReset, btnMarkPresent;
 
         public ViewHolder(@NonNull View itemView) {
@@ -147,6 +151,8 @@ public class StudentExamAdapter extends RecyclerView.Adapter<StudentExamAdapter.
             tvCounter = itemView.findViewById(R.id.tvCounter);
             btnReset = itemView.findViewById(R.id.btnReset);
             btnMarkPresent = itemView.findViewById(R.id.btnMarkPresent);
+            tvStudentId = itemView.findViewById(R.id.tvStudentId);
+
         }
     }
 }

@@ -89,7 +89,7 @@ public class TeacherDashboardActivity extends AppCompatActivity implements Navig
     ImageView navHeaderImage;
 
     // Dashboard summary
-    TextView tvTeacherNameDisplay, tvTeacherIdDisplay, tvActiveExamsCount, tvRecentExamTitle;
+    TextView tvTeacherNameDisplay, tvTeacherIdDisplay, tvActiveExamsCount, tvRecentExamTitle, tvPendingSubmissionsCount;
 
     // Dashboard cards (Quick Actions)
     CardView cardManageExam, cardManageExaminees, cardCreateActivity, cardViewProfile;
@@ -144,6 +144,10 @@ public class TeacherDashboardActivity extends AppCompatActivity implements Navig
         tvTeacherIdDisplay = findViewById(R.id.tvTeacherIdDisplay);
         tvRecentExamTitle = findViewById(R.id.tvRecentExamTitle);
         tvActiveExamsCount = findViewById(R.id.tvActiveExamsCount);
+        tvPendingSubmissionsCount = findViewById(R.id.tvPendingSubmissionsCount);
+        listenPendingSubmissions();
+
+
 
 
         // Cards
@@ -600,6 +604,39 @@ public class TeacherDashboardActivity extends AppCompatActivity implements Navig
             }
         });
     }
+
+    private void listenPendingSubmissions() {
+        DatabaseReference submissionsRef = FirebaseDatabase.getInstance()
+                .getReference("Submissions");
+
+        submissionsRef.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                int pendingCount = 0;
+
+                for (DataSnapshot examSnap : snapshot.getChildren()) {
+                    for (DataSnapshot studentSnap : examSnap.getChildren()) {
+                        Boolean isSubmitted = studentSnap.child("isSubmitted").getValue(Boolean.class);
+                        Boolean isGraded = studentSnap.child("isGraded").getValue(Boolean.class);
+
+                        if (isSubmitted != null && isSubmitted && (isGraded == null || !isGraded)) {
+                            pendingCount++;
+                        }
+                    }
+                }
+
+                tvPendingSubmissionsCount.setText(String.valueOf(pendingCount));
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                Toast.makeText(TeacherDashboardActivity.this,
+                        "Failed to load pending submissions: " + error.getMessage(),
+                        Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
 
 
     private Bitmap getCircularBitmap(Bitmap bitmap) {

@@ -46,9 +46,19 @@ public class ViewStudentsActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_view_students_unique);
 
-        // Toolbar
         Toolbar toolbar = findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
+
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+            getSupportActionBar().setDisplayShowTitleEnabled(false);
+        }
+
+        TextView tvToolbarTitle = toolbar.findViewById(R.id.tvToolbarTitle);
+        tvToolbarTitle.setText("View Students");
+
         toolbar.setNavigationOnClickListener(v -> finish());
+
 
         // UI Components
         spinnerCourses = findViewById(R.id.spinnerCourses);

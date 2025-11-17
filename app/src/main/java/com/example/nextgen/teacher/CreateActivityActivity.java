@@ -8,11 +8,13 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Spinner;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
 
 import com.example.nextgen.R;
 import com.example.nextgen.SessionManager;
@@ -50,9 +52,22 @@ public class CreateActivityActivity extends AppCompatActivity {
     ArrayList<String> subjectCodeList = new ArrayList<>();
 
     @Override
-    protected void onCreate(@Nullable Bundle savedInstanceState) {
+    protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_create_activity);
+
+        Toolbar toolbar = findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
+
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+            getSupportActionBar().setDisplayShowTitleEnabled(false);
+        }
+
+        TextView tvToolbarTitle = toolbar.findViewById(R.id.tvToolbarTitle);
+        tvToolbarTitle.setText("Create New Activity");
+
+        toolbar.setNavigationOnClickListener(v -> finish());
 
         sessionManager = new SessionManager(this);
 
@@ -279,6 +294,10 @@ public class CreateActivityActivity extends AppCompatActivity {
             return subjectCodeList.get(pos);
         }
         return null;
+    }
+    public boolean onSupportNavigateUp() {
+        finish(); // closes this activity and goes back
+        return true;
     }
 
 
