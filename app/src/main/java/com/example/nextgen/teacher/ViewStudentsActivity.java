@@ -50,14 +50,13 @@ public class ViewStudentsActivity extends AppCompatActivity {
         setSupportActionBar(toolbar);
 
         if (getSupportActionBar() != null) {
-            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-            getSupportActionBar().setDisplayShowTitleEnabled(false);
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true); // shows back arrow
+            getSupportActionBar().setTitle("View Students"); // sets title safely
         }
 
-        TextView tvToolbarTitle = toolbar.findViewById(R.id.tvToolbarTitle);
-        tvToolbarTitle.setText("View Students");
-
         toolbar.setNavigationOnClickListener(v -> finish());
+
+
 
 
         // UI Components
