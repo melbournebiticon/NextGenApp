@@ -5,19 +5,19 @@
 
     <group android:checkableBehavior="single">
         <item
-            android:id="@+id/nav_manage_exam"
-            android:title="Manage Exam" />
-
-        <item
-            android:id="@+id/nav_view_results"
-            android:title="Manage Examinees" />
-
-        <item
-            android:id="@+id/nav_view_profile"
-            android:title="View Profile" />
+            android:id="@+id/nav_my_classes"
+            android:title="My Classes" />
     </group>
+    <item
+        android:id="@+id/nav_manage_exam"
+        android:title="Manage Exam" />
 
     <item
-        android:id="@+id/nav_logout"
-        android:title="Logout" />
+        android:id="@+id/nav_view_results"
+        android:title="Manage Examinees" />
+
+    <item
+        android:id="@+id/nav_view_profile"
+        android:title="View Profile" />
+
 </menu>

@@ -190,12 +190,19 @@ public class ManageExamActivity extends AppCompatActivity {
                             child.child("active").getValue(Boolean.class) != null ?
                                     child.child("active").getValue(Boolean.class) : false
                     );
-                    exam.setSection(child.child("courseDisplay").getValue(String.class));
+                    String courseDisplay = child.child("courseDisplay").getValue(String.class);
+                    exam.setSection(courseDisplay); // store full display string for spinner
 
-                    // Note: You might want to update your Exam object here to store the new 'scheduledDateDisplay'
-                    // exam.setScheduledDateDisplay(child.child("scheduledDateDisplay").getValue(String.class));
+                    if (courseDisplay != null && !courseDisplay.isEmpty()) {
+                        String[] parts = courseDisplay.split(" - ");
+                        exam.setCourseName(parts.length > 0 ? parts[0] : "");
+                        exam.setSpecializationName(parts.length > 1 ? parts[1] : "");
+                        exam.setYearName(parts.length > 2 ? parts[2] : "");
+                        exam.setSectionName(parts.length > 3 ? parts[3] : "");
+                    }
 
                     examList.add(exam);
+
 
                     // Optional: save to Room for offline support
                     new Thread(() -> {
@@ -212,21 +219,30 @@ public class ManageExamActivity extends AppCompatActivity {
 
                             @Override
                             public void onDelete(Exam exam) {
-                                new Thread(() -> {
-                                    db.examDao().deleteById(exam.getId());
-                                    deleteExamFromFirebase(exam);
-                                    runOnUiThread(ManageExamActivity.this::loadExams);
-                                }).start();
+                                new AlertDialog.Builder(ManageExamActivity.this)
+                                        .setTitle("Delete Exam")
+                                        .setMessage("Are you sure you want to delete this exam and all its related questions?")
+                                        .setPositiveButton("Yes", (dialog, which) -> {
+                                            new Thread(() -> {
+                                                // Delete locally (Room)
+                                                db.examDao().deleteById(exam.getId());
+
+                                                // Delete from Firebase (Exams + Questions)
+                                                deleteExamFromFirebase(exam);
+
+                                                // Reload UI
+                                                runOnUiThread(() -> {
+                                                    loadExams();
+                                                    Toast.makeText(ManageExamActivity.this,
+                                                            "Deleting exam...", Toast.LENGTH_SHORT).show();
+                                                });
+                                            }).start();
+                                        })
+                                        .setNegativeButton("No", (dialog, which) -> dialog.dismiss())
+                                        .create()
+                                        .show();
                             }
 
-                            @Override
-                            public void onReset(Exam exam) {
-                                new Thread(() -> {
-                                    exam.setActive(false);
-                                    db.examDao().updateExam(exam);
-                                    runOnUiThread(ManageExamActivity.this::loadExams);
-                                }).start();
-                            }
 
                             @Override
                             public void onGenerate(Exam exam) {
@@ -246,7 +262,30 @@ public class ManageExamActivity extends AppCompatActivity {
                                     syncExamToFirebase(exam);
                                 }).start();
                             }
+
+                            // 🔹 NEW: implement onViewStudents
+                            @Override
+                            public void onViewStudents(Exam exam) {
+                                // Split courseDisplay into individual parts
+                                String[] parts = exam.getSection().split(" - ");
+                                String examCourse = parts.length > 0 ? parts[0].trim() : "";
+                                String examSpecialization = parts.length > 1 ? parts[1].trim() : "";
+                                String examYear = parts.length > 2 ? parts[2].trim() : "";
+                                String examSection = parts.length > 3 ? parts[3].trim() : "";
+
+                                Intent intent = new Intent(ManageExamActivity.this, ExamMonitorActivity.class);
+                                intent.putExtra("examId", exam.getFirebaseKey()); // ✅ Add this
+                                intent.putExtra("examCourseName", examCourse);
+                                intent.putExtra("examSpecialization", examSpecialization);
+                                intent.putExtra("examYearName", examYear);
+                                intent.putExtra("examSectionName", examSection);
+                                startActivity(intent);
+                            }
+
+
+
                         });
+
 
                 recyclerView.setAdapter(adapter);
             }
@@ -262,19 +301,54 @@ public class ManageExamActivity extends AppCompatActivity {
 
     private void deleteExamFromFirebase(Exam exam) {
         if (exam.getFirebaseKey() != null && !exam.getFirebaseKey().isEmpty()) {
-            FirebaseDatabase.getInstance()
+            String teacherId = exam.getTeacherId();
+            String examId = exam.getFirebaseKey();
+
+            DatabaseReference examsRef = FirebaseDatabase.getInstance()
                     .getReference("Exams")
-                    .child(exam.getTeacherId())
-                    .child(exam.getFirebaseKey())
-                    .removeValue()
-                    .addOnSuccessListener(aVoid -> Log.d("FirebaseDelete", "Exam deleted successfully"))
-                    .addOnFailureListener(e -> Log.e("FirebaseDelete", "Failed to delete exam", e));
+                    .child(teacherId)
+                    .child(examId);
+
+            DatabaseReference questionsRef = FirebaseDatabase.getInstance()
+                    .getReference("Questions")
+                    .child(examId); // Assuming questions are stored as: Questions/{examId}
+
+            // Step 1: Delete the exam first
+            examsRef.removeValue()
+                    .addOnSuccessListener(aVoid -> {
+                        Log.d("FirebaseDelete", "Exam deleted successfully");
+
+                        // Step 2: Then delete all related questions
+                        questionsRef.removeValue()
+                                .addOnSuccessListener(qVoid -> {
+                                    Log.d("FirebaseDelete", "All related questions deleted successfully");
+                                    runOnUiThread(() ->
+                                            Toast.makeText(ManageExamActivity.this,
+                                                    "Exam and related questions deleted successfully!",
+                                                    Toast.LENGTH_SHORT).show());
+                                })
+                                .addOnFailureListener(e -> {
+                                    Log.e("FirebaseDelete", "Failed to delete related questions", e);
+                                    runOnUiThread(() ->
+                                            Toast.makeText(ManageExamActivity.this,
+                                                    "Failed to delete related questions.",
+                                                    Toast.LENGTH_SHORT).show());
+                                });
+                    })
+                    .addOnFailureListener(e -> {
+                        Log.e("FirebaseDelete", "Failed to delete exam", e);
+                        runOnUiThread(() ->
+                                Toast.makeText(ManageExamActivity.this,
+                                        "Failed to delete exam.",
+                                        Toast.LENGTH_SHORT).show());
+                    });
         }
     }
 
 
 
 
+// May nabago
     // ===== ADD EXAM DIALOG (Updated with Material TimePicker) =====
     private void showAddExamDialog() {
         View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_add_exam, null);
@@ -347,18 +421,18 @@ public class ManageExamActivity extends AppCompatActivity {
                     public void onDataChange(@NonNull DataSnapshot snapshot) {
                         subjectList.clear();
                         for (DataSnapshot subjectSnap : snapshot.getChildren()) {
+                            String subjectId = subjectSnap.getKey(); // get Firebase key as ID
                             String name = subjectSnap.child("name").getValue(String.class);
                             String courseName = subjectSnap.child("courseName").getValue(String.class);
                             String specializationName = subjectSnap.child("specializationName").getValue(String.class);
                             String yearName = subjectSnap.child("yearName").getValue(String.class);
                             String sectionName = subjectSnap.child("sectionName").getValue(String.class);
 
-
-
                             String display = courseName + " - " + specializationName + " - " + yearName + " - " + sectionName;
 
-                            if (display.equals(selectedCourseDisplay) && assignedSubjects.contains(name)) {
-                                subjectList.add(name);
+                            // ✅ Check if this subject ID is assigned to the teacher AND course matches
+                            if (display.equals(selectedCourseDisplay) && assignedSubjects.contains(subjectId)) {
+                                subjectList.add(name); // add name to spinner
                             }
                         }
                         if (subjectList.isEmpty()) subjectList.add("No subjects found for this course");
@@ -486,6 +560,7 @@ public class ManageExamActivity extends AppCompatActivity {
 
 
     // ===== EDIT EXAM DIALOG (Updated with Material TimePicker) =====
+   // May bagyo may bagyo o May bago na - May nabago
     private void showEditExamDialog(Exam exam) {
         View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_add_exam, null);
 
@@ -503,15 +578,37 @@ public class ManageExamActivity extends AppCompatActivity {
         if (courseIndex >= 0) spCourse.setSelection(courseIndex);
 
 
-        ArrayAdapter<String> subjectAdapter = new ArrayAdapter<>(this,
-                android.R.layout.simple_spinner_dropdown_item, assignedSubjects);
-        spSubject.setAdapter(subjectAdapter);
+        ArrayList<String> subjectNames = new ArrayList<>();
 
-        etExamName.setText(exam.getExamName());
+        DatabaseReference subjectsRef = FirebaseDatabase.getInstance().getReference("Subjects");
+        subjectsRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                subjectNames.clear();
 
+                for (DataSnapshot subjectSnap : snapshot.getChildren()) {
+                    String subjectId = subjectSnap.getKey();
+                    String subjectName = subjectSnap.child("name").getValue(String.class);
 
-        int subjectIndex = assignedSubjects.indexOf(exam.getSubject());
-        if (subjectIndex >= 0) spSubject.setSelection(subjectIndex);
+                    // Only show subjects assigned to this teacher
+                    if (assignedSubjects.contains(subjectId)) {
+                        subjectNames.add(subjectName);
+                    }
+                }
+
+                if (subjectNames.isEmpty()) subjectNames.add("No subjects found");
+
+                ArrayAdapter<String> adapter = new ArrayAdapter<>(ManageExamActivity.this,
+                        android.R.layout.simple_spinner_dropdown_item, subjectNames);
+                spSubject.setAdapter(adapter);
+
+                int currentIndex = subjectNames.indexOf(exam.getSubject());
+                if (currentIndex >= 0) spSubject.setSelection(currentIndex);
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {}
+        });
 
         String[] durations = {"30 minutes", "60 minutes", "120 minutes"};
         spDuration.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, durations));

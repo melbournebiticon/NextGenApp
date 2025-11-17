@@ -2,7 +2,6 @@ package com.example.nextgen.teacher;
 
 import androidx.room.Entity;
 import androidx.room.PrimaryKey;
-import androidx.room.Ignore;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -27,14 +26,17 @@ public class Exam {
     private boolean active;
     private String firebaseKey;
     private String teacherId;
+    private String specializationName;
+    private String yearName;
+
+    private String courseName;
+    private String sectionName; // the actual section like "A"
 
     // ===== Constructors =====
     public Exam() {
         // Required empty constructor for Firebase and Room
     }
 
-    // Mark this constructor with @Ignore since Room only needs the no-arg constructor
-    @Ignore
     public Exam(String subject, String examName, int durationMinutes, long scheduledAt, String section) {
         this.subject = subject;
         this.examName = examName;
@@ -91,4 +93,17 @@ public class Exam {
         map.put("teacherId", teacherId);
         return map;
     }
+    // getter & setter
+    public String getSpecializationName() { return specializationName; }
+    public void setSpecializationName(String specializationName) { this.specializationName = specializationName; }
+
+    public String getYearName() { return yearName; }
+    public void setYearName(String yearName) { this.yearName = yearName; }
+
+    public String getCourseName() { return courseName; }
+    public void setCourseName(String courseName) { this.courseName = courseName; }
+
+    public String getSectionName() { return sectionName; }
+    public void setSectionName(String sectionName) { this.sectionName = sectionName; }
+
 }

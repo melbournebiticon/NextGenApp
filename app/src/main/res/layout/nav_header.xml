@@ -9,10 +9,15 @@
 
     <!-- Profile Image -->
     <ImageView
+        android:id="@+id/nav_header_image"
         android:layout_width="92dp"
         android:layout_height="75dp"
         android:contentDescription="Profile"
-        android:src="@drawable/tc_profile" />
+        android:src="@drawable/tc_profile"
+        android:scaleType="centerCrop"
+        android:layout_marginBottom="8dp"
+        />
+
 
     <!-- Username -->
     <TextView

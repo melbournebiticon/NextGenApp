@@ -34,12 +34,17 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
+import android.view.Menu;
+import android.view.SubMenu;
+
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+
 
 public class StudentDashboardActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener {
@@ -105,6 +110,8 @@ public class StudentDashboardActivity extends AppCompatActivity
         navHeaderEmail = headerView.findViewById(R.id.nav_header_email);
         navHeaderProfileImage = headerView.findViewById(R.id.nav_header_profile_image);
         // --------------------------------------------------
+        navigationView = findViewById(R.id.nav_view);
+        navigationView.setNavigationItemSelectedListener(this);
 
 
         // RecyclerView for exams
@@ -114,6 +121,12 @@ public class StudentDashboardActivity extends AppCompatActivity
         examsRef = FirebaseDatabase.getInstance().getReference("Exams");
         // 🏆 NEW: Initialize Scores Ref
         scoresRef = FirebaseDatabase.getInstance().getReference("Scores");
+
+        Button btnScanExam = findViewById(R.id.btnScanExam);
+        btnScanExam.setOnClickListener(v -> {
+            Intent intent = new Intent(StudentDashboardActivity.this, StudentQRScannerActivity.class);
+            startActivity(intent);
+        });
 
 
         // Initialize Main Content UI
@@ -145,6 +158,8 @@ public class StudentDashboardActivity extends AppCompatActivity
                                     populateStudentData(student);
                                     // Start the periodic fetcher instead of single fetch
                                     startPeriodicExamFetch(student);
+
+                                    showStudentSubjects();
                                 }
                             }
                         } else {
@@ -228,23 +243,25 @@ public class StudentDashboardActivity extends AppCompatActivity
     @Override
     public boolean onNavigationItemSelected(@NonNull MenuItem item) {
         int id = item.getItemId();
+        String title = item.getTitle().toString(); // Title-based fallback for dynamic items
 
         if (id == R.id.nav_dashboard) {
-            // Do nothing, we are here
+            // Stay on dashboard
         } else if (id == R.id.nav_view_profile) {
-            // <<< START STUDENT PROFILE ACTIVITY HERE >>>
-            Intent intent = new Intent(this, StudentProfileActivity.class);
-            startActivity(intent);
+            startActivity(new Intent(this, StudentProfileActivity.class));
+        } else if (id == R.id.nav_view_activities) {
+            startActivity(new Intent(this, StudentActivitiesActivity.class));
         } else if (id == R.id.nav_view_scores) {
-            // TODO: Start View Scores/Exam History Activity
             Toast.makeText(this, "Opening Exam Scores/History", Toast.LENGTH_SHORT).show();
-        } else if (id == R.id.nav_logout) {
-            handleLogout();
+        } else {
+            // If none of the static IDs matched, treat it as a subject click
+            Toast.makeText(this, "Selected class: " + title, Toast.LENGTH_SHORT).show();
         }
 
         drawerLayout.closeDrawer(GravityCompat.START);
         return true;
     }
+
 
     // --- 4. Handle Back Button Press (NO CHANGE) ---
     @Override
@@ -308,12 +325,13 @@ public class StudentDashboardActivity extends AppCompatActivity
         long currentTime = System.currentTimeMillis();
         SimpleDateFormat sdf = new SimpleDateFormat("MMM dd, yyyy hh:mm a", Locale.getDefault());
 
+        String studentId = student.getStudentId(); // ✅ Use teacher-side studentId
+
         examsRef.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 examList.clear();
 
-                // 🏆 I-filter muna ang lahat ng eligible exams
                 List<DataSnapshot> eligibleExams = new ArrayList<>();
                 for (DataSnapshot teacherSnap : snapshot.getChildren()) {
                     for (DataSnapshot examSnap : teacherSnap.getChildren()) {
@@ -321,7 +339,6 @@ public class StudentDashboardActivity extends AppCompatActivity
                         Long scheduledAtLong = examSnap.child("scheduledAt").getValue(Long.class);
                         Integer durationMinutesInt = examSnap.child("durationMinutes").getValue(Integer.class);
 
-                        // Only include exams that match the course, are active, and have required fields
                         if (exam != null && scheduledAtLong != null && durationMinutesInt != null &&
                                 exam.getCourseDisplay().equals(studentCourseDisplay) &&
                                 exam.isActive()) {
@@ -331,84 +348,89 @@ public class StudentDashboardActivity extends AppCompatActivity
                 }
 
                 final int totalEligibleExams = eligibleExams.size();
-                final int[] examsProcessed = {0}; // Counter para sa natapos na i-check sa Scores
+                final int[] examsProcessed = {0};
 
                 if (totalEligibleExams == 0) {
                     updateExamRecyclerView();
-                    return; // Walang exams, tapos na.
+                    return;
                 }
 
                 for (DataSnapshot examSnap : eligibleExams) {
                     ExamModel exam = examSnap.getValue(ExamModel.class);
                     String examId = examSnap.getKey();
 
-                    // Set basic data (safe na ito dahil na-filter na)
                     exam.setExamId(examId);
                     exam.setScheduledAt(examSnap.child("scheduledAt").getValue(Long.class));
                     exam.setDurationMinutes(examSnap.child("durationMinutes").getValue(Integer.class));
 
-                    // 🏆 NEW STEP: Check if the exam has been taken
-                    scoresRef.child(currentStudentUid).child(examId).addListenerForSingleValueEvent(new ValueEventListener() {
-                        @Override
-                        public void onDataChange(@NonNull DataSnapshot scoreSnapshot) {
-                            if (scoreSnapshot.exists()) {
-                                // 🛑 EXAM TAKEN LOGIC
-                                exam.setStatus("TAKEN");
-                                exam.setAvailable(false);
-                            } else {
-                                // 🔄 EXAM NOT TAKEN - Proceed with Time Logic
-                                long scheduledTime = exam.getScheduledAt();
-                                long examStartTimeWindow = scheduledTime;
-                                long examEndLoginWindow = scheduledTime + MAX_LOGIN_WINDOW_MILLIS;
+                    // Check if exam has been taken
+                    scoresRef.child(studentId).child(examId) // ✅ use studentId here
+                            .addListenerForSingleValueEvent(new ValueEventListener() {
+                                @Override
+                                public void onDataChange(@NonNull DataSnapshot scoreSnapshot) {
+                                    if (scoreSnapshot.exists()) {
+                                        exam.setStatus("TAKEN");
+                                        exam.setAvailable(false);
+                                    } else {
+                                        long start = exam.getScheduledAt();
+                                        long endLogin = start + MAX_LOGIN_WINDOW_MILLIS;
 
-                                String status = "";
-                                if (currentTime < examStartTimeWindow) {
-                                    String formattedTime = sdf.format(new Date(scheduledTime));
-                                    status = "Scheduled: Starts at " + formattedTime;
-                                    exam.setStatus(status);
-                                    exam.setAvailable(false);
-                                } else if (currentTime >= examStartTimeWindow && currentTime <= examEndLoginWindow) {
-                                    String formattedLoginEnd = sdf.format(new Date(examEndLoginWindow));
-                                    status = "AVAILABLE NOW (Login closes at " + formattedLoginEnd + ")";
-                                    exam.setStatus(status);
-                                    exam.setAvailable(true);
-                                } else {
-                                    String formattedLoginEnd = sdf.format(new Date(examEndLoginWindow));
-                                    status = "EXPIRED: Login window closed at " + formattedLoginEnd;
-                                    exam.setStatus(status);
-                                    exam.setAvailable(false);
+                                        if (currentTime < start) {
+                                            exam.setStatus("Scheduled: Starts at " + sdf.format(new Date(start)));
+                                            exam.setAvailable(false);
+                                        } else if (currentTime <= endLogin) {
+                                            exam.setStatus("AVAILABLE NOW (Login closes at " + sdf.format(new Date(endLogin)) + ")");
+                                            exam.setAvailable(true);
+                                        } else {
+                                            exam.setStatus("EXPIRED: Login window closed at " + sdf.format(new Date(endLogin)));
+                                            exam.setAvailable(false);
+                                        }
+                                    }
+
+                                    // ✅ Fetch "present" using studentId
+                                    DatabaseReference examStudentRef = FirebaseDatabase.getInstance()
+                                            .getReference("ExamStudents")
+                                            .child(examId)
+                                            .child(studentId); // ✅ use teacher-side studentId
+
+                                    examStudentRef.child("present").addListenerForSingleValueEvent(new ValueEventListener() {
+                                        @Override
+                                        public void onDataChange(@NonNull DataSnapshot presentSnap) {
+                                            Boolean present = presentSnap.getValue(Boolean.class);
+                                            Log.d(TAG, "Fetched present value: " + present + " for exam: " + exam.getExamTitle());
+
+                                            exam.setPresent(present != null && present);
+                                            exam.setAvailable(exam.isAvailable() && exam.isPresent());
+
+                                            examList.add(exam);
+                                            examsProcessed[0]++;
+                                            if (examsProcessed[0] == totalEligibleExams) {
+                                                updateExamRecyclerView();
+                                            }
+                                        }
+
+                                        @Override
+                                        public void onCancelled(@NonNull DatabaseError error) {
+                                            exam.setPresent(false);
+                                            exam.setAvailable(false);
+                                            examList.add(exam);
+                                            examsProcessed[0]++;
+                                            if (examsProcessed[0] == totalEligibleExams) {
+                                                updateExamRecyclerView();
+                                            }
+                                        }
+                                    });
                                 }
-                            }
 
-                            // I-fetch ang readable date
-                            String readableDate = examSnap.child("scheduledDateDisplay").getValue(String.class);
-                            if (readableDate != null) {
-                                exam.setScheduledDateDisplay(readableDate);
-                            } else {
-                                exam.setScheduledDateDisplay(sdf.format(new Date(exam.getScheduledAt())));
-                            }
+                                @Override
+                                public void onCancelled(@NonNull DatabaseError error) {
+                                    examsProcessed[0]++;
+                                    if (examsProcessed[0] == totalEligibleExams) {
+                                        updateExamRecyclerView();
+                                    }
+                                }
+                            });
 
-                            examList.add(exam);
-
-                            // 🏆 CRITICAL: Check if ALL eligible exams are processed
-                            examsProcessed[0]++;
-                            if (examsProcessed[0] == totalEligibleExams) {
-                                Log.d(TAG, "All " + totalEligibleExams + " exams processed. Updating RecyclerView.");
-                                updateExamRecyclerView();
-                            }
-                        }
-
-                        @Override
-                        public void onCancelled(@NonNull DatabaseError scoreError) {
-                            Log.e(TAG, "Failed to check score for exam " + exam.getExamTitle() + ": " + scoreError.getMessage());
-
-                            // 🏆 CRITICAL: I-count pa rin ito kahit nag-error ang score check, para hindi ma-stuck ang logic.
-                            examsProcessed[0]++;
-                            if (examsProcessed[0] == totalEligibleExams) {
-                                updateExamRecyclerView();
-                            }
-                        }
-                    });
                 }
             }
 
@@ -429,4 +451,114 @@ public class StudentDashboardActivity extends AppCompatActivity
         rvExams.setAdapter(examAdapter);
         Log.d(TAG, "Exam list updated with " + examList.size() + " exams.");
     }
+
+    private void showStudentSubjects() {
+        String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
+        DatabaseReference studentsRef = FirebaseDatabase.getInstance().getReference("Students");
+        DatabaseReference teachersRef = FirebaseDatabase.getInstance().getReference("Teachers");
+        DatabaseReference subjectsRef = FirebaseDatabase.getInstance().getReference("Subjects");
+
+        studentsRef.orderByChild("uid").equalTo(uid)
+                .addListenerForSingleValueEvent(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(@NonNull DataSnapshot studentSnapshot) {
+                        if (!studentSnapshot.exists()) return;
+
+                        for (DataSnapshot ds : studentSnapshot.getChildren()) {
+                            StudentModel student = ds.getValue(StudentModel.class);
+                            if (student == null) continue;
+
+                            // Step 1: Build a map of subjectId -> teacherName
+                            teachersRef.addListenerForSingleValueEvent(new ValueEventListener() {
+                                @Override
+                                public void onDataChange(@NonNull DataSnapshot teacherSnapshot) {
+                                    final java.util.Map<String, String> subjectTeacherMap = new java.util.HashMap<>();
+                                    for (DataSnapshot tSnap : teacherSnapshot.getChildren()) {
+                                        String teacherName = tSnap.child("fullName").getValue(String.class);
+                                        DataSnapshot assignedSubjects = tSnap.child("assignedSubjects");
+                                        if (assignedSubjects.exists()) {
+                                            for (DataSnapshot subSnap : assignedSubjects.getChildren()) {
+                                                String subId = subSnap.getValue(String.class);
+                                                if (subId != null) {
+                                                    subjectTeacherMap.put(subId, teacherName);
+                                                }
+                                            }
+                                        }
+                                    }
+
+
+                                    // Step 2: Fetch subjects and use map
+                                    subjectsRef.addListenerForSingleValueEvent(new ValueEventListener() {
+                                        @Override
+                                        public void onDataChange(@NonNull DataSnapshot snapshot) {
+                                            Menu menu = navigationView.getMenu();
+                                            // Clear previous submenu
+                                            for (int i = 0; i < menu.size(); i++) {
+                                                MenuItem mi = menu.getItem(i);
+                                                if (mi.hasSubMenu() && mi.getTitle().equals("My Classes")) {
+                                                    menu.removeItem(mi.getItemId());
+                                                }
+                                            }
+
+                                            SubMenu myClassesSubMenu = menu.addSubMenu("My Classes");
+
+                                            for (DataSnapshot snap : snapshot.getChildren()) {
+                                                final String subjectId = snap.getKey();
+                                                final String subjectCode = snap.child("code").getValue(String.class);
+                                                final String subjectName = snap.child("name").getValue(String.class);
+                                                final String courseName = snap.child("courseName").getValue(String.class);
+                                                final String specializationName = snap.child("specializationName").getValue(String.class);
+                                                final String yearName = snap.child("yearName").getValue(String.class);
+                                                final String sectionName = snap.child("sectionName").getValue(String.class);
+
+                                                if (subjectCode != null && courseName != null
+                                                        && courseName.equals(student.getCourseName())
+                                                        && specializationName.equals(student.getSpecializationName())
+                                                        && yearName.equals(student.getYearName())
+                                                        && sectionName.equals(student.getSectionName())) {
+
+                                                    final String teacherName = subjectTeacherMap.getOrDefault(subjectId, "N/A");
+                                                    final String courseDisplay = courseName + " - " + specializationName + " - " + yearName + " - " + sectionName;
+
+                                                    MenuItem item = myClassesSubMenu.add(subjectCode);
+                                                    item.setOnMenuItemClickListener(menuItem -> {
+                                                        Intent intent = new Intent(StudentDashboardActivity.this, StudentActivitiesActivity.class);
+                                                        intent.putExtra("subjectName", subjectName);
+                                                        intent.putExtra("subjectCode", subjectCode);
+                                                        intent.putExtra("teacherName", teacherName);
+                                                        intent.putExtra("subjectId", subjectId);
+                                                        intent.putExtra("courseDisplay", courseDisplay);
+                                                        startActivity(intent);
+                                                        drawerLayout.closeDrawer(GravityCompat.START);
+                                                        return true;
+                                                    });
+                                                }
+                                            }
+
+                                            navigationView.invalidate();
+                                        }
+
+                                        @Override
+                                        public void onCancelled(@NonNull DatabaseError error) { }
+                                    });
+                                }
+
+                                @Override
+                                public void onCancelled(@NonNull DatabaseError error) { }
+                            });
+                        }
+                    }
+
+                    @Override
+                    public void onCancelled(@NonNull DatabaseError error) { }
+                });
+    }
+
+
+
+
+
+
+
+
 }

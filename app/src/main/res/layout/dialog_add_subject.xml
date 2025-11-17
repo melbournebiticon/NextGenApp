@@ -1,25 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:padding="24dp"
     android:orientation="vertical"
-    android:padding="16dp"
     android:layout_width="match_parent"
     android:layout_height="wrap_content">
 
     <EditText
-        android:id="@+id/etSubjectCode"
+        android:id="@+id/etDialogSubjectCode"
+        android:hint="Subject Code"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Subject Code"/>
+        android:inputType="text" />
 
     <EditText
-        android:id="@+id/etSubjectName"
+        android:id="@+id/etDialogSubjectName"
+        android:hint="Subject Name"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Subject Name"
+        android:inputType="text"
         android:layout_marginTop="8dp"/>
 
     <Spinner
-        android:id="@+id/spinnerCourseOption"
+        android:id="@+id/spinnerDialogCourses"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"/>

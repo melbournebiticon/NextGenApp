@@ -1,8 +1,10 @@
 package com.example.nextgen.teacher;
 
 import android.content.Intent;
+import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
+import android.provider.OpenableColumns;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.*;
@@ -58,7 +60,7 @@ public class GenerateQuestionsActivity extends AppCompatActivity {
         database = FirebaseDatabase.getInstance().getReference("Questions").child(examId);
 
         tvExamInfo = findViewById(R.id.tvExamInfo);
-        tvExamInfo.setText("Exam: " + examTitle + " (ID: " + examId + ")");
+        tvExamInfo.setText("Exam: " + examTitle);
 
         spQuestionType = findViewById(R.id.spQuestionType);
         layoutMultipleChoice = findViewById(R.id.layoutMultipleChoice);
@@ -269,35 +271,77 @@ public class GenerateQuestionsActivity extends AppCompatActivity {
         }
     }
 
+
     private void importQuestionsFromFile(Uri uri) {
         new Thread(() -> {
             try {
                 List<String> lines = new ArrayList<>();
-                String path = uri.getPath();
+                String fileName = getFileName(uri); // Get real file name
 
-                if(path.endsWith(".pdf")){
-                    InputStream inputStream = getContentResolver().openInputStream(uri);
+                InputStream inputStream = getContentResolver().openInputStream(uri);
+                if (inputStream == null) throw new Exception("Cannot open file.");
+
+                // --- Handle PDF ---
+                if (fileName.endsWith(".pdf")) {
                     PDDocument document = PDDocument.load(inputStream);
                     PDFTextStripper stripper = new PDFTextStripper();
                     String text = stripper.getText(document);
                     document.close();
                     lines = Arrays.asList(text.split("\n"));
-                } else if(path.endsWith(".doc") || path.endsWith(".docx")){
-                    InputStream inputStream = getContentResolver().openInputStream(uri);
+
+                    // --- Handle DOC/DOCX ---
+                } else if (fileName.endsWith(".doc") || fileName.endsWith(".docx")) {
                     XWPFDocument document = new XWPFDocument(inputStream);
-                    for(XWPFParagraph para : document.getParagraphs()) lines.add(para.getText());
+                    for (XWPFParagraph para : document.getParagraphs()) {
+                        String text = para.getText().trim();
+                        if (!text.isEmpty()) lines.add(text);
+                    }
                     document.close();
+
+                } else {
+                    throw new Exception("Unsupported file format. Please choose a .pdf or .docx file.");
                 }
 
                 List<Question> importedQuestions = parseTextSmart(lines);
                 saveQuestionsSafely(importedQuestions);
 
-            } catch (Exception e){
+                runOnUiThread(() ->
+                        Toast.makeText(this, "Questions imported successfully!", Toast.LENGTH_SHORT).show());
+
+            } catch (Exception e) {
                 e.printStackTrace();
-                runOnUiThread(() -> Toast.makeText(this,"Failed to import questions",Toast.LENGTH_SHORT).show());
+                runOnUiThread(() ->
+                        Toast.makeText(this, "Failed to import questions: " + e.getMessage(), Toast.LENGTH_LONG).show());
             }
         }).start();
     }
+
+    /**
+     * Get the actual display name of the file (works for content URIs)
+     */
+    private String getFileName(Uri uri) {
+        String result = null;
+        if (uri.getScheme().equals("content")) {
+            Cursor cursor = getContentResolver().query(uri, null, null, null, null);
+            try {
+                if (cursor != null && cursor.moveToFirst()) {
+                    int nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                    if (nameIndex >= 0) {
+                        result = cursor.getString(nameIndex);
+                    }
+                }
+            } finally {
+                if (cursor != null) cursor.close();
+            }
+        }
+        if (result == null) {
+            result = uri.getPath();
+            int cut = result.lastIndexOf('/');
+            if (cut != -1) result = result.substring(cut + 1);
+        }
+        return result;
+    }
+
 
     private List<Question> parseTextSmart(List<String> lines) {
         List<Question> questions = new ArrayList<>();

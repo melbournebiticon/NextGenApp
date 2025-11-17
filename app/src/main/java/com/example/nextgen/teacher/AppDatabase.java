@@ -13,7 +13,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase;
  * Central Room database for the teacher module.
  * Handles Exam and Question tables with migration support.
  */
-@Database(entities = { Exam.class, Question.class }, version = 11, exportSchema = false)
+@Database(entities = { Exam.class, Question.class }, version = 13, exportSchema = false)
 public abstract class AppDatabase extends RoomDatabase {
 
     private static final String DB_NAME = "app_database.db";

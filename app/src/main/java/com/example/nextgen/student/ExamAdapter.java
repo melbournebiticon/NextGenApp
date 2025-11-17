@@ -10,6 +10,7 @@ import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
+
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -37,7 +38,7 @@ public class ExamAdapter extends RecyclerView.Adapter<ExamAdapter.ExamViewHolder
     @Override
     public void onBindViewHolder(@NonNull ExamViewHolder holder, int position) {
         ExamModel exam = examList.get(position);
-        String examStatus = exam.getStatus(); // Kukunin ang status mula sa StudentDashboardActivity
+        String examStatus = exam.getStatus();
 
         // --- 1. SET TEXT DATA ---
         holder.tvExamTitle.setText(exam.getExamTitle());
@@ -57,34 +58,75 @@ public class ExamAdapter extends RecyclerView.Adapter<ExamAdapter.ExamViewHolder
             holder.tvStatus.setTextColor(Color.parseColor("#2196F3")); // Blue: Scheduled
         }
 
-        // --- 3. HANDLE TAKE EXAM BUTTON ---
-        if (exam.isAvailable() && !examStatus.contains("TAKEN")) {
+        // --- HANDLE TAKE EXAM BUTTON & PRESENCE ---
+        if (!exam.isPresent()) {
+            // Student is absent → show message, hide button
+            holder.btnTakeExam.setVisibility(View.GONE);
+            holder.tvStatus.setText("You are marked ABSENT for this exam");
+            holder.tvStatus.setTextColor(Color.parseColor("#F44336")); // Red for absent
+            holder.tvStatus.setVisibility(View.VISIBLE);
+
+            holder.itemView.setClickable(true);
+            holder.itemView.setOnClickListener(v ->
+                    Toast.makeText(context, "You are marked ABSENT for this exam.", Toast.LENGTH_LONG).show()
+            );
+
+        } else if (exam.isAvailable() && !exam.getStatus().contains("TAKEN")) {
+            // Student is present and exam available → show Take Exam button
             holder.btnTakeExam.setVisibility(View.VISIBLE);
             holder.btnTakeExam.setText("Take Exam");
             holder.btnTakeExam.setBackgroundColor(Color.parseColor("#4CAF50"));
-
             holder.btnTakeExam.setOnClickListener(v -> startTakeExamActivity(exam));
-            holder.itemView.setOnClickListener(null);
+
             holder.itemView.setClickable(false);
+            holder.itemView.setOnClickListener(null);
 
         } else {
+            // Exam already taken or not available
             holder.btnTakeExam.setVisibility(View.GONE);
-
             holder.itemView.setClickable(true);
-            holder.itemView.setOnClickListener(v -> {
-                Toast.makeText(context, "Status: " + examStatus, Toast.LENGTH_LONG).show();
-            });
+            holder.itemView.setOnClickListener(v ->
+                    Toast.makeText(context, "Status: " + exam.getStatus(), Toast.LENGTH_LONG).show()
+            );
         }
+
+
     }
 
     // Start TakeExamActivity
     private void startTakeExamActivity(ExamModel exam) {
-        android.util.Log.d("ExamAdapter", "Opening TakeExamActivity with examId=" + exam.getExamId());
-        Intent intent = new Intent(context, TakeExamActivity.class);
-        intent.putExtra("examId", exam.getExamId());
-        intent.putExtra("examTitle", exam.getExamTitle());
-        context.startActivity(intent);
+        android.util.Log.d("ExamAdapter", "Starting exam: " + exam.getExamId());
+
+        // ✅ Get studentId from SessionManager or your student model
+        String studentId = com.example.nextgen.SessionManager.getStudentId(context);
+
+        if (studentId == null || studentId.isEmpty()) {
+            Toast.makeText(context, "Student ID not found.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // ✅ Update ongoing = true in Firebase
+        com.google.firebase.database.DatabaseReference ref =
+                com.google.firebase.database.FirebaseDatabase.getInstance()
+                        .getReference("ExamStudents")
+                        .child(exam.getExamId())
+                        .child(studentId);
+
+        ref.child("ongoing").setValue(true)
+                .addOnSuccessListener(aVoid -> {
+                    Toast.makeText(context, "Exam started! Marked as ongoing.", Toast.LENGTH_SHORT).show();
+
+                    // ✅ Proceed to TakeExamActivity
+                    Intent intent = new Intent(context, TakeExamActivity.class);
+                    intent.putExtra("examId", exam.getExamId());
+                    intent.putExtra("examTitle", exam.getExamTitle());
+                    context.startActivity(intent);
+                })
+                .addOnFailureListener(e -> {
+                    Toast.makeText(context, "Failed to update ongoing: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
     }
+
 
     @Override
     public int getItemCount() {
@@ -104,10 +146,5 @@ public class ExamAdapter extends RecyclerView.Adapter<ExamAdapter.ExamViewHolder
             tvStatus = itemView.findViewById(R.id.tvStatus);
             btnTakeExam = itemView.findViewById(R.id.btnTakeExam);
         }
-    }
-
-    // Stub method (keep existing structure)
-    public int getExamId() {
-        return 0;
     }
 }

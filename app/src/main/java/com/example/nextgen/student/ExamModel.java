@@ -18,12 +18,12 @@ public class ExamModel {
     private String scheduledDateDisplay;
     private String status;
     private boolean isAvailable;
-    // ----------------------------------------
 
+    // ✅ NEW FIELD: student presence
+    private boolean present;
 
     public ExamModel() {}
 
-    // ===== Full constructor (Updated to include NEW fields) =====
     public ExamModel(
             String examId,
             String examTitle,
@@ -34,10 +34,10 @@ public class ExamModel {
             String sectionName,
             String teacherName,
             String createdAt,
-            int durationMinutes, // 🏆 NEW
-            long scheduledAt, // 🏆 NEW
-            String scheduledDateDisplay, // 🏆 NEW
-            boolean active // Active is now part of the constructor for consistency
+            int durationMinutes,
+            long scheduledAt,
+            String scheduledDateDisplay,
+            boolean active
     ) {
         this.examId = examId;
         this.examTitle = examTitle;
@@ -49,15 +49,10 @@ public class ExamModel {
         this.teacherName = teacherName;
         this.createdAt = createdAt;
         this.active = active;
-
-        // 🏆 NEW Field Assignments
         this.durationMinutes = durationMinutes;
         this.scheduledAt = scheduledAt;
         this.scheduledDateDisplay = scheduledDateDisplay;
-        // Status and isAvailable are typically set after fetching in the Activity/Adapter logic
     }
-    // Note: Since ExamModel is used for fetching, the simpler constructor will suffice,
-    // but adding the fields and their getters/setters is crucial.
 
     // ===== Existing Getters and Setters =====
     public String getExamId() { return examId; }
@@ -82,49 +77,27 @@ public class ExamModel {
     public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }
     public void setActive(boolean active) { this.active = active; }
 
-    // 🏆 NEW Getters and Setters
-    public int getDurationMinutes() {
-        return durationMinutes;
-    }
+    // 🏆 NEW Getters and Setters for scheduling & status
+    public int getDurationMinutes() { return durationMinutes; }
+    public void setDurationMinutes(int durationMinutes) { this.durationMinutes = durationMinutes; }
 
-    public void setDurationMinutes(int durationMinutes) {
-        this.durationMinutes = durationMinutes;
-    }
+    public long getScheduledAt() { return scheduledAt; }
+    public void setScheduledAt(long scheduledAt) { this.scheduledAt = scheduledAt; }
 
-    public long getScheduledAt() {
-        return scheduledAt;
-    }
+    public String getScheduledDateDisplay() { return scheduledDateDisplay; }
+    public void setScheduledDateDisplay(String scheduledDateDisplay) { this.scheduledDateDisplay = scheduledDateDisplay; }
 
-    public void setScheduledAt(long scheduledAt) {
-        this.scheduledAt = scheduledAt;
-    }
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
 
-    public String getScheduledDateDisplay() {
-        return scheduledDateDisplay;
-    }
+    public boolean isAvailable() { return isAvailable; }
+    public void setAvailable(boolean available) { isAvailable = available; }
 
-    public void setScheduledDateDisplay(String scheduledDateDisplay) {
-        this.scheduledDateDisplay = scheduledDateDisplay;
-    }
+    // ✅ NEW: presence getter/setter
+    public boolean isPresent() { return present; }
+    public void setPresent(boolean present) { this.present = present; }
 
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
-
-    public boolean isAvailable() {
-        return isAvailable;
-    }
-
-    public void setAvailable(boolean available) {
-        isAvailable = available;
-    }
-    // ----------------------------
-
-    // ===== Existing getCourseDisplay() method (No change) =====
+    // ===== getCourseDisplay() method =====
     public String getCourseDisplay() {
         StringBuilder display = new StringBuilder();
 

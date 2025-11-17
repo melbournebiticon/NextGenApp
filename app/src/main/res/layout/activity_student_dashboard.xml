@@ -7,9 +7,10 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:fitsSystemWindows="true"
-    tools:openDrawer="start"
-    tools:context=".student.StudentDashboardActivity">
+    tools:context=".student.StudentDashboardActivity"
+    tools:openDrawer="start">
 
+    <!-- Main Content -->
     <androidx.coordinatorlayout.widget.CoordinatorLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -49,7 +50,8 @@
                     android:text="Welcome! Use the menu for profile and scores."
                     android:gravity="center"
                     android:padding="8dp"
-                    android:background="#E8EAF6"  android:layout_marginBottom="16dp"/>
+                    android:background="#E8EAF6"
+                    android:layout_marginBottom="16dp"/>
 
                 <TextView
                     android:text="Available Exams"
@@ -57,6 +59,14 @@
                     android:textStyle="bold"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"/>
+
+                <Button
+                    android:id="@+id/btnScanExam"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Scan Exam QR"
+                    android:layout_gravity="center"
+                    android:layout_marginTop="16dp" />
 
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/rvExams"
@@ -78,14 +88,14 @@
         </ScrollView>
     </androidx.coordinatorlayout.widget.CoordinatorLayout>
 
+    <!-- Drawer -->
     <com.google.android.material.navigation.NavigationView
         android:id="@+id/nav_view"
         android:layout_width="wrap_content"
         android:layout_height="match_parent"
         android:layout_gravity="start"
-        android:fitsSystemWindows="true"
-        android:background="@android:color/white"
         app:headerLayout="@layout/nav_header_student"
-        app:menu="@menu/student_drawer_menu" />
+        app:menu="@menu/student_drawer_menu" />   <!-- <- Static items menu -->
+
 
 </androidx.drawerlayout.widget.DrawerLayout>

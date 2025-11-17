@@ -29,7 +29,23 @@
     <string name="select_course">Select Course</string>
     <string name="nav_header_desc">Navigation header image</string>
     <string name="score_format">Score: %1$d / %2$d</string>
+    <string name="email_icon">Email Icon</string>
+    <string name="course">Course</string>
+    <string name="section">Section</string>
 
+
+
+    <string-array name="main_term_options">
+        <item>1st Term</item>
+        <item>2nd Term</item>
+        <item>3rd Term</item>
+    </string-array>
+
+    <string-array name="sub_term_options">
+    <item>Prelim</item>
+    <item>Midterm</item>
+    <item>Finals</item>
+    </string-array>
 
 
 </resources>

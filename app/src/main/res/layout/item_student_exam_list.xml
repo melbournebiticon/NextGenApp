@@ -76,5 +76,6 @@
         android:text="Take Exam"
         android:textSize="12sp"
         android:backgroundTint="@color/design_default_color_primary"
-        android:visibility="gone"/> </RelativeLayout>
+        android:visibility="gone"/>
+</RelativeLayout>
 </LinearLayout>

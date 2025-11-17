@@ -23,6 +23,37 @@
             android:padding="12dp"
             android:background="#E3F2FD"/>
 
+        <!-- Profile Picture -->
+        <ImageView
+            android:id="@+id/ivEditProfile"
+            android:layout_width="100dp"
+            android:layout_height="100dp"
+            android:layout_marginBottom="12dp"
+            android:src="@drawable/tc_profile"
+            android:scaleType="centerCrop"
+            android:background="@drawable/circle_bg_light"
+            android:padding="4dp"
+            android:contentDescription="Profile Image"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <!-- Upload Progress (optional, hidden by default) -->
+        <ProgressBar
+            android:id="@+id/progressBarUpload"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/tvUploadProgress"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:text="Uploading..."
+            android:textSize="12sp"
+            android:textColor="#666"
+            android:visibility="gone" />
+
         <!-- Full Name Input -->
         <TextView
             android:layout_width="match_parent"

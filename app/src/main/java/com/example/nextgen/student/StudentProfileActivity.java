@@ -23,6 +23,14 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
+import android.view.View;
+import android.widget.EditText;
+import android.widget.Toast;
+import androidx.appcompat.app.AlertDialog;
+
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+
 public class StudentProfileActivity extends AppCompatActivity {
 
     private static final String TAG = "StudentProfileActivity";
@@ -57,6 +65,8 @@ public class StudentProfileActivity extends AppCompatActivity {
         tvProfileYear = findViewById(R.id.tvProfileYear);
         tvProfileSection = findViewById(R.id.tvProfileSection);
         // Inalis ang btnEditProfile = findViewById(R.id.btnEditProfile);
+        Button btnChangePassword = findViewById(R.id.btnChangePassword);
+        btnChangePassword.setOnClickListener(v -> showChangePasswordDialog());
 
         // Setup Firebase
         auth = FirebaseAuth.getInstance();
@@ -132,4 +142,103 @@ public class StudentProfileActivity extends AppCompatActivity {
             ivProfileImage.setImageResource(R.drawable.examinee_default);
         }
     }
+    private void showChangePasswordDialog() {
+        // Inflate the dialog layout
+        View view = getLayoutInflater().inflate(R.layout.dialog_change_password, null);
+
+        EditText etOldPassword = view.findViewById(R.id.etOldPassword);
+        EditText etNewPassword = view.findViewById(R.id.etNewPassword);
+        EditText etConfirmPassword = view.findViewById(R.id.etConfirmPassword);
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Change Password")
+                .setView(view)
+                .setPositiveButton("Change", null)
+                .setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss());
+
+        AlertDialog dialog = builder.create();
+
+        dialog.setOnShowListener(d -> {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+                String oldPass = etOldPassword.getText().toString().trim();
+                String newPass = etNewPassword.getText().toString().trim();
+                String confirmPass = etConfirmPassword.getText().toString().trim();
+
+                if (oldPass.isEmpty() || newPass.isEmpty() || confirmPass.isEmpty()) {
+                    Toast.makeText(this, "Please fill all fields", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+                if (!newPass.equals(confirmPass)) {
+                    Toast.makeText(this, "New passwords do not match", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+                FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+                if (user != null && user.getEmail() != null) {
+                    // Re-authenticate user
+                    auth.signInWithEmailAndPassword(user.getEmail(), oldPass)
+                            .addOnCompleteListener(authTask -> {
+                                if (authTask.isSuccessful()) {
+                                    // Update password in Firebase Auth
+                                    user.updatePassword(newPass)
+                                            .addOnCompleteListener(updateTask -> {
+                                                if (updateTask.isSuccessful()) {
+                                                    // Update password in Realtime Database (hashed)
+                                                    studentsRef.orderByChild("uid").equalTo(user.getUid())
+                                                            .addListenerForSingleValueEvent(new ValueEventListener() {
+                                                                @Override
+                                                                public void onDataChange(@NonNull DataSnapshot snapshot) {
+                                                                    if (snapshot.exists()) {
+                                                                        for (DataSnapshot ds : snapshot.getChildren()) {
+                                                                            ds.getRef().child("password").setValue(hashPassword(newPass));
+                                                                            break; // only one record per UID
+                                                                        }
+                                                                    }
+                                                                }
+
+                                                                @Override
+                                                                public void onCancelled(@NonNull DatabaseError error) {
+                                                                    Log.e(TAG, "DB Error: " + error.getMessage());
+                                                                }
+                                                            });
+
+                                                    Toast.makeText(StudentProfileActivity.this,
+                                                            "Password changed successfully!", Toast.LENGTH_SHORT).show();
+                                                    dialog.dismiss();
+                                                }
+                                                else {
+                                                    Toast.makeText(StudentProfileActivity.this,
+                                                            "Error: " + updateTask.getException().getMessage(), Toast.LENGTH_SHORT).show();
+                                                }
+                                            });
+                                } else {
+                                    Toast.makeText(StudentProfileActivity.this, "Old password is incorrect", Toast.LENGTH_SHORT).show();
+                                }
+                            });
+                }
+            });
+        });
+
+        dialog.show();
+    }
+    public static String hashPassword(String password) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(password.getBytes());
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hash) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) hexString.append('0');
+                hexString.append(hex);
+            }
+            return hexString.toString();
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+            return password; // fallback: plain text (not ideal)
+        }
+    }
+
+
+
 }
