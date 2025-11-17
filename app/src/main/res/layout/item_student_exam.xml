@@ -55,7 +55,7 @@
             android:padding="4dp" />
     </RadioGroup>
 
-    <!-- True / False Options (Vertical) -->
+    <!-- True / False Options -->
     <RadioGroup
         android:id="@+id/radioGroupTF"
         android:orientation="vertical"
@@ -79,12 +79,25 @@
             android:padding="4dp" />
     </RadioGroup>
 
+    <!-- EditText for Identification (optional, keep hidden if not needed) -->
+    <EditText
+        android:id="@+id/etAnswer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        android:hint="Type your answer"
+        android:backgroundTint="@android:color/darker_gray"
+        android:padding="8dp"
+        android:textColor="@android:color/black"
+        android:textSize="14sp"
+        android:layout_marginTop="8dp" />
+
     <!-- Spinner for Matching Type -->
     <Spinner
         android:id="@+id/spinnerAnswer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:visibility="gone"
-        android:layout_marginTop="8dp"/>
+        android:spinnerMode="dropdown"/>
 
 </LinearLayout>

@@ -96,6 +96,11 @@ public class TakeExamActivity extends AppCompatActivity {
 
     private android.media.AudioRecord audioRecord;
 
+    private List<String> allMatchingAnswers = new ArrayList<>();
+    private boolean isShowingRules = false;
+    private boolean isRequestingMicPermission = false;
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         getWindow().setFlags(
@@ -158,6 +163,7 @@ public class TakeExamActivity extends AppCompatActivity {
     }
 
     private void showExamRulesAlert() {
+        isShowingRules = true;
         new AlertDialog.Builder(this)
                 .setTitle("IMPORTANT: Exam Rules & Anti-Cheating")
                 .setMessage("By pressing START, you agree to the following rules:\n\n" +
@@ -185,7 +191,9 @@ public class TakeExamActivity extends AppCompatActivity {
         questionsRef = FirebaseDatabase.getInstance().getReference("Questions").child(examId);
         loadQuestions();
         checkAndRequestAudioPermission();
-        btnSubmit.setOnClickListener(v -> submitExam());
+
+        btnSubmit.setOnClickListener(v -> handleNextOrSubmit());
+
 
         // -----------------------------
         // ✅ Listen for exam reset
@@ -211,6 +219,7 @@ public class TakeExamActivity extends AppCompatActivity {
 
     private void checkAndRequestAudioPermission() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            isRequestingMicPermission = true;
             requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, REQUEST_RECORD_AUDIO_PERMISSION);
         } else {
             startAudioMonitoring();
@@ -241,6 +250,8 @@ public class TakeExamActivity extends AppCompatActivity {
     protected void onPause() {
         super.onPause();
         if (isFinishing()) return;
+
+        if (isShowingRules || isRequestingMicPermission) return;
 
         switchCount++;
         totalDeductions += DEDUCTION_PER_STRIKE;
@@ -372,9 +383,22 @@ public class TakeExamActivity extends AppCompatActivity {
                     return;
                 }
 
+                // --- Collect all correct answers for Matching Type questions ---
+                allMatchingAnswers.clear();
+                for (Question q : questionList) {
+                    if ("Matching Type".equalsIgnoreCase(q.getQuestionType())) {
+                        String answer = q.getCorrectAnswer();
+                        if (answer != null && !allMatchingAnswers.contains(answer)) {
+                            allMatchingAnswers.add(answer);
+                        }
+                    }
+                }
+
+
+                // --- Set up first section/question ---
                 typeIndex = 0;
                 filterQuestionsByType(questionTypeOrder[typeIndex]);
-                showNextQuestion();
+                showNextQuestion(); // pass it here
             }
 
             @Override
@@ -383,6 +407,7 @@ public class TakeExamActivity extends AppCompatActivity {
             }
         });
     }
+
 
     private void filterQuestionsByType(String type) {
         currentQuestionType = type;
@@ -410,8 +435,9 @@ public class TakeExamActivity extends AppCompatActivity {
             currentQ.setDisplayNumber(typeQuestionNumber);
             singleQuestion.add(currentQ);
 
-            questionAdapter = new TakeExamAdapter(TakeExamActivity.this, singleQuestion);
+            questionAdapter = new TakeExamAdapter(TakeExamActivity.this, singleQuestion, allMatchingAnswers);
             rvQuestions.setAdapter(questionAdapter);
+
 
             if (currentIndex == currentTypeQuestions.size() - 1 && typeIndex == questionTypeOrder.length - 1) {
                 btnSubmit.setText("Submit Exam");
@@ -421,15 +447,6 @@ public class TakeExamActivity extends AppCompatActivity {
                 btnSubmit.setText("Next");
             }
 
-            btnSubmit.setOnClickListener(v -> {
-                currentIndex++;
-                typeQuestionNumber++;
-                if (currentIndex < currentTypeQuestions.size()) {
-                    showNextQuestion();
-                } else {
-                    goToNextType();
-                }
-            });
         } else {
             goToNextType();
         }
@@ -446,7 +463,6 @@ public class TakeExamActivity extends AppCompatActivity {
             }
         } else {
             btnSubmit.setText("Submit Exam");
-            btnSubmit.setOnClickListener(v -> submitExam());
         }
     }
 
@@ -708,14 +724,21 @@ public class TakeExamActivity extends AppCompatActivity {
                                     audioCheatingCount++;
                                     Log.w("AUDIO_TFLITE", "!!! CHEATING STRIKE " + audioCheatingCount + ": " + label + " detected! Conf: " + confidence);
 
+                                    // ⚠️ Show warning before auto-submitting
+                                    if (audioCheatingCount < MAX_AUDIO_STRIKES) {
+                                        runOnUiThread(() -> Toast.makeText(TakeExamActivity.this,
+                                                "WARNING: Human voice detected! (" + audioCheatingCount + "/" + MAX_AUDIO_STRIKES + ")",
+                                                Toast.LENGTH_SHORT).show());
+                                    }
+
                                     // Auto-submit kapag umabot sa limit
                                     if (audioCheatingCount >= MAX_AUDIO_STRIKES) {
                                         Log.e("AUDIO_TFLITE", "!!! MAJOR CHEATING: Audio strike limit reached! Auto-submitting!");
-                                        // Kailangan gumamit ng runOnUiThread dahil nasa background thread tayo
                                         runOnUiThread(() -> submitExamWithZeroScore());
                                     }
 
                                 }
+
                                 // ❌ IGNORED: Non-human sound, o Silence (i-reset ang counter)
                                 else {
                                     audioCheatingCount = 0; // Reset strike count
@@ -785,6 +808,61 @@ public class TakeExamActivity extends AppCompatActivity {
 
         Toast.makeText(this, "Exam has been reset by your teacher.", Toast.LENGTH_LONG).show();
     }
+    private void handleNextOrSubmit() {
+        if (currentTypeQuestions.isEmpty()) {
+            goToNextTypeOrSubmit();
+            return;
+        }
+
+        if (currentIndex < currentTypeQuestions.size() - 1) {
+            // Move to next question in current type
+            currentIndex++;
+            typeQuestionNumber++;
+            showQuestion(currentTypeQuestions.get(currentIndex));
+            updateButtonText();
+        } else {
+            // End of current type, go to next type or submit
+            goToNextTypeOrSubmit();
+        }
+    }
+    private void goToNextTypeOrSubmit() {
+        typeIndex++;
+        if (typeIndex < questionTypeOrder.length) {
+            filterQuestionsByType(questionTypeOrder[typeIndex]);
+            if (!currentTypeQuestions.isEmpty()) {
+                showQuestion(currentTypeQuestions.get(currentIndex));
+                updateButtonText();
+            } else {
+                // Skip empty section
+                goToNextTypeOrSubmit();
+            }
+        } else {
+            // All sections done, final submission
+            btnSubmit.setText("Submit Exam");
+            submitExam();
+        }
+    }
+    private void showQuestion(Question question) {
+        question.setDisplayNumber(typeQuestionNumber);
+        List<Question> singleQuestion = new ArrayList<>();
+        singleQuestion.add(question);
+
+        questionAdapter = new TakeExamAdapter(this, singleQuestion, allMatchingAnswers);
+        rvQuestions.setAdapter(questionAdapter);
+    }
+    private void updateButtonText() {
+        if (currentIndex < currentTypeQuestions.size() - 1) {
+            btnSubmit.setText("Next");
+        } else if (typeIndex < questionTypeOrder.length - 1) {
+            btnSubmit.setText("Next Section");
+        } else {
+            btnSubmit.setText("Submit Exam");
+        }
+    }
+
+
+
+
 
 }
 

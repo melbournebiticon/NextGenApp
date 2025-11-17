@@ -2,7 +2,13 @@ package com.example.nextgen.teacher;
 
 import androidx.room.Entity;
 import androidx.room.PrimaryKey;
+import java.util.List;
+import java.util.ArrayList;
 
+
+import androidx.room.TypeConverters;
+
+@TypeConverters(Converters.class)
 @Entity(tableName = "questions")
 public class Question {
 
@@ -25,6 +31,7 @@ public class Question {
     // ===== NEW: store display number (for numbering per type) =====
     private int displayNumber;
 
+    private List<String> matchingOptions;
     // ===== Empty constructor (needed for Room & imports) =====
     public Question() {}
 
@@ -91,10 +98,22 @@ public class Question {
         copy.optionD = this.optionD;
         copy.correctAnswer = this.correctAnswer;
         copy.studentAnswer = this.studentAnswer; // copy student answer too
-        copy.displayNumber = this.displayNumber; // ✅ also copy display number
+        copy.displayNumber = this.displayNumber; // also copy display number
+        if (this.matchingOptions != null) {
+            copy.matchingOptions = new ArrayList<>(this.matchingOptions); // copy the list
+        }
         return copy;
     }
 
+
     public void setFirebaseKey(String key) { this.firebaseKey = key; }
     public String getFirebaseKey() { return firebaseKey; }
+    public List<String> getMatchingOptions() {
+        return matchingOptions;
+    }
+
+    // Setter
+    public void setMatchingOptions(List<String> matchingOptions) {
+        this.matchingOptions = matchingOptions;
+    }
 }

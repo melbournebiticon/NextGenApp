@@ -51,6 +51,7 @@ android {
 }
 
 dependencies {
+    implementation("com.google.code.gson:gson:2.10.1")
     implementation("com.google.zxing:core:3.5.2")
     implementation("androidx.camera:camera-core:1.3.4")
     implementation("androidx.camera:camera-camera2:1.3.4")
