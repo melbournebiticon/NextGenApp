@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <!-- Subject Code Input -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Subject Code"
+        android:textColor="#0D47A1"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="8dp"/>
+
+    <EditText
+        android:id="@+id/etEditSubjectCode"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:hint="Enter subject code"
+        android:background="@drawable/edit_text_background"
+        android:padding="12dp"
+        android:textSize="14sp"
+        android:layout_marginBottom="16dp"/>
+
+    <!-- Subject Name Input -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Subject Name"
+        android:textColor="#0D47A1"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="8dp"/>
+
+    <EditText
+        android:id="@+id/etEditSubjectName"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:hint="Enter subject name"
+        android:background="@drawable/edit_text_background"
+        android:padding="12dp"
+        android:textSize="14sp"
+        android:layout_marginBottom="16dp"/>
+
+</LinearLayout>

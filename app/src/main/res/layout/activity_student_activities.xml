@@ -1,0 +1,55 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp">
+
+    <!-- 🟩 Header Section -->
+    <LinearLayout
+        android:id="@+id/layoutHeader"
+        android:orientation="vertical"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_card"
+        android:padding="12dp"
+        android:elevation="2dp"
+        android:layout_marginBottom="8dp">
+
+        <TextView
+            android:id="@+id/tvSubjectCode"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Subject Code: ---"
+            android:textStyle="bold"
+            android:textSize="16sp" />
+
+        <TextView
+            android:id="@+id/tvSubjectName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Subject Name: ---"
+            android:textSize="15sp" />
+
+        <TextView
+            android:id="@+id/tvTeacherName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Teacher: ---"
+            android:textSize="15sp" />
+
+        <Button
+            android:id="@+id/btnPerformance"
+            android:layout_width="355dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Performance" />
+    </LinearLayout>
+
+    <!-- 🟦 Activities List -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerStudentActivities"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginTop="8dp" />
+
+</LinearLayout>

@@ -1,0 +1,246 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true"
+    android:background="#F5F5F5">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <!-- Header -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Create New Activity"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:textColor="#212121"
+            android:layout_marginBottom="24dp"/>
+
+        <!-- Activity Details Card -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@android:color/white"
+            android:elevation="2dp"
+            android:padding="16dp"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Activity Details"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="#424242"
+                android:layout_marginBottom="12dp"/>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Activity Title"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                android:layout_marginBottom="12dp">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etActivityTitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="textCapSentences"
+                    android:maxLines="1"/>
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Activity Description"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                android:layout_marginBottom="12dp">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etActivityDescription"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="120dp"
+                    android:gravity="top|start"
+                    android:inputType="textMultiLine|textCapSentences"
+                    android:maxLines="5"/>
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Due Date Section -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Due Date"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="#424242"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="8dp"/>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:hint="Select Date"
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                    android:layout_marginEnd="8dp">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/etDueDate"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:focusable="false"
+                        android:clickable="true"
+                        android:drawableEnd="@android:drawable/ic_menu_my_calendar"
+                        android:drawablePadding="8dp"/>
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnPickDate"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Pick Date"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:textSize="14sp"/>
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <!-- Terms Card -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@android:color/white"
+            android:elevation="2dp"
+            android:padding="16dp"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Academic Terms"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="#424242"
+                android:layout_marginBottom="12dp"/>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Main Term"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="#616161"
+                android:layout_marginBottom="8dp" />
+
+            <Spinner
+                android:id="@+id/spMainTerm"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:background="@android:drawable/editbox_dropdown_light_frame"
+                android:spinnerMode="dropdown"
+                android:padding="12dp"
+                android:layout_marginBottom="16dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Sub Term"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="#616161"
+                android:layout_marginBottom="8dp" />
+
+            <Spinner
+                android:id="@+id/spSubTerm"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:background="@android:drawable/editbox_dropdown_light_frame"
+                android:spinnerMode="dropdown"
+                android:padding="12dp" />
+
+        </LinearLayout>
+
+        <!-- Target Selection Card -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@android:color/white"
+            android:elevation="2dp"
+            android:padding="16dp"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Target Selection"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="#424242"
+                android:layout_marginBottom="12dp"/>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Course Section"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="#616161"
+                android:layout_marginBottom="8dp" />
+
+            <Spinner
+                android:id="@+id/spTargetCourseSection"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:background="@android:drawable/editbox_dropdown_light_frame"
+                android:spinnerMode="dropdown"
+                android:padding="12dp"
+                android:layout_marginBottom="16dp"/>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Subject"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="#616161"
+                android:layout_marginBottom="8dp" />
+
+            <Spinner
+                android:id="@+id/spTargetSubject"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:background="@android:drawable/editbox_dropdown_light_frame"
+                android:spinnerMode="dropdown"
+                android:padding="12dp"/>
+
+        </LinearLayout>
+
+        <!-- Action Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnCreateActivity"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:text="Post Activity"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            style="@style/Widget.MaterialComponents.Button"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="16dp"/>
+
+    </LinearLayout>
+</ScrollView>
