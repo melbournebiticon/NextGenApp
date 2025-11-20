@@ -44,6 +44,9 @@ import java.util.concurrent.TimeUnit;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import android.content.SharedPreferences;
+import com.google.firebase.database.ChildEventListener;
+
 
 
 public class StudentDashboardActivity extends AppCompatActivity
@@ -81,6 +84,10 @@ public class StudentDashboardActivity extends AppCompatActivity
     private Handler handler = new Handler();
     private Runnable examRefreshRunnable;
     private final int REFRESH_INTERVAL = 3000;
+    private TextView bellBadge;
+    private DatabaseReference activitiesRef;
+
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -160,7 +167,11 @@ public class StudentDashboardActivity extends AppCompatActivity
                                     startPeriodicExamFetch(student);
 
                                     showStudentSubjects();
+                                    initActivityNotificationListener(student);
                                 }
+
+
+
                             }
                         } else {
                             Toast.makeText(StudentDashboardActivity.this, "Student record not found", Toast.LENGTH_SHORT).show();
@@ -553,10 +564,74 @@ public class StudentDashboardActivity extends AppCompatActivity
                     public void onCancelled(@NonNull DatabaseError error) { }
                 });
     }
+    private void initActivityNotificationListener(StudentModel student) {
+
+        bellBadge = findViewById(R.id.bellBadge); // make sure you have a TextView over bell icon in XML
+        activitiesRef = FirebaseDatabase.getInstance().getReference("Activities");
+
+        String studentCourse = student.getCourseName()
+                + " - " + student.getSpecializationName()
+                + " - " + student.getYearName()
+                + " - " + student.getSectionName();
+
+        activitiesRef.addChildEventListener(new ChildEventListener() {
+            @Override
+            public void onChildAdded(@NonNull DataSnapshot snapshot, String previousChildName) {
+                String courseDisplay = snapshot.child("courseDisplay").getValue(String.class);
+
+                if (courseDisplay != null && courseDisplay.equals(studentCourse)) {
+                    incrementBellNotification();
+                }
+            }
+
+            @Override public void onChildChanged(@NonNull DataSnapshot snapshot, String s) {}
+            @Override public void onChildRemoved(@NonNull DataSnapshot snapshot) {}
+            @Override public void onChildMoved(@NonNull DataSnapshot snapshot, String s) {}
+            @Override public void onCancelled(@NonNull DatabaseError error) {}
+        });
+
+        updateBellBadge();
+    }
+    private void incrementBellNotification() {
+        SharedPreferences prefs = getSharedPreferences("notif_prefs", MODE_PRIVATE);
+        int count = prefs.getInt("bell_count", 0);
+        prefs.edit().putInt("bell_count", count + 1).apply();
+        updateBellBadge();
+    }
+
+    private void updateBellBadge() {
+        SharedPreferences prefs = getSharedPreferences("notif_prefs", MODE_PRIVATE);
+        int count = prefs.getInt("bell_count", 0);
+
+        if (count > 0) {
+            bellBadge.setVisibility(View.VISIBLE);
+            bellBadge.setText(String.valueOf(count));
+        } else {
+            bellBadge.setVisibility(View.GONE);
+        }
+    }
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.toolbar_action_menu, menu);
 
 
+        MenuItem notifItem = menu.findItem(R.id.action_notifications);
+        View actionView = notifItem.getActionView();
 
+        bellBadge = actionView.findViewById(R.id.bellBadge);
 
+        actionView.setOnClickListener(v -> {
+            onOptionsItemSelected(notifItem);
+
+            // reset notification count when opened
+            SharedPreferences prefs = getSharedPreferences("notif_prefs", MODE_PRIVATE);
+            prefs.edit().putInt("bell_count", 0).apply();
+            updateBellBadge();
+        });
+
+        updateBellBadge();  // initial update after load
+        return true;
+    }
 
 
 

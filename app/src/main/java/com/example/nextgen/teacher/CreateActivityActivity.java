@@ -254,6 +254,8 @@ public class CreateActivityActivity extends AppCompatActivity {
         activityMap.put("createdAt", System.currentTimeMillis());
         activityMap.put("mainTerm", selectedMainTerm);
         activityMap.put("subTerm", selectedSubTerm);
+        activityMap.put("timestamp", System.currentTimeMillis());
+
 
 
         if (activityId != null) {
