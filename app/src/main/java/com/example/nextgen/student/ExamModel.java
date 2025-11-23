@@ -12,9 +12,10 @@ public class ExamModel {
     private String createdAt;
     private boolean active;
 
-    // 🏆 NEW FIELDS FOR SCHEDULING AND STATUS
-    private int durationMinutes = 0;
-    private long scheduledAt = 0;
+    // 🏆 FIXED FIELDS FOR SCHEDULING AND STATUS
+    // Changed int to Integer and long to Long to allow null check
+    private Integer durationMinutes = 0;
+    private Long scheduledAt = 0L; // Use 0L for Long default
     private String scheduledDateDisplay;
     private String status;
     private boolean isAvailable;
@@ -34,8 +35,9 @@ public class ExamModel {
             String sectionName,
             String teacherName,
             String createdAt,
-            int durationMinutes,
-            long scheduledAt,
+            // Changed types in constructor
+            Integer durationMinutes,
+            Long scheduledAt,
             String scheduledDateDisplay,
             boolean active
     ) {
@@ -54,7 +56,7 @@ public class ExamModel {
         this.scheduledDateDisplay = scheduledDateDisplay;
     }
 
-    // ===== Existing Getters and Setters =====
+    // ===== Existing Getters and Setters (Unchanged) =====
     public String getExamId() { return examId; }
     public String getExamTitle() { return examTitle; }
     public String getCourseId() { return courseId; }
@@ -77,12 +79,12 @@ public class ExamModel {
     public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }
     public void setActive(boolean active) { this.active = active; }
 
-    // 🏆 NEW Getters and Setters for scheduling & status
-    public int getDurationMinutes() { return durationMinutes; }
-    public void setDurationMinutes(int durationMinutes) { this.durationMinutes = durationMinutes; }
+    // 🏆 FIXED Getters and Setters for scheduling & status
+    public Integer getDurationMinutes() { return durationMinutes; }
+    public void setDurationMinutes(Integer durationMinutes) { this.durationMinutes = durationMinutes; }
 
-    public long getScheduledAt() { return scheduledAt; }
-    public void setScheduledAt(long scheduledAt) { this.scheduledAt = scheduledAt; }
+    public Long getScheduledAt() { return scheduledAt; }
+    public void setScheduledAt(Long scheduledAt) { this.scheduledAt = scheduledAt; }
 
     public String getScheduledDateDisplay() { return scheduledDateDisplay; }
     public void setScheduledDateDisplay(String scheduledDateDisplay) { this.scheduledDateDisplay = scheduledDateDisplay; }
@@ -97,7 +99,7 @@ public class ExamModel {
     public boolean isPresent() { return present; }
     public void setPresent(boolean present) { this.present = present; }
 
-    // ===== getCourseDisplay() method =====
+    // ===== getCourseDisplay() method (Unchanged) =====
     public String getCourseDisplay() {
         StringBuilder display = new StringBuilder();
 

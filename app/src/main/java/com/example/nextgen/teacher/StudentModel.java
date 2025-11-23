@@ -10,6 +10,9 @@ public class StudentModel {
     private String specializationName;
     private String uid;
 
+    // 🔑 ADDED: Field to store the Firebase Database Key (ds.getKey())
+    private String dbKey;
+
     // Add this to store the submission for this student
     private SubmissionModel submission;
 
@@ -25,7 +28,7 @@ public class StudentModel {
         this.sectionName = sectionName;
     }
 
-    // Getters and setters for existing fields
+    // ===== Getters and Setters for existing fields =====
     public String getStudentId() { return studentId; }
     public void setStudentId(String studentId) { this.studentId = studentId; }
 
@@ -49,6 +52,16 @@ public class StudentModel {
 
     public String getUid() { return uid; }
     public void setUid(String uid) { this.uid = uid; }
+
+    // 🔑 ADDED: Getter and setter for dbKey
+    public String getDbKey() {
+        return dbKey;
+    }
+
+    public void setDbKey(String dbKey) {
+        this.dbKey = dbKey;
+    }
+
     // Getter and setter for submission
     public SubmissionModel getSubmission() { return submission; }
     public void setSubmission(SubmissionModel submission) { this.submission = submission; }

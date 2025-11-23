@@ -58,6 +58,7 @@ dependencies {
     implementation("androidx.camera:camera-lifecycle:1.3.4")
     implementation("androidx.camera:camera-view:1.3.4")
 
+
     implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
     // ✅ Firebase BOM - ensures consistent versions
     implementation(platform("com.google.firebase:firebase-bom:34.4.0"))
@@ -84,6 +85,16 @@ dependencies {
     implementation("org.apache.poi:poi:5.2.3")
     implementation("org.apache.poi:poi-ooxml:5.2.3")
     implementation("com.tom-roush:pdfbox-android:2.0.27.0")
+
+
+    implementation ("com.google.android.material:material:1.11.0")
+
+        // RecyclerView
+    implementation ("androidx.recyclerview:recyclerview:1.3.2")
+
+        // CoordinatorLayout
+    implementation("androidx.coordinatorlayout:coordinatorlayout:1.2.0")
+
 
     // ✅ AndroidX UI
     implementation(libs.appcompat)

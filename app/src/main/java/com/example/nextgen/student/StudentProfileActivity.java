@@ -5,16 +5,20 @@ import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.util.Base64;
 import android.util.Log;
-import android.widget.Button; // Kept as it might be needed for other buttons, but usually removed if no buttons are left
+import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.nextgen.R;
 import com.example.nextgen.admin.StudentModel;
+import com.google.android.material.appbar.MaterialToolbar; // Import MaterialToolbar
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DataSnapshot;
@@ -22,11 +26,6 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
-
-import android.view.View;
-import android.widget.EditText;
-import android.widget.Toast;
-import androidx.appcompat.app.AlertDialog;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -38,7 +37,6 @@ public class StudentProfileActivity extends AppCompatActivity {
     private ImageView ivProfileImage;
     private TextView tvProfileFullName, tvProfileBirthday, tvProfileEmail, tvProfileContact,
             tvProfileCourse, tvProfileSpecialization, tvProfileYear, tvProfileSection;
-    // Inalis ang private Button btnEditProfile;
 
     private FirebaseAuth auth;
     private DatabaseReference studentsRef;
@@ -48,13 +46,22 @@ public class StudentProfileActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_student_profile);
 
-        // Enable the back button in the ActionBar
+        // --- NEW: Setup MaterialToolbar instead of standard ActionBar ---
+        MaterialToolbar topAppBar = findViewById(R.id.topAppBar);
+        // Set the toolbar as the ActionBar (optional, but good practice)
+        setSupportActionBar(topAppBar);
+        // Enable the back button and set the listener
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-            getSupportActionBar().setTitle("My Profile");
+            // Title is already set in XML, but we can set it here too if needed
+            // getSupportActionBar().setTitle("Student Profile");
         }
+        // Handle the navigation icon click (the back button)
+        topAppBar.setNavigationOnClickListener(v -> finish());
+        // --- END NEW ---
 
-        // Initialize UI Components
+
+        // Initialize UI Components (IDs remain the same, which is correct)
         ivProfileImage = findViewById(R.id.ivProfileImage);
         tvProfileFullName = findViewById(R.id.tvProfileFullName);
         tvProfileBirthday = findViewById(R.id.tvProfileBirthday);
@@ -64,9 +71,7 @@ public class StudentProfileActivity extends AppCompatActivity {
         tvProfileSpecialization = findViewById(R.id.tvProfileSpecialization);
         tvProfileYear = findViewById(R.id.tvProfileYear);
         tvProfileSection = findViewById(R.id.tvProfileSection);
-        // Inalis ang btnEditProfile = findViewById(R.id.btnEditProfile);
-        Button btnChangePassword = findViewById(R.id.btnChangePassword);
-        btnChangePassword.setOnClickListener(v -> showChangePasswordDialog());
+
 
         // Setup Firebase
         auth = FirebaseAuth.getInstance();
@@ -82,16 +87,13 @@ public class StudentProfileActivity extends AppCompatActivity {
 
         // Fetch and display student data
         fetchStudentData(currentUser.getUid());
-
-        // Inalis ang Handle Edit Profile button click listener
     }
 
-    // Handle the back button in the action bar
-    @Override
-    public boolean onSupportNavigateUp() {
-        finish();
-        return true;
-    }
+    /*
+     * INALIS: onSupportNavigateUp()
+     * Ang pag-handle ng back button (Navigation Icon) ay inilipat na sa
+     * topAppBar.setNavigationOnClickListener(v -> finish());
+     */
 
     private void fetchStudentData(String uid) {
         studentsRef.orderByChild("uid").equalTo(uid)
@@ -142,6 +144,8 @@ public class StudentProfileActivity extends AppCompatActivity {
             ivProfileImage.setImageResource(R.drawable.examinee_default);
         }
     }
+
+    // showChangePasswordDialog() at hashPassword() methods remain unchanged as they are functional
     private void showChangePasswordDialog() {
         // Inflate the dialog layout
         View view = getLayoutInflater().inflate(R.layout.dialog_change_password, null);
@@ -222,6 +226,7 @@ public class StudentProfileActivity extends AppCompatActivity {
 
         dialog.show();
     }
+
     public static String hashPassword(String password) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
@@ -238,7 +243,4 @@ public class StudentProfileActivity extends AppCompatActivity {
             return password; // fallback: plain text (not ideal)
         }
     }
-
-
-
 }

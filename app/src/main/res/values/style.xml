@@ -1,12 +1,65 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
+    <!-- Main Application Theme - Explicitly sets Light Mode -->
+    <!-- We use NoActionBar because the dashboard layout implements its own header/toolbar -->
+    <style name="Theme.App" parent="Theme.Material3.Light.NoActionBar">
+        <!-- Customize your theme here. Example primary color definition: -->
+        <item name="colorPrimary">@color/md_theme_primary</item>
+        <item name="colorOnPrimary">@color/md_theme_onPrimary</item>
+        <item name="colorSurface">@color/md_theme_surface</item>
+        <!-- I assume you have these colors defined in your colors.xml -->
+    </style>
+
+    <style name="BottomNavLabelText" parent="TextAppearance.MaterialComponents.Caption">
+        <item name="android:textSize">12sp</item>
+        <item name="android:textColor">?attr/colorOnSurfaceVariant</item>
+        <item name="android:textStyle">normal</item>
+    </style>
+    <style name="ProfileRowContainer">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginBottom">12dp</item>
+        <item name="android:orientation">horizontal</item>
+    </style>
+
+    <style name="ProfileLabelStyle">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">1.1</item>
+        <item name="android:textColor">#0D47A1</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="ProfileValueStyle">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">2</item>
+        <item name="android:textColor">#424242</item>
+        <item name="android:textSize">16sp</item>
+    </style>
+
+
+    <!-- Existing Styles (Cleaned up and combined) -->
+
     <style name="TextLabel">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:textSize">16sp</item>
+        <!-- Using a fixed dark color for contrast in Light Mode -->
         <item name="android:textColor">#212121</item>
         <item name="android:layout_marginBottom">4dp</item>
+    </style>
+
+    <style name="ExpandedTitleText" parent="TextAppearance.MaterialComponents.Headline5">
+        <item name="android:textColor">@color/white</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="Widget.Material3.Button.TextButton.Monochromatic" parent="Widget.Material3.Button.TextButton">
+        <item name="android:textColor">@color/primaryText</item>
+        <item name="iconTint">@color/primaryText</item>
     </style>
 
     <style name="ProfileInfoStyle">
@@ -26,6 +79,7 @@
 
     <style name="ProfileLabel" parent="android:Widget.TextView">
         <item name="android:textSize">16sp</item>
+        <!-- Using a standard attribute that resolves to a dark grey -->
         <item name="android:textColor">@android:color/darker_gray</item>
         <item name="android:paddingEnd">8dp</item>
     </style>
@@ -35,4 +89,27 @@
         <item name="android:textStyle">bold</item>
         <item name="android:textColor">@android:color/black</item>
     </style>
+
+        <style name="MetadataRow">
+            <item name="android:layout_width">match_parent</item>
+            <item name="android:layout_height">wrap_content</item>
+            <item name="android:orientation">horizontal</item>
+            <item name="android:gravity">center_vertical</item>
+        </style>
+
+        <style name="MetadataIcon">
+            <item name="android:layout_width">20dp</item>
+            <item name="android:layout_height">20dp</item>
+            <item name="android:layout_marginEnd">12dp</item>
+        </style>
+
+        <style name="MetadataText">
+            <item name="android:layout_width">wrap_content</item>
+            <item name="android:layout_height">wrap_content</item>
+            <item name="android:textSize">16sp</item>
+            <item name="android:textColor">#475569</item>
+            <item name="android:fontFamily">sans-serif</item>
+        </style>
+
+
 </resources>

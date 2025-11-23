@@ -1,49 +1,132 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_margin="8dp"
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:elevation="4dp"
-    android:padding="8dp">
+    android:layout_marginVertical="8dp"
+    android:layout_marginHorizontal="4dp"
+    app:cardCornerRadius="16dp"
+    app:cardElevation="2dp"
+    app:strokeWidth="1dp"
+    app:strokeColor="#E5E7EB"
+    app:cardBackgroundColor="@color/white">
 
-    <LinearLayout
-        android:orientation="vertical"
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="wrap_content"
+        android:padding="18dp">
 
-        <TextView
-            android:id="@+id/tvActivityTitle"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"/>
+        <!-- LEFT ICON -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/iconContainer"
+            android:layout_width="46dp"
+            android:layout_height="46dp"
+            android:layout_marginEnd="14dp"
+            app:cardCornerRadius="14dp"
+            app:cardElevation="0dp"
+            app:strokeWidth="0dp"
+            app:cardBackgroundColor="#EEF0FF"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
 
-        <TextView
-            android:id="@+id/tvActivitySubject"
-            android:textSize="14sp"
-            android:textColor="#555"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"/>
-        <TextView
-            android:id="@+id/tvActivityTeacher"
+            <ImageView
+                android:id="@+id/ivActivityIcon"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_courses"
+                app:tint="@color/dark_blue_700"/>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- RIGHT SIDE (Due date + Status chip) -->
+        <LinearLayout
+            android:id="@+id/rightColumn"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textSize="14sp"
-            android:textColor="@android:color/black"/>
+            android:orientation="vertical"
+            android:gravity="end"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
 
+            <TextView
+                android:id="@+id/tvActivityDueDate"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Nov 25 • 11:59 PM"
+                android:textSize="12sp"
+                android:textColor="@color/dark_blue_500"
+                android:fontFamily="sans-serif-medium"/>
 
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chipStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="Pending"
+                android:textSize="11sp"
+                android:textColor="@color/white"
+                android:textStyle="bold"
+                app:chipBackgroundColor="@color/dark_blue_700"
+                app:chipCornerRadius="20dp"
+                app:chipMinHeight="28dp"
+                app:chipStartPadding="10dp"
+                app:chipEndPadding="10dp"
+                app:chipIcon="@drawable/ic_clock"
+                app:chipIconTint="@color/dark_blue_500"
+                app:chipIconSize="14dp"
+                app:chipStrokeWidth="0dp"/>
+        </LinearLayout>
+
+        <!-- TITLE -->
         <TextView
-            android:id="@+id/tvActivityDueDate"
-            android:textSize="14sp"
-            android:textColor="#555"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"/>
+            android:id="@+id/tvActivityTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="Advanced Vector Calculus"
+            android:textSize="16sp"
+            android:textColor="#0F172A"
+            android:textStyle="bold"
+            android:fontFamily="sans-serif-medium"
+            android:maxLines="2"
+            android:ellipsize="end"
+            app:layout_constraintStart_toEndOf="@id/iconContainer"
+            app:layout_constraintTop_toTopOf="@id/iconContainer"
+            app:layout_constraintEnd_toStartOf="@id/rightColumn"
+            app:layout_constraintHorizontal_bias="0"/>
 
+        <!-- TEACHER / SUBJECT -->
+        <TextView
+            android:id="@+id/tvActivityTeacher"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="Mathematics • Prof. John Doe"
+            android:textSize="13sp"
+            android:textColor="#64748B"
+            android:fontFamily="sans-serif"
+            android:maxLines="1"
+            app:layout_constraintStart_toStartOf="@id/tvActivityTitle"
+            app:layout_constraintTop_toBottomOf="@id/tvActivityTitle"
+            app:layout_constraintEnd_toStartOf="@id/rightColumn"/>
+
+        <!-- DESCRIPTION -->
         <TextView
             android:id="@+id/tvActivityDescription"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:text="Complete chapters 5–7 exercises and prepare your solutions. Submit in PDF format."
             android:textSize="14sp"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"/>
+            android:textColor="#475569"
+            android:fontFamily="sans-serif"
+            android:maxLines="3"
+            android:ellipsize="end"
+            android:lineSpacingExtra="2dp"
+            app:layout_constraintStart_toStartOf="@id/tvActivityTeacher"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tvActivityTeacher"/>
 
-    </LinearLayout>
-</androidx.cardview.widget.CardView>
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</com.google.android.material.card.MaterialCardView>

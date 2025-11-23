@@ -1,82 +1,82 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="vertical"
-    android:padding="16dp"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    android:layout_marginBottom="12dp"
     android:background="@android:color/white"
-    android:layout_marginBottom="12dp">
+    android:orientation="vertical"
+    android:padding="16dp">
 
     <!-- Question Text -->
     <TextView
         android:id="@+id/tvQuestion"
-        android:text="1. Sample Question"
-        android:textSize="16sp"
-        android:textColor="@android:color/black"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:paddingBottom="8dp"
+        android:text="1. Sample Question"
+        android:textColor="@android:color/black"
+        android:textSize="16sp"
         android:textStyle="bold" />
 
     <!-- Multiple Choice Options (A–D) -->
     <RadioGroup
         android:id="@+id/radioGroupMCQ"
-        android:orientation="vertical"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:orientation="vertical"
         android:visibility="gone">
 
         <RadioButton
             android:id="@+id/rbOptionA"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="A. Option A"
-            android:padding="4dp" />
+            android:padding="4dp"
+            android:text="A. Option A" />
 
         <RadioButton
             android:id="@+id/rbOptionB"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="B. Option B"
-            android:padding="4dp" />
+            android:padding="4dp"
+            android:text="B. Option B" />
 
         <RadioButton
             android:id="@+id/rbOptionC"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="C. Option C"
-            android:padding="4dp" />
+            android:padding="4dp"
+            android:text="C. Option C" />
 
         <RadioButton
             android:id="@+id/rbOptionD"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="D. Option D"
-            android:padding="4dp" />
+            android:padding="4dp"
+            android:text="D. Option D" />
     </RadioGroup>
 
     <!-- True / False Options -->
     <RadioGroup
         android:id="@+id/radioGroupTF"
-        android:orientation="vertical"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:visibility="gone"
-        android:layout_marginTop="4dp">
+        android:layout_marginTop="4dp"
+        android:orientation="vertical"
+        android:visibility="gone">
 
         <RadioButton
             android:id="@+id/rbTrue"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="True"
-            android:padding="4dp" />
+            android:padding="4dp"
+            android:text="True" />
 
         <RadioButton
             android:id="@+id/rbFalse"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="False"
-            android:padding="4dp" />
+            android:padding="4dp"
+            android:text="False" />
     </RadioGroup>
 
     <!-- EditText for Identification (optional, keep hidden if not needed) -->
@@ -84,20 +84,20 @@
         android:id="@+id/etAnswer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:visibility="gone"
-        android:hint="Type your answer"
+        android:layout_marginTop="8dp"
         android:backgroundTint="@android:color/darker_gray"
+        android:hint="Type your answer"
         android:padding="8dp"
         android:textColor="@android:color/black"
         android:textSize="14sp"
-        android:layout_marginTop="8dp" />
+        android:visibility="gone" />
 
     <!-- Spinner for Matching Type -->
     <Spinner
         android:id="@+id/spinnerAnswer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:visibility="gone"
-        android:spinnerMode="dropdown"/>
+        android:spinnerMode="dropdown"
+        android:visibility="gone" />
 
 </LinearLayout>

@@ -10,7 +10,27 @@
         <color name="blue_300">#778DA9</color>
         <color name="blue_500">#1E90FF</color>
         <color name="teal_700">#1565C0</color>
+        <color name="colorPrimary">#212121</color>
+        <color name="colorPrimaryDark">#000000</color>
+        <color name="colorAccent">#424242</color>
 
+        <!-- Text Colors -->
+        <color name="primaryText">#000000</color>
+        <color name="secondaryText">#757575</color>
+
+        <!-- Backgrounds & Surfaces (Light Mode style for content area) -->
+        <color name="contentBackground">#F5F5F5</color>
+
+
+        <!-- Status/Accent Colors (Monochromatic Tints) -->
+        <color name="iconBackgroundLight">#EEEEEE</color> <!-- Used for Quick Action Backgrounds -->
+        <color name="statCardBackground">#F0F0F0</color> <!-- Used for Stat Cards Background -->
+        <color name="statCardIconTint">#424242</color> <!-- Used for Stat Card Icons -->
+        <color name="dividerColor">#E0E0E0</color>
+
+        <!-- Header Gradient Colors (for a subtle dark/light contrast) -->
+        <color name="headerStart">#212121</color>
+        <color name="headerEnd">#424242</color>
         <!-- Grayscale -->
         <color name="white">#FFFFFF</color>
         <color name="black">#000000</color>
@@ -39,5 +59,29 @@
         <color name="secondary">@color/teal_700</color>
         <color name="on_secondary">@color/white</color>
 
+    <color name="md_theme_primary">#6750A4</color>
+    <color name="md_theme_onPrimary">#FFFFFF</color>
+    <color name="md_theme_surface">#FFFFFF</color>
 
+    <!-- Optional additional colors for your theme -->
+    <color name="md_theme_primaryContainer">#EADDFF</color>
+    <color name="md_theme_onPrimaryContainer">#21005D</color>
+    <color name="md_theme_surfaceVariant">#E7E0EC</color>
+    <color name="md_theme_onSurfaceVariant">#49454F</color>
+
+
+        <!-- Material Design 3 Color Scheme -->
+        <color name="onPrimary">#FFFFFF</color>
+        <color name="onSecondary">#FFFFFF</color>
+
+        <color name="background">#F7F8FA</color>
+        <color name="onBackground">#1C1B1F</color>
+
+        <color name="onSurface">#1C1B1F</color>
+        <color name="onSurfaceVariant">#49454F</color>
+
+        <color name="divider">#E7E7E7</color>
+        <color name="ripple">#1A6750A4</color>
+
+    <color name="green">#4CAF50</color>
 </resources>

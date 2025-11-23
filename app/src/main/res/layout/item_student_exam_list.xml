@@ -1,81 +1,150 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
+<com.google.android.material.card.MaterialCardView
     xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="vertical"
-    android:padding="12dp"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginBottom="8dp"
-    android:background="@drawable/border_with_shadow"> <RelativeLayout
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content">
+    android:layout_marginStart="16dp"
+    android:layout_marginEnd="16dp"
+    android:layout_marginBottom="12dp"
+    android:backgroundTint="?attr/colorSurfaceContainerLow"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="6dp"
+    app:strokeWidth="1dp"
+    app:strokeColor="?attr/colorOutlineVariant">
 
-    <LinearLayout
-        android:id="@+id/detailsLayout"
-        android:layout_width="wrap_content"
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_alignParentStart="true"
-        android:layout_toStartOf="@+id/btnTakeExam"
-        android:orientation="vertical">
+        android:padding="12dp">
 
+        <!-- Status Chip -->
+        <com.google.android.material.chip.Chip
+            android:id="@+id/chipStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="30dp"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            app:chipBackgroundColor="?attr/colorSecondaryContainer"
+            app:chipCornerRadius="12dp"
+            app:chipStartPadding="8dp"
+            app:chipEndPadding="8dp"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            tools:text="ACTIVE" />
+
+        <!-- Exam Title -->
         <TextView
             android:id="@+id/tvExamTitle"
-            android:text="Exam Title"
-            android:textSize="18sp"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:textSize="15sp"
             android:textStyle="bold"
-            android:textColor="@android:color/black"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"/>
+            android:textColor="?attr/colorOnSurface"
+            android:maxLines="2"
+            android:ellipsize="end"
+            app:layout_constraintTop_toBottomOf="@id/chipStatus"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            tools:text="Advanced Quantum Computing Theory Final Exam" />
 
+        <!-- Course Icon -->
+        <ImageView
+            android:id="@+id/icCourse"
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:layout_marginTop="6dp"
+            android:src="@drawable/ic_book"
+            app:tint="?attr/colorPrimary"
+            app:layout_constraintTop_toBottomOf="@id/tvExamTitle"
+            app:layout_constraintStart_toStartOf="parent" />
+
+        <!-- Course Name -->
         <TextView
             android:id="@+id/tvCourseDisplay"
-            android:text="Course Display"
-            android:textSize="14sp"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"/>
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:textSize="12sp"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:maxLines="1"
+            android:ellipsize="end"
+            app:layout_constraintTop_toTopOf="@id/icCourse"
+            app:layout_constraintStart_toEndOf="@id/icCourse"
+            app:layout_constraintEnd_toStartOf="@id/btnTakeExam"
+            tools:text="BSIT - SD - 1A" />
 
+        <!-- Teacher Icon -->
+        <ImageView
+            android:id="@+id/icTeacher"
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:layout_marginTop="4dp"
+            android:src="@drawable/ic_person"
+            app:tint="?attr/colorTertiary"
+            app:layout_constraintTop_toBottomOf="@id/icCourse"
+            app:layout_constraintStart_toStartOf="parent" />
+
+        <!-- Teacher Name -->
         <TextView
             android:id="@+id/tvTeacherName"
-            android:text="Teacher Name"
-            android:textSize="14sp"
-            android:layout_marginBottom="6dp"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"/>
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:textSize="12sp"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:maxLines="1"
+            android:ellipsize="end"
+            app:layout_constraintTop_toTopOf="@id/icTeacher"
+            app:layout_constraintStart_toEndOf="@id/icTeacher"
+            app:layout_constraintEnd_toStartOf="@id/btnTakeExam"
+            tools:text="Prof. Anna Ruiz" />
 
+        <!-- Schedule Icon -->
+        <ImageView
+            android:id="@+id/icSchedule"
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:layout_marginTop="4dp"
+            android:src="@drawable/ic_calendar"
+            app:tint="?attr/colorPrimary"
+            app:layout_constraintTop_toBottomOf="@id/icTeacher"
+            app:layout_constraintStart_toStartOf="parent" />
+
+        <!-- Schedule -->
         <TextView
             android:id="@+id/tvSchedule"
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="Schedule: MMM DD, YYYY HH:MM AM/PM"
-            android:textSize="14sp"
-            android:textStyle="italic"
-            android:textColor="#757575"/>
+            android:layout_marginStart="6dp"
+            android:textSize="12sp"
+            android:textColor="?attr/colorPrimary"
+            android:maxLines="1"
+            android:ellipsize="end"
+            app:layout_constraintTop_toTopOf="@id/icSchedule"
+            app:layout_constraintStart_toEndOf="@id/icSchedule"
+            app:layout_constraintEnd_toStartOf="@id/btnTakeExam"
+            tools:text="Dec 18, 2025 at 11:00 AM" />
 
-        <TextView
-            android:id="@+id/tvStatus"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="STATUS"
-            android:textSize="14sp"
+        <!-- Take Exam Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnTakeExam"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:text="Start"
+            android:textSize="13sp"
             android:textStyle="bold"
-            android:layout_marginTop="4dp"
-            android:textColor="#F44336"/>
+            app:cornerRadius="10dp"
+            app:icon="@drawable/ic_arrow_forward"
+            app:iconGravity="textEnd"
+            app:iconSize="16dp"
+            style="@style/Widget.Material3.Button.TonalButton"
+            app:layout_constraintTop_toTopOf="@id/icCourse"
+            app:layout_constraintBottom_toBottomOf="@id/tvSchedule"
+            app:layout_constraintEnd_toEndOf="parent" />
 
-    </LinearLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <Button
-        android:id="@+id/btnTakeExam"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_centerVertical="true"
-        android:layout_alignParentEnd="true"
-        android:minHeight="0dp"
-        android:minWidth="0dp"
-        android:paddingStart="12dp"
-        android:paddingEnd="12dp"
-        android:text="Take Exam"
-        android:textSize="12sp"
-        android:backgroundTint="@color/design_default_color_primary"
-        android:visibility="gone"/>
-</RelativeLayout>
-</LinearLayout>
+</com.google.android.material.card.MaterialCardView>

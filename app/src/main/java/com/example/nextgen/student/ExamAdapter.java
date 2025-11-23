@@ -10,11 +10,13 @@ import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
-
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.nextgen.R;
+import com.google.android.material.chip.Chip;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
 
 import java.util.List;
 
@@ -45,34 +47,24 @@ public class ExamAdapter extends RecyclerView.Adapter<ExamAdapter.ExamViewHolder
         holder.tvCourseDisplay.setText(exam.getCourseDisplay());
         holder.tvTeacherName.setText("Teacher: " + exam.getTeacherName());
         holder.tvSchedule.setText("Schedule: " + exam.getScheduledDateDisplay());
-        holder.tvStatus.setText(examStatus);
 
-        // --- 2. SET STATUS COLORS ---
-        if (examStatus.contains("TAKEN")) {
-            holder.tvStatus.setTextColor(Color.parseColor("#9C27B0")); // Purple: TAKEN
-        } else if (exam.isAvailable()) {
-            holder.tvStatus.setTextColor(Color.parseColor("#4CAF50")); // Green: AVAILABLE NOW
-        } else if (examStatus.contains("EXPIRED")) {
-            holder.tvStatus.setTextColor(Color.parseColor("#F44336")); // Red: EXPIRED
-        } else {
-            holder.tvStatus.setTextColor(Color.parseColor("#2196F3")); // Blue: Scheduled
-        }
-
-        // --- HANDLE TAKE EXAM BUTTON & PRESENCE ---
+        // --- 2. SET STATUS CHIP ---
         if (!exam.isPresent()) {
-            // Student is absent → show message, hide button
-            holder.btnTakeExam.setVisibility(View.GONE);
-            holder.tvStatus.setText("You are marked ABSENT for this exam");
-            holder.tvStatus.setTextColor(Color.parseColor("#F44336")); // Red for absent
-            holder.tvStatus.setVisibility(View.VISIBLE);
+            holder.chipStatus.setText("ABSENT");
+            holder.chipStatus.setChipBackgroundColorResource(R.color.error);
+            holder.chipStatus.setTextColor(Color.WHITE);
 
+            holder.btnTakeExam.setVisibility(View.GONE);
             holder.itemView.setClickable(true);
             holder.itemView.setOnClickListener(v ->
                     Toast.makeText(context, "You are marked ABSENT for this exam.", Toast.LENGTH_LONG).show()
             );
 
-        } else if (exam.isAvailable() && !exam.getStatus().contains("TAKEN")) {
-            // Student is present and exam available → show Take Exam button
+        } else if (exam.isAvailable() && !examStatus.contains("TAKEN")) {
+            holder.chipStatus.setText("AVAILABLE");
+            holder.chipStatus.setChipBackgroundColorResource(R.color.green);
+            holder.chipStatus.setTextColor(Color.WHITE);
+
             holder.btnTakeExam.setVisibility(View.VISIBLE);
             holder.btnTakeExam.setText("Take Exam");
             holder.btnTakeExam.setBackgroundColor(Color.parseColor("#4CAF50"));
@@ -81,52 +73,66 @@ public class ExamAdapter extends RecyclerView.Adapter<ExamAdapter.ExamViewHolder
             holder.itemView.setClickable(false);
             holder.itemView.setOnClickListener(null);
 
-        } else {
-            // Exam already taken or not available
+        } else if (examStatus.contains("TAKEN")) {
+            holder.chipStatus.setText("TAKEN");
+            holder.chipStatus.setChipBackgroundColorResource(R.color.md_theme_primary);
+            holder.chipStatus.setTextColor(Color.WHITE);
+
             holder.btnTakeExam.setVisibility(View.GONE);
             holder.itemView.setClickable(true);
             holder.itemView.setOnClickListener(v ->
-                    Toast.makeText(context, "Status: " + exam.getStatus(), Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, "Status: TAKEN", Toast.LENGTH_LONG).show()
+            );
+
+        } else if (examStatus.contains("EXPIRED")) {
+            holder.chipStatus.setText("EXPIRED");
+            holder.chipStatus.setChipBackgroundColorResource(R.color.error);
+            holder.chipStatus.setTextColor(Color.WHITE);
+
+            holder.btnTakeExam.setVisibility(View.GONE);
+            holder.itemView.setClickable(true);
+            holder.itemView.setOnClickListener(v ->
+                    Toast.makeText(context, "Status: EXPIRED", Toast.LENGTH_LONG).show()
+            );
+
+        } else {
+            holder.chipStatus.setText("SCHEDULED");
+            holder.chipStatus.setChipBackgroundColorResource(R.color.blue_500);
+            holder.chipStatus.setTextColor(Color.WHITE);
+
+            holder.btnTakeExam.setVisibility(View.GONE);
+            holder.itemView.setClickable(true);
+            holder.itemView.setOnClickListener(v ->
+                    Toast.makeText(context, "Status: SCHEDULED", Toast.LENGTH_LONG).show()
             );
         }
-
-
     }
 
     // Start TakeExamActivity
     private void startTakeExamActivity(ExamModel exam) {
         android.util.Log.d("ExamAdapter", "Starting exam: " + exam.getExamId());
 
-        // ✅ Get studentId from SessionManager or your student model
         String studentId = com.example.nextgen.SessionManager.getStudentId(context);
-
         if (studentId == null || studentId.isEmpty()) {
             Toast.makeText(context, "Student ID not found.", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // ✅ Update ongoing = true in Firebase
-        com.google.firebase.database.DatabaseReference ref =
-                com.google.firebase.database.FirebaseDatabase.getInstance()
-                        .getReference("ExamStudents")
-                        .child(exam.getExamId())
-                        .child(studentId);
+        DatabaseReference ref = FirebaseDatabase.getInstance()
+                .getReference("ExamStudents")
+                .child(exam.getExamId())
+                .child(studentId);
 
         ref.child("ongoing").setValue(true)
                 .addOnSuccessListener(aVoid -> {
                     Toast.makeText(context, "Exam started! Marked as ongoing.", Toast.LENGTH_SHORT).show();
-
-                    // ✅ Proceed to TakeExamActivity
                     Intent intent = new Intent(context, TakeExamActivity.class);
                     intent.putExtra("examId", exam.getExamId());
                     intent.putExtra("examTitle", exam.getExamTitle());
                     context.startActivity(intent);
                 })
-                .addOnFailureListener(e -> {
-                    Toast.makeText(context, "Failed to update ongoing: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                });
+                .addOnFailureListener(e -> Toast.makeText(context, "Failed to update ongoing: " + e.getMessage(), Toast.LENGTH_SHORT).show());
     }
-
 
     @Override
     public int getItemCount() {
@@ -134,7 +140,8 @@ public class ExamAdapter extends RecyclerView.Adapter<ExamAdapter.ExamViewHolder
     }
 
     public static class ExamViewHolder extends RecyclerView.ViewHolder {
-        TextView tvExamTitle, tvCourseDisplay, tvTeacherName, tvSchedule, tvStatus;
+        TextView tvExamTitle, tvCourseDisplay, tvTeacherName, tvSchedule;
+        Chip chipStatus;
         Button btnTakeExam;
 
         public ExamViewHolder(@NonNull View itemView) {
@@ -143,7 +150,7 @@ public class ExamAdapter extends RecyclerView.Adapter<ExamAdapter.ExamViewHolder
             tvCourseDisplay = itemView.findViewById(R.id.tvCourseDisplay);
             tvTeacherName = itemView.findViewById(R.id.tvTeacherName);
             tvSchedule = itemView.findViewById(R.id.tvSchedule);
-            tvStatus = itemView.findViewById(R.id.tvStatus);
+            chipStatus = itemView.findViewById(R.id.chipStatus); // <- use Chip
             btnTakeExam = itemView.findViewById(R.id.btnTakeExam);
         }
     }

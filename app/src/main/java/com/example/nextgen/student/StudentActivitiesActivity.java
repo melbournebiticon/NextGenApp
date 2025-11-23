@@ -18,8 +18,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.util.Log;
 
-
-
 import com.example.nextgen.R;
 import com.example.nextgen.SessionManager;
 import com.google.firebase.database.DataSnapshot;
@@ -122,7 +120,6 @@ public class StudentActivitiesActivity extends AppCompatActivity {
                 });
     }
 
-
     // ===== RecyclerView Adapter =====
     private static class ActivitiesAdapter extends RecyclerView.Adapter<ActivitiesAdapter.ViewHolder> {
         private final List<ActivityModel> list;
@@ -143,11 +140,23 @@ public class StudentActivitiesActivity extends AppCompatActivity {
         @Override
         public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
             ActivityModel activity = list.get(position);
-            holder.tvTitle.setText(activity.getTitle());
-            holder.tvSubject.setText(activity.getSubject());
-            holder.tvDueDate.setText(activity.getDueDate());
-            holder.tvDescription.setText(activity.getDescription());
-            holder.tvTeacher.setText(activity.getTeacherName());
+
+            // Null checks for all TextViews and safe data handling
+            if (holder.tvTitle != null) {
+                holder.tvTitle.setText(activity.getTitle() != null ? activity.getTitle() : "N/A");
+            }
+            if (holder.tvDueDate != null) {
+                holder.tvDueDate.setText(activity.getDueDate() != null ? activity.getDueDate() : "N/A");
+            }
+            if (holder.tvDescription != null) {
+                holder.tvDescription.setText(activity.getDescription() != null ? activity.getDescription() : "N/A");
+            }
+            if (holder.tvTeacher != null) {
+                // Combine subject and teacher to match XML (e.g., "Mathematics • Prof. John Doe")
+                String subject = activity.getSubject() != null ? activity.getSubject() : "N/A";
+                String teacher = activity.getTeacherName() != null ? activity.getTeacherName() : "N/A";
+                holder.tvTeacher.setText(subject + " • " + teacher);
+            }
 
             // 🟩 Handle click to open details
             holder.itemView.setOnClickListener(v -> {
@@ -173,17 +182,16 @@ public class StudentActivitiesActivity extends AppCompatActivity {
         }
 
         static class ViewHolder extends RecyclerView.ViewHolder {
-            TextView tvTitle, tvSubject, tvDueDate, tvDescription, tvTeacher;
+            TextView tvTitle, tvDueDate, tvDescription, tvTeacher;  // Removed tvSubject
 
             public ViewHolder(@NonNull View itemView) {
                 super(itemView);
                 tvTitle = itemView.findViewById(R.id.tvActivityTitle);
-                tvSubject = itemView.findViewById(R.id.tvActivitySubject);
+                // tvSubject removed (not in XML)
                 tvDueDate = itemView.findViewById(R.id.tvActivityDueDate);
                 tvDescription = itemView.findViewById(R.id.tvActivityDescription);
                 tvTeacher = itemView.findViewById(R.id.tvActivityTeacher);
             }
         }
     }
-
 }
