@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/nav_view_activities"
+        android:icon="@drawable/ic_history"
+        android:title="My Classes" />
+
+    <item
+        android:id="@+id/nav_scanner"
+        android:icon="@drawable/ic_qr_code_scanner"
+        android:title="Scan Exam QR Code" />
+
+    <item
+        android:id="@+id/nav_view_profile"
+        android:icon="@drawable/ic_profile"
+        android:title="Grades" />
+</menu>
