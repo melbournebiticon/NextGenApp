@@ -5,49 +5,48 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginVertical="8dp"
-    android:layout_marginHorizontal="4dp"
+    android:layout_marginHorizontal="6dp"
     app:cardCornerRadius="16dp"
-    app:cardElevation="2dp"
+    app:cardElevation="3dp"
     app:strokeWidth="1dp"
-    app:strokeColor="#E5E7EB"
+    app:strokeColor="#E2E8F0"
     app:cardBackgroundColor="@color/white">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="18dp">
+        android:padding="20dp">
 
-        <!-- LEFT ICON -->
+        <!-- ICON -->
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/iconContainer"
-            android:layout_width="46dp"
-            android:layout_height="46dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
             android:layout_marginEnd="14dp"
             app:cardCornerRadius="14dp"
-            app:cardElevation="0dp"
+            app:cardBackgroundColor="#EEF2FF"
             app:strokeWidth="0dp"
-            app:cardBackgroundColor="#EEF0FF"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent">
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent">
 
             <ImageView
                 android:id="@+id/ivActivityIcon"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
+                android:layout_width="26dp"
+                android:layout_height="26dp"
                 android:layout_gravity="center"
                 android:src="@drawable/ic_courses"
-                app:tint="@color/dark_blue_700"/>
+                android:tint="@color/dark_blue_700" />
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- RIGHT SIDE (Due date + Status chip) -->
+        <!-- RIGHT COLUMN (due date + chip) -->
         <LinearLayout
             android:id="@+id/rightColumn"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
             android:orientation="vertical"
             android:gravity="end"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintEnd_toEndOf="parent">
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
 
             <TextView
                 android:id="@+id/tvActivityDueDate"
@@ -55,7 +54,7 @@
                 android:layout_height="wrap_content"
                 android:text="Nov 25 • 11:59 PM"
                 android:textSize="12sp"
-                android:textColor="@color/dark_blue_500"
+                android:textColor="@color/dark_blue_600"
                 android:fontFamily="sans-serif-medium"/>
 
             <com.google.android.material.chip.Chip
@@ -68,14 +67,13 @@
                 android:textColor="@color/white"
                 android:textStyle="bold"
                 app:chipBackgroundColor="@color/dark_blue_700"
+                app:chipStartPadding="12dp"
+                app:chipEndPadding="12dp"
                 app:chipCornerRadius="20dp"
-                app:chipMinHeight="28dp"
-                app:chipStartPadding="10dp"
-                app:chipEndPadding="10dp"
                 app:chipIcon="@drawable/ic_clock"
-                app:chipIconTint="@color/dark_blue_500"
                 app:chipIconSize="14dp"
-                app:chipStrokeWidth="0dp"/>
+                app:chipIconTint="@color/white"
+                app:chipMinHeight="30dp"/>
         </LinearLayout>
 
         <!-- TITLE -->
@@ -84,28 +82,25 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:text="Advanced Vector Calculus"
-            android:textSize="16sp"
             android:textColor="#0F172A"
-            android:textStyle="bold"
+            android:textSize="17sp"
             android:fontFamily="sans-serif-medium"
             android:maxLines="2"
             android:ellipsize="end"
             app:layout_constraintStart_toEndOf="@id/iconContainer"
             app:layout_constraintTop_toTopOf="@id/iconContainer"
-            app:layout_constraintEnd_toStartOf="@id/rightColumn"
-            app:layout_constraintHorizontal_bias="0"/>
+            app:layout_constraintEnd_toStartOf="@id/rightColumn"/>
 
-        <!-- TEACHER / SUBJECT -->
+        <!-- SUBJECT + TEACHER -->
         <TextView
             android:id="@+id/tvActivityTeacher"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             android:text="Mathematics • Prof. John Doe"
+            android:textColor="#6B7280"
             android:textSize="13sp"
-            android:textColor="#64748B"
             android:fontFamily="sans-serif"
-            android:maxLines="1"
             app:layout_constraintStart_toStartOf="@id/tvActivityTitle"
             app:layout_constraintTop_toBottomOf="@id/tvActivityTitle"
             app:layout_constraintEnd_toStartOf="@id/rightColumn"/>
@@ -116,17 +111,15 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
-            android:text="Complete chapters 5–7 exercises and prepare your solutions. Submit in PDF format."
-            android:textSize="14sp"
+            android:text="Complete chapters 5–7 exercises and submit in PDF format."
             android:textColor="#475569"
+            android:textSize="14sp"
             android:fontFamily="sans-serif"
             android:maxLines="3"
             android:ellipsize="end"
-            android:lineSpacingExtra="2dp"
             app:layout_constraintStart_toStartOf="@id/tvActivityTeacher"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/tvActivityTeacher"/>
+            app:layout_constraintTop_toBottomOf="@id/tvActivityTeacher"
+            app:layout_constraintEnd_toEndOf="parent"/>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
-
 </com.google.android.material.card.MaterialCardView>

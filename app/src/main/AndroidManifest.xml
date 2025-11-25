@@ -48,6 +48,8 @@
         </activity>
 
         <activity android:name=".admin.AdminActivity" />
+        <activity android:name=".admin.AcademicsActivity" />
+
         <activity android:name=".admin.TeacherActivity" />
         <activity android:name=".admin.StudentActivity" />
         <activity android:name=".admin.SpecializationsActivity" />

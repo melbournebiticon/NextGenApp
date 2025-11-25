@@ -1,0 +1,18 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/nav_academics"
+        android:icon="@drawable/ic_school"
+        android:title="Academics" />
+
+    <item
+        android:id="@+id/nav_teachers"
+        android:icon="@drawable/ic_teacher"
+        android:title="Teachers" />
+
+    <item
+        android:id="@+id/nav_students"
+        android:icon="@drawable/ic_student"
+        android:title="Students" />
+
+
+</menu>

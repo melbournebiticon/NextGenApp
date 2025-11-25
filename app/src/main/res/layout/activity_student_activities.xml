@@ -1,158 +1,198 @@
 <?xml version="1.0" encoding="utf-8"?>
-    <androidx.coordinatorlayout.widget.CoordinatorLayout
-        xmlns:android="http://schemas.android.com/apk/res/android"
-        xmlns:app="http://schemas.android.com/apk/res-auto"
-        xmlns:tools="http://schemas.android.com/tools"
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background">
+
+    <!-- TOP FIXED HEADER -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/topHeader"
+        android:layout_width="match_parent"
+        android:layout_height="70dp"
+        android:background="@color/dark_blue_700"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:elevation="6dp">
+        <ImageView
+            android:id="@+id/btnBack"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:padding="4dp"
+            android:src="@drawable/ic_arrow_back"
+            android:tint="@android:color/white"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"/>
+
+        <TextView
+            android:id="@+id/tvHeaderTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="My Classes"
+            android:textColor="@android:color/white"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"/>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- SCROLLABLE CONTENT -->
+    <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="@color/background"> <com.google.android.material.appbar.AppBarLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@android:color/transparent" app:elevation="0dp">
+        android:layout_marginTop="70dp"
+        android:padding="16dp"
+        android:fillViewport="true"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:paddingHorizontal="16dp"
-            android:paddingTop="16dp"
-            app:layout_scrollFlags="scroll|exitUntilCollapsed|snap">
+            android:orientation="vertical">
 
+            <!-- SUBJECT CARD -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/layoutHeader"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="4dp"  app:strokeWidth="0dp"
-                app:cardBackgroundColor="@color/white"> <androidx.constraintlayout.widget.ConstraintLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:padding="20dp">
+                android:layout_marginBottom="18dp"
+                app:cardCornerRadius="18dp"
+                app:cardElevation="3dp"
+                app:cardBackgroundColor="@color/white">
 
-                <ImageView
-                    android:id="@+id/iconCode"
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:src="@drawable/ic_code"
-                    android:tint="@color/dark_blue_500" app:layout_constraintTop_toTopOf="parent"
-                    app:layout_constraintStart_toStartOf="parent"/>
-
-                <TextView
-                    android:id="@+id/tvSubjectCode"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="12dp"
-                    android:text="Subject Code: ---"
-                    android:textStyle="bold"
-                    android:textSize="18sp"
-                    android:textColor="@color/onSurface" android:fontFamily="sans-serif-medium"
-                    app:layout_constraintTop_toTopOf="@id/iconCode"
-                    app:layout_constraintBottom_toBottomOf="@id/iconCode"
-                    app:layout_constraintStart_toEndOf="@id/iconCode"
-                    app:layout_constraintEnd_toEndOf="parent"/>
-
-                <View
-                    android:id="@+id/divider1"
+                <androidx.constraintlayout.widget.ConstraintLayout
                     android:layout_width="match_parent"
-                    android:layout_height="1dp"
-                    android:background="@color/divider" android:layout_marginTop="12dp"
-                    app:layout_constraintTop_toBottomOf="@id/iconCode"
-                    app:layout_constraintStart_toStartOf="parent" />
-
-                <ImageView
-                    android:id="@+id/iconBook"
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
-                    android:src="@drawable/ic_book"
-                    android:tint="@color/dark_blue_700" android:layout_marginTop="12dp"
-                    app:layout_constraintTop_toBottomOf="@id/divider1"
-                    app:layout_constraintStart_toStartOf="parent"/>
-
-                <TextView
-                    android:id="@+id/tvSubjectName"
-                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="12dp"
-                    android:text="Subject Name: ---"
-                    android:textSize="16sp"
-                    android:textColor="@color/onSurfaceVariant" android:fontFamily="sans-serif"
-                    app:layout_constraintTop_toTopOf="@id/iconBook"
-                    app:layout_constraintBottom_toBottomOf="@id/iconBook"
-                    app:layout_constraintStart_toEndOf="@id/iconBook"
-                    app:layout_constraintEnd_toEndOf="parent"/>
+                    android:padding="22dp">
 
-                <ImageView
-                    android:id="@+id/iconPerson"
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
-                    android:src="@drawable/ic_person"
-                    android:tint="@color/dark_blue_700" android:layout_marginTop="8dp"
-                    app:layout_constraintTop_toBottomOf="@id/iconBook"
-                    app:layout_constraintStart_toStartOf="parent"/>
+                    <ImageView
+                        android:id="@+id/iconCode"
+                        android:layout_width="26dp"
+                        android:layout_height="26dp"
+                        android:src="@drawable/ic_code"
+                        android:tint="@color/dark_blue_600"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent"/>
 
-                <TextView
-                    android:id="@+id/tvTeacherName"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="12dp"
-                    android:text="Teacher: ---"
-                    android:textSize="16sp"
-                    android:textColor="@color/onSurfaceVariant" android:fontFamily="sans-serif"
-                    app:layout_constraintTop_toTopOf="@id/iconPerson"
-                    app:layout_constraintBottom_toBottomOf="@id/iconPerson"
-                    app:layout_constraintStart_toEndOf="@id/iconPerson"
-                    app:layout_constraintEnd_toEndOf="parent"/>
+                    <TextView
+                        android:id="@+id/tvSubjectCode"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="14dp"
+                        android:text="Subject Code: ---"
+                        android:textSize="19sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/onSurface"
+                        app:layout_constraintStart_toEndOf="@id/iconCode"
+                        app:layout_constraintTop_toTopOf="@id/iconCode"
+                        app:layout_constraintBottom_toBottomOf="@id/iconCode"
+                        app:layout_constraintEnd_toEndOf="parent"/>
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnPerformance"
-                    android:layout_width="match_parent"
-                    android:layout_height="56dp"
-                    android:layout_marginTop="20dp"
-                    android:text="View Performance"
-                    android:textColor="@color/white"
-                    android:textSize="16sp"
-                    android:textAllCaps="false"
-                    android:fontFamily="sans-serif-medium"
-                    app:icon="@drawable/ic_chart"
-                    app:iconGravity="textStart"
-                    app:iconPadding="8dp"
-                    app:cornerRadius="12dp"
-                    app:backgroundTint="@color/dark_blue_700" app:elevation="4dp"
-                    style="@style/Widget.Material3.Button.ElevatedButton"
-                    app:layout_constraintTop_toBottomOf="@id/tvTeacherName"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintBottom_toBottomOf="parent"/>
+                    <View
+                        android:id="@+id/divider1"
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginTop="16dp"
+                        android:background="@color/divider"
+                        app:layout_constraintTop_toBottomOf="@id/iconCode"
+                        app:layout_constraintStart_toStartOf="parent"/>
 
-            </androidx.constraintlayout.widget.ConstraintLayout>
+                    <ImageView
+                        android:id="@+id/iconBook"
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:layout_marginTop="16dp"
+                        android:src="@drawable/ic_book"
+                        android:tint="@color/dark_blue_600"
+                        app:layout_constraintTop_toBottomOf="@id/divider1"
+                        app:layout_constraintStart_toStartOf="parent"/>
 
+                    <TextView
+                        android:id="@+id/tvSubjectName"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="12dp"
+                        android:text="Subject Name: ---"
+                        android:textColor="@color/onSurfaceVariant"
+                        android:textSize="16sp"
+                        app:layout_constraintStart_toEndOf="@id/iconBook"
+                        app:layout_constraintTop_toTopOf="@id/iconBook"
+                        app:layout_constraintBottom_toBottomOf="@id/iconBook"
+                        app:layout_constraintEnd_toEndOf="parent"/>
+
+                    <ImageView
+                        android:id="@+id/iconPerson"
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:layout_marginTop="10dp"
+                        android:src="@drawable/ic_person"
+                        android:tint="@color/dark_blue_600"
+                        app:layout_constraintTop_toBottomOf="@id/iconBook"
+                        app:layout_constraintStart_toStartOf="parent"/>
+
+                    <TextView
+                        android:id="@+id/tvTeacherName"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="12dp"
+                        android:text="Teacher: ---"
+                        android:textColor="@color/onSurfaceVariant"
+                        android:textSize="15sp"
+                        app:layout_constraintStart_toEndOf="@id/iconPerson"
+                        app:layout_constraintTop_toTopOf="@id/iconPerson"
+                        app:layout_constraintBottom_toBottomOf="@id/iconPerson"
+                        app:layout_constraintEnd_toEndOf="parent"/>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnPerformance"
+                        android:layout_width="match_parent"
+                        android:layout_height="54dp"
+                        android:layout_marginTop="22dp"
+                        android:text="View Performance"
+                        android:textColor="@color/white"
+                        android:textSize="16sp"
+                        android:textAllCaps="false"
+                        app:cornerRadius="14dp"
+                        app:backgroundTint="@color/dark_blue_700"
+                        app:icon="@drawable/ic_chart"
+                        app:iconTint="@color/white"
+                        app:iconPadding="12dp"
+                        app:iconGravity="textStart"
+                        app:layout_constraintTop_toBottomOf="@id/tvTeacherName"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent"/>
+
+                </androidx.constraintlayout.widget.ConstraintLayout>
             </com.google.android.material.card.MaterialCardView>
 
+            <!-- ACTIVITIES TITLE -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Activities"
                 android:textSize="22sp"
                 android:textStyle="bold"
-                android:textColor="@color/onBackground" android:fontFamily="sans-serif-medium"
-                android:layout_marginBottom="12dp"
-                android:layout_marginStart="4dp"/>
+                android:textColor="@color/onBackground"
+                android:layout_marginStart="6dp"
+                android:layout_marginBottom="14dp"/>
 
+            <!-- RECYCLER -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/recyclerStudentActivities"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingBottom="28dp"
+                android:clipToPadding="false"
+                android:clipChildren="false"
+                tools:listitem="@layout/item_activity_student"/>
         </LinearLayout>
-    </com.google.android.material.appbar.AppBarLayout>
 
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/recyclerStudentActivities"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:clipToPadding="false"
-            android:clipChildren="false"
-            android:paddingHorizontal="16dp"
-            android:paddingBottom="24dp"
-            android:overScrollMode="never"
-            app:layout_behavior="@string/appbar_scrolling_view_behavior"
-            app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
-            tools:listitem="@layout/item_activity_student"/>
+    </androidx.core.widget.NestedScrollView>
 
-    </androidx.coordinatorlayout.widget.CoordinatorLayout>
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

@@ -19,6 +19,7 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.cardview.widget.CardView;
 
 import com.example.nextgen.R;
 import com.google.firebase.auth.FirebaseAuth;
@@ -62,11 +63,12 @@ public class ActivityMyWorkFragment extends Fragment {
     private String studentId, activityId;
 
     // 1️⃣ Declare at the top of your class
-    private LinearLayout previewContainer;
+
     private TextView tvPreviewFileName;
 
     private VideoView videoPreview;
 
+    private CardView previewContainer;
 
 
     public static ActivityMyWorkFragment newInstance(String activityId, String dueDate) {
@@ -99,6 +101,7 @@ public class ActivityMyWorkFragment extends Fragment {
         previewContainer = view.findViewById(R.id.previewContainer);
         tvPreviewFileName = view.findViewById(R.id.tvPreviewFileName);
         videoPreview = view.findViewById(R.id.videoPreview);
+
 
 
         submissionsRef = FirebaseDatabase.getInstance().getReference("Submissions");

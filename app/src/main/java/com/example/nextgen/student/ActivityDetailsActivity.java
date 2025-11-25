@@ -1,11 +1,12 @@
 package com.example.nextgen.student;
 
 import android.os.Bundle;
+import android.widget.ImageView;
+import android.widget.TextView;
+
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.viewpager2.widget.ViewPager2;
-
-import android.widget.TextView;
 
 import com.example.nextgen.R;
 import com.google.android.material.tabs.TabLayout;
@@ -26,22 +27,24 @@ public class ActivityDetailsActivity extends AppCompatActivity {
         String description = getIntent().getStringExtra("description");
         String dueDate = getIntent().getStringExtra("dueDate");
         String activityId = getIntent().getStringExtra("activityId");
-
-        // 🆕 These two will come from Firebase later, but for now we’ll make sure they’re received if available
         String mainTerm = getIntent().getStringExtra("mainTerm");   // e.g., "1st Term"
         String subTerm = getIntent().getStringExtra("subTerm");     // e.g., "Prelim"
 
         android.util.Log.d("ActivityDetailsActivity", "🧩 Received activityId: " + activityId);
 
-        // Header
+        // Header Title
         TextView tvActivityTitle = findViewById(R.id.tvActivityTitle);
         tvActivityTitle.setText(title != null ? title : "Activity Details");
+
+        // Back Button
+        ImageView btnBack = findViewById(R.id.btnBack);
+        btnBack.setOnClickListener(v -> finish()); // Close activity on back press
 
         // Setup tabs + pager
         TabLayout tabLayout = findViewById(R.id.tabLayout);
         ViewPager2 viewPager = findViewById(R.id.viewPager);
 
-        // 🟩 Pass all required data to adapter, including new term values
+        // Adapter
         ActivityDetailsPagerAdapter adapter = new ActivityDetailsPagerAdapter(
                 this,
                 subjectCode,

@@ -3,32 +3,60 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:orientation="vertical"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="#FFFFFF">
 
-    <!-- 🟩 Header -->
-    <TextView
-        android:id="@+id/tvActivityTitle"
+    <!-- Header with Back Button and Centered Title -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/topHeader"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Activity Title"
-        android:textSize="20sp"
-        android:textStyle="bold"
-        android:padding="16dp"
-        android:gravity="center"/>
+        android:layout_height="70dp"
+        android:background="@color/dark_blue_700"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:elevation="6dp">
+        <ImageView
+            android:id="@+id/btnBack"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:padding="4dp"
+            android:src="@drawable/ic_arrow_back"
+            android:tint="@android:color/white"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"/>
 
-    <!-- 🟦 Tabs -->
+        <TextView
+            android:id="@+id/tvActivityTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Activity Title"
+            android:textColor="@android:color/white"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"/>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- Tabs -->
     <com.google.android.material.tabs.TabLayout
         android:id="@+id/tabLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        app:tabIndicatorColor="@color/teal_700"
-        app:tabSelectedTextColor="@color/teal_700"
-        app:tabTextColor="@android:color/darker_gray"/>
+        android:background="#FFFFFF"
+        app:tabIndicatorColor="#0D47A1"
+        app:tabSelectedTextColor="#0D47A1"
+        app:tabTextColor="#7A7A7A" />
 
+    <!-- ViewPager Content -->
     <androidx.viewpager2.widget.ViewPager2
         android:id="@+id/viewPager"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1"/>
+        android:layout_weight="1"
+        android:background="#F5F5F5" />
 
 </LinearLayout>

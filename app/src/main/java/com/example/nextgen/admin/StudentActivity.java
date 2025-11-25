@@ -236,15 +236,20 @@ public class StudentActivity extends AppCompatActivity implements NavigationView
             }
         }
 
-        // Sort by name
+        //
+        // Sort by name (null-safe)
         Collections.sort(filteredStudentList, new Comparator<StudentModel>() {
             @Override
             public int compare(StudentModel s1, StudentModel s2) {
+                String name1 = s1.getFullName() != null ? s1.getFullName() : "";
+                String name2 = s2.getFullName() != null ? s2.getFullName() : "";
+
                 return isAscending ?
-                        s1.getFullName().compareToIgnoreCase(s2.getFullName()) :
-                        s2.getFullName().compareToIgnoreCase(s1.getFullName());
+                        name1.compareToIgnoreCase(name2) :
+                        name2.compareToIgnoreCase(name1);
             }
         });
+
 
         studentAdapter.notifyDataSetChanged();
     }

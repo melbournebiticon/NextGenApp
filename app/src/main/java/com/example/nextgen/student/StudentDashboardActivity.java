@@ -202,6 +202,9 @@ public class StudentDashboardActivity extends AppCompatActivity
                                     populateStudentData(student);
                                     showStudentSubjects();
                                     startPeriodicExamFetch(student);
+
+                                    // 🔥 ADD THIS
+                                    fetchRealtimeExamStatus(student);
                                 }
                             }
                         } else {
@@ -759,6 +762,114 @@ public class StudentDashboardActivity extends AppCompatActivity
             }
         });
     }
+
+    private void fetchRealtimeExamStatus(StudentModel student) {
+        if (student == null) return;
+
+        String course = student.getCourseName();
+        String specialization = student.getSpecializationName();
+        String year = student.getYearName();
+        String section = student.getSectionName();
+        String uid = student.getUid();
+
+        Log.d("REALTIME", "Fetching realtime exams...");
+
+        examsRef.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot examSnapshot) {
+
+                DatabaseReference userScoresRef = scoresRef.child(uid).child("examScores");
+
+                // Fetch scores FIRST
+                userScoresRef.addListenerForSingleValueEvent(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(@NonNull DataSnapshot scoreSnapshot) {
+
+                        List<ExamModel> takenList = new ArrayList<>();
+                        List<ExamModel> pendingList = new ArrayList<>();
+
+                        for (DataSnapshot examSnap : examSnapshot.getChildren()) {
+
+                            ExamModel exam = examSnap.getValue(ExamModel.class);
+                            if (exam == null) continue;
+
+                            if (exam.getCourseName() == null || !course.equals(exam.getCourseName())) continue;
+                            if (exam.getSpecializationName() == null || !specialization.equals(exam.getSpecializationName())) continue;
+                            if (exam.getYearName() == null || !year.equals(exam.getYearName())) continue;
+                            if (exam.getSectionName() == null || !section.equals(exam.getSectionName())) continue;
+
+
+                            boolean isTaken = false;
+
+                            // Check submitted scores
+                            for (DataSnapshot scoreSnap : scoreSnapshot.getChildren()) {
+                                String examId = scoreSnap.getKey();
+                                if (examId != null && examId.equals(exam.getExamId())) {
+                                    isTaken = true;
+                                    takenList.add(exam);
+                                    break;
+                                }
+                            }
+
+                            // If not taken, check Attempts
+                            if (!isTaken) {
+                                DatabaseReference attemptRef = FirebaseDatabase.getInstance()
+                                        .getReference("Attempts")
+                                        .child(uid)
+                                        .child(exam.getExamId());
+
+                                attemptRef.addListenerForSingleValueEvent(new ValueEventListener() {
+                                    @Override
+                                    public void onDataChange(@NonNull DataSnapshot attemptSnap) {
+                                        if (attemptSnap.exists()) {
+                                            pendingList.add(exam);
+                                        }
+
+                                        updateExamStatusUI(takenList, pendingList);
+                                    }
+
+                                    @Override
+                                    public void onCancelled(@NonNull DatabaseError error) { }
+                                });
+                            }
+                        }
+
+                        // Update UI after processing all exams
+                        updateExamStatusUI(takenList, pendingList);
+                    }
+
+                    @Override
+                    public void onCancelled(@NonNull DatabaseError error) { }
+                });
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) { }
+        });
+    }
+
+    private void updateExamStatusUI(List<ExamModel> taken, List<ExamModel> pending) {
+
+        Log.d("REALTIME", "Taken: " + taken.size() + " | Pending: " + pending.size());
+
+        // Example for TextView display:
+        tvTotalExams.setText("Taken: " + taken.size());
+        tvAvgScore.setText("Pending: " + pending.size());
+
+        // Optional: Merge to examList para sa RecyclerView
+        examList.clear();
+        examList.addAll(pending);  // show pending first
+        examList.addAll(taken);    // then taken
+        examAdapter.notifyDataSetChanged();
+
+        // Show empty state
+        if (examList.isEmpty()) {
+            emptyStateLayout.setVisibility(View.VISIBLE);
+        } else {
+            emptyStateLayout.setVisibility(View.GONE);
+        }
+    }
+
 
     // New helper method to handle UI updates for the RecyclerView
     private void updateExamRecyclerView() {

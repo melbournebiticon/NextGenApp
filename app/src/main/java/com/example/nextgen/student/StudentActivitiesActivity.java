@@ -13,6 +13,8 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import android.widget.ImageView;
+
 
 import android.content.Context;
 import android.content.Intent;
@@ -52,6 +54,13 @@ public class StudentActivitiesActivity extends AppCompatActivity {
         tvSubjectName = findViewById(R.id.tvSubjectName);
         tvTeacherName = findViewById(R.id.tvTeacherName);
         btnPerformance = findViewById(R.id.btnPerformance);
+
+        // 🟩 Back button functionality
+        ImageView btnBack = findViewById(R.id.btnBack);
+        btnBack.setOnClickListener(v -> {
+            finish(); // close current activity and go back
+        });
+
 
         // 🟦 RecyclerView setup
         recyclerView = findViewById(R.id.recyclerStudentActivities);

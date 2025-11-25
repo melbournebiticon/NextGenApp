@@ -8,19 +8,20 @@
     android:layout_height="match_parent"
     tools:context=".admin.AdminActivity">
 
-    <!-- ===== MAIN CONTENT ===== -->
+    <!-- ===== MAIN CONTENT AREA (CoordinatorLayout) ===== -->
     <androidx.coordinatorlayout.widget.CoordinatorLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#F0F3F9">
+        android:background="#F0F3F9"> <!-- Light background for clean look -->
 
-        <!-- ===== APP BAR WITH TOOLBAR ===== -->
+        <!-- ===== APP BAR WITH TOOLBAR (Dark Blue Header) ===== -->
         <com.google.android.material.appbar.AppBarLayout
             android:id="@+id/appBarLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar">
 
+            <!-- Toolbar with Dark Blue background. The Profile Icon must be added via a menu resource in the activity's code. -->
             <androidx.appcompat.widget.Toolbar
                 android:id="@+id/toolbar"
                 android:layout_width="match_parent"
@@ -31,17 +32,18 @@
                 app:titleTextColor="@android:color/white" />
         </com.google.android.material.appbar.AppBarLayout>
 
-        <!-- ===== MAIN CONTENT ===== -->
+        <!-- ===== SCROLLABLE DASHBOARD CONTENT ===== -->
         <ScrollView
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:padding="16dp"
             app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical">
+                android:orientation="vertical"
+                android:padding="16dp"
+                android:paddingBottom="72dp"> <!-- IMPORTANT: Added bottom padding to make space for the BottomNavigationView (approx 56dp + margin) -->
 
                 <!-- ===== DASHBOARD SUMMARY HEADER ===== -->
                 <TextView
@@ -53,7 +55,7 @@
                     android:textColor="#0D47A1"
                     android:layout_marginBottom="16dp"/>
 
-                <!-- ===== SUMMARY CARDS ROW 1 ===== -->
+                <!-- ===== SUMMARY CARDS ROW 1 (Courses & Exams) ===== -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -90,9 +92,9 @@
                                 android:id="@+id/totalCourses"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="0"
+                                android:text="3"
                                 android:textColor="#0D47A1"
-                                android:textSize="28sp"
+                                android:textSize="32sp"
                                 android:textStyle="bold"
                                 android:layout_marginBottom="4dp"/>
 
@@ -134,9 +136,9 @@
                                 android:id="@+id/totalExams"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="0"
+                                android:text="2"
                                 android:textColor="#0D47A1"
-                                android:textSize="28sp"
+                                android:textSize="32sp"
                                 android:textStyle="bold"
                                 android:layout_marginBottom="4dp"/>
 
@@ -150,7 +152,7 @@
                     </androidx.cardview.widget.CardView>
                 </LinearLayout>
 
-                <!-- ===== SUMMARY CARDS ROW 2 ===== -->
+                <!-- ===== SUMMARY CARDS ROW 2 (Examinees & Teachers) ===== -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -187,9 +189,9 @@
                                 android:id="@+id/totalExaminees"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="0"
+                                android:text="9"
                                 android:textColor="#0D47A1"
-                                android:textSize="28sp"
+                                android:textSize="32sp"
                                 android:textStyle="bold"
                                 android:layout_marginBottom="4dp"/>
 
@@ -231,9 +233,9 @@
                                 android:id="@+id/totalTeachers"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="0"
+                                android:text="4"
                                 android:textColor="#0D47A1"
-                                android:textSize="28sp"
+                                android:textSize="32sp"
                                 android:textStyle="bold"
                                 android:layout_marginBottom="4dp"/>
 
@@ -247,7 +249,7 @@
                     </androidx.cardview.widget.CardView>
                 </LinearLayout>
 
-                <!-- ===== CHARTS SECTION ===== -->
+                <!-- ===== ANALYTICS OVERVIEW HEADER ===== -->
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -257,6 +259,7 @@
                     android:textStyle="bold"
                     android:layout_marginBottom="16dp"/>
 
+                <!-- ===== CHARTS SECTION (2 Placeholders) ===== -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -264,7 +267,7 @@
                     android:baselineAligned="false"
                     android:layout_marginBottom="24dp">
 
-                    <!-- Exam Performance Chart -->
+                    <!-- Exam Performance Chart Placeholder -->
                     <androidx.cardview.widget.CardView
                         android:layout_width="0dp"
                         android:layout_height="250dp"
@@ -307,7 +310,7 @@
                         </LinearLayout>
                     </androidx.cardview.widget.CardView>
 
-                    <!-- System Summary Chart -->
+                    <!-- System Summary Chart Placeholder -->
                     <androidx.cardview.widget.CardView
                         android:layout_width="0dp"
                         android:layout_height="250dp"
@@ -354,9 +357,21 @@
             </LinearLayout>
         </ScrollView>
 
+        <!-- ===== BOTTOM NAVIGATION BAR (NEW - Fixed at Bottom) ===== -->
+        <com.google.android.material.bottomnavigation.BottomNavigationView
+            android:id="@+id/bottom_navigation"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom"
+            android:background="#0D47A1"
+            app:itemIconTint="@android:color/white"
+            app:itemTextColor="@android:color/white"
+            app:menu="@menu/admin_nav_menu"
+            app:labelVisibilityMode="labeled"/>
+
     </androidx.coordinatorlayout.widget.CoordinatorLayout>
 
-    <!-- ===== NAVIGATION VIEW (SIDEBAR) ===== -->
+    <!-- ===== NAVIGATION VIEW (SIDEBAR) (Existing) ===== -->
     <com.google.android.material.navigation.NavigationView
         android:id="@+id/nav_view"
         android:layout_width="wrap_content"
