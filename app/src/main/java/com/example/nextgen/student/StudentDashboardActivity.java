@@ -774,39 +774,62 @@ public class StudentDashboardActivity extends AppCompatActivity
                                                     tempExamList.add(exam);
                                                     examsProcessed[0]++;
                                                     if (examsProcessed[0] == totalEligibleExams) {
-                                                        runOnUiThread(() -> {
-                                                            synchronized (examList) {
-                                                                examList.clear();
-                                                                examList.addAll(tempExamList);
-                                                                updateExamRecyclerView();
-                                                                // Save to Room offline cache (run in background thread)
-                                                                new Thread(() -> {
-                                                                    com.example.nextgen.offline.AppDatabase db = com.example.nextgen.offline.AppDatabase.getInstance(StudentDashboardActivity.this);
-                                                                    List<com.example.nextgen.offline.ExamEntity> entities = new ArrayList<>();
-                                                                    for (ExamModel ex : tempExamList) {
-                                                                        com.example.nextgen.offline.ExamEntity entity = new com.example.nextgen.offline.ExamEntity();
-                                                                        entity.examId = ex.getExamId();
-                                                                        entity.examTitle = ex.getExamTitle();
-                                                                        entity.courseName = ex.getCourseName();
-                                                                        entity.specializationName = ex.getSpecializationName();
-                                                                        entity.yearName = ex.getYearName();
-                                                                        entity.sectionName = ex.getSectionName();
-                                                                        entity.teacherName = ex.getTeacherName();
-                                                                        entity.scheduledAt = ex.getScheduledAt();
-                                                                        entity.durationMinutes = ex.getDurationMinutes();
-                                                                        entity.active = ex.isActive();
-                                                                        entity.status = ex.getStatus();
-                                                                        entity.isAvailable = ex.isAvailable();
-                                                                        entity.present = ex.isPresent();
-                                                                        entity.studentUid = currentStudentUid;
-                                                                        // ... add more fields as desired
-                                                                        entities.add(entity);
+                                                        // When all exams processed, first check local PendingSubmission (offline) to mark exams as taken (pending sync)
+                                                        new Thread(() -> {
+                                                            com.example.nextgen.offline.AppDatabase db = com.example.nextgen.offline.AppDatabase.getInstance(StudentDashboardActivity.this);
+                                                            String studentIdForDb = student.getStudentId(); // Make sure this matches PendingSubmission.studentId
+
+                                                            for (ExamModel ex : tempExamList) {
+                                                                if (ex.getExamId() == null) continue;
+                                                                try {
+                                                                    com.example.nextgen.offline.PendingSubmission p = db.pendingSubmissionDao()
+                                                                            .findPendingByExamAndStudent(ex.getExamId(), studentIdForDb);
+                                                                    if (p != null) {
+                                                                        // mark as already taken / pending upload
+                                                                        ex.setAvailable(false);
+                                                                        ex.setPresent(true);
+                                                                        ex.setStatus("TAKEN (Pending sync)");
                                                                     }
-                                                                    db.examDao().insertExams(entities);
-                                                                }).start();
+                                                                } catch (Exception e) {
+                                                                    Log.e(TAG, "Error checking pending submission for exam " + ex.getExamId() + ": " + e.getMessage());
+                                                                }
                                                             }
-                                                            isFetchingExams = false;
-                                                        });
+
+                                                            // Now update UI on main thread and save to Room as before
+                                                            runOnUiThread(() -> {
+                                                                synchronized (examList) {
+                                                                    examList.clear();
+                                                                    examList.addAll(tempExamList);
+                                                                    updateExamRecyclerView();
+
+                                                                    // Save to Room offline cache (run in background thread)
+                                                                    new Thread(() -> {
+                                                                        com.example.nextgen.offline.AppDatabase db2 = com.example.nextgen.offline.AppDatabase.getInstance(StudentDashboardActivity.this);
+                                                                        List<com.example.nextgen.offline.ExamEntity> entities = new ArrayList<>();
+                                                                        for (ExamModel ex : tempExamList) {
+                                                                            com.example.nextgen.offline.ExamEntity entity = new com.example.nextgen.offline.ExamEntity();
+                                                                            entity.examId = ex.getExamId();
+                                                                            entity.examTitle = ex.getExamTitle();
+                                                                            entity.courseName = ex.getCourseName();
+                                                                            entity.specializationName = ex.getSpecializationName();
+                                                                            entity.yearName = ex.getYearName();
+                                                                            entity.sectionName = ex.getSectionName();
+                                                                            entity.teacherName = ex.getTeacherName();
+                                                                            entity.scheduledAt = ex.getScheduledAt();
+                                                                            entity.durationMinutes = ex.getDurationMinutes();
+                                                                            entity.active = ex.isActive();
+                                                                            entity.status = ex.getStatus();
+                                                                            entity.isAvailable = ex.isAvailable();
+                                                                            entity.present = ex.isPresent();
+                                                                            entity.studentUid = currentStudentUid;
+                                                                            entities.add(entity);
+                                                                        }
+                                                                        db2.examDao().insertExams(entities);
+                                                                    }).start();
+                                                                }
+                                                                isFetchingExams = false;
+                                                            });
+                                                        }).start();
                                                     }
                                                 }
                                             }

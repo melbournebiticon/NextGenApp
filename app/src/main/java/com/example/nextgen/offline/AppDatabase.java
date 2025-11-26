@@ -9,9 +9,10 @@ import android.content.Context;
         entities = {
                 ExamEntity.class,
                 QuestionEntity.class,
-                StudentAnswerEntity.class
+                StudentAnswerEntity.class,
+                PendingSubmission.class          // <- added
         },
-        version = 2
+        version = 3
 )
 public abstract class AppDatabase extends RoomDatabase {
 
@@ -20,6 +21,9 @@ public abstract class AppDatabase extends RoomDatabase {
     public abstract ExamDao examDao();
     public abstract QuestionDao questionDao();
     public abstract StudentAnswerDao answerDao();
+
+    // NEW: expose pending submission DAO
+    public abstract PendingSubmissionDao pendingSubmissionDao();
 
     public static synchronized AppDatabase getInstance(Context ctx) {
         if (INSTANCE == null) {

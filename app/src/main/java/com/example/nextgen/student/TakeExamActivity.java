@@ -193,6 +193,40 @@ public class TakeExamActivity extends AppCompatActivity {
     }
 
     private void checkIfExamIsAlreadyTaken() {
+        // Try local studentId first (offline-safe)
+        String localStudentId = com.example.nextgen.SessionManager.getStudentId(this);
+
+        if (localStudentId != null && !localStudentId.isEmpty()) {
+            new Thread(() -> {
+                com.example.nextgen.offline.AppDatabase db = com.example.nextgen.offline.AppDatabase.getInstance(TakeExamActivity.this);
+                com.example.nextgen.offline.PendingSubmission pending =
+                        db.pendingSubmissionDao().findPendingByExamAndStudent(examId, localStudentId);
+
+                runOnUiThread(() -> {
+                    if (pending != null) {
+                        // There is a local pending submission -> treat as already taken
+                        Toast.makeText(TakeExamActivity.this, "You have already submitted this exam (pending sync).", Toast.LENGTH_LONG).show();
+
+                        // Option A: redirect to results using local computed score
+                        redirectToResultActivity(pending.computedScore, pending.maxScore);
+
+                        // Option B (alternative): finish() to simply close the activity
+                        // finish();
+                    } else {
+                        // No local pending -> fallback to server check (existing behaviour)
+                        checkIfTakenOnServer();
+                    }
+                });
+            }).start();
+        } else {
+            // No local studentId available -> fallback to server check directly
+            checkIfTakenOnServer();
+        }
+    }
+
+    // Existing server-side check (extracted to keep code clear)
+    private void checkIfTakenOnServer() {
+        // NOTE: your existing code used currentStudentUid for Scores path; keep that for now
         DatabaseReference scoreRef = FirebaseDatabase.getInstance()
                 .getReference("Scores")
                 .child(currentStudentUid)
@@ -639,6 +673,8 @@ public class TakeExamActivity extends AppCompatActivity {
             return;
         }
 
+        btnSubmit.setEnabled(false); // prevent double taps
+
         int totalQuestions = questionList.size();
         int correctAnswers = 0;
 
@@ -651,26 +687,60 @@ public class TakeExamActivity extends AppCompatActivity {
 
         int finalCalculatedScore = Math.max(correctAnswers - totalDeductions, 0);
 
-        // Fetch studentId from Students node
+        // Try local Student ID first (works offline)
+        String localStudentId = com.example.nextgen.SessionManager.getStudentId(this);
+        if (localStudentId != null && !localStudentId.isEmpty()) {
+            com.example.nextgen.sync.SubmissionHelper.saveSubmissionLocallyAndEnqueue(
+                    TakeExamActivity.this,
+                    examId,
+                    localStudentId,
+                    questionList,
+                    finalCalculatedScore,
+                    totalQuestions
+            );
+
+            Toast.makeText(TakeExamActivity.this, "Submission saved locally and will sync when online.", Toast.LENGTH_LONG).show();
+            redirectToResultActivity(finalCalculatedScore, totalQuestions);
+            return;
+        }
+
+        // Fallback: lookup studentId from Firebase (network required)
         DatabaseReference studentsRef = FirebaseDatabase.getInstance().getReference("Students");
         studentsRef.orderByChild("uid").equalTo(currentStudentUid)
                 .addListenerForSingleValueEvent(new ValueEventListener() {
                     @Override
                     public void onDataChange(@NonNull DataSnapshot snapshot) {
+                        btnSubmit.setEnabled(true);
                         if (snapshot.exists()) {
                             for (DataSnapshot ds : snapshot.getChildren()) {
                                 String studentId = ds.child("studentId").getValue(String.class);
-                                // Save score using correct studentId
-                                saveScoreToFirebase(studentId, finalCalculatedScore, totalQuestions);
-                                // Redirect after saving
+                                if (studentId == null || studentId.isEmpty()) {
+                                    Toast.makeText(TakeExamActivity.this, "Student ID missing.", Toast.LENGTH_SHORT).show();
+                                    return;
+                                }
+
+                                com.example.nextgen.sync.SubmissionHelper.saveSubmissionLocallyAndEnqueue(
+                                        TakeExamActivity.this,
+                                        examId,
+                                        studentId,
+                                        questionList,
+                                        finalCalculatedScore,
+                                        totalQuestions
+                                );
+
+                                Toast.makeText(TakeExamActivity.this, "Submission saved and will sync when online.", Toast.LENGTH_LONG).show();
                                 redirectToResultActivity(finalCalculatedScore, totalQuestions);
+                                break; // stop after first match
                             }
                         } else {
-                            Toast.makeText(TakeExamActivity.this, "Student ID not found.", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(TakeExamActivity.this, "Student ID not found online.", Toast.LENGTH_SHORT).show();
+                            btnSubmit.setEnabled(true);
                         }
                     }
+
                     @Override
                     public void onCancelled(@NonNull DatabaseError error) {
+                        btnSubmit.setEnabled(true);
                         Toast.makeText(TakeExamActivity.this, "Error fetching student ID.", Toast.LENGTH_SHORT).show();
                     }
                 });
@@ -678,29 +748,62 @@ public class TakeExamActivity extends AppCompatActivity {
 
     private void submitExamWithZeroScore() {
         stopAudioMonitoring();
-        int maxScore = questionList.size();
 
-        // Fetch studentId from Students node
+        int maxScore = questionList.size();
+        btnSubmit.setEnabled(false);
+
+        // Try local Student ID first (works offline)
+        String localStudentId = com.example.nextgen.SessionManager.getStudentId(this);
+        if (localStudentId != null && !localStudentId.isEmpty()) {
+            com.example.nextgen.sync.SubmissionHelper.saveSubmissionLocallyAndEnqueue(
+                    TakeExamActivity.this,
+                    examId,
+                    localStudentId,
+                    questionList,
+                    0,
+                    maxScore
+            );
+            Toast.makeText(TakeExamActivity.this, "Zero-score submission saved locally and will sync when online.", Toast.LENGTH_LONG).show();
+            redirectToResultActivity(0, maxScore);
+            return;
+        }
+
+        // Fallback: lookup studentId from Firebase (network required)
         DatabaseReference studentsRef = FirebaseDatabase.getInstance().getReference("Students");
         studentsRef.orderByChild("uid").equalTo(currentStudentUid)
                 .addListenerForSingleValueEvent(new ValueEventListener() {
                     @Override
                     public void onDataChange(@NonNull DataSnapshot snapshot) {
+                        btnSubmit.setEnabled(true);
                         if (snapshot.exists()) {
                             for (DataSnapshot ds : snapshot.getChildren()) {
                                 String studentId = ds.child("studentId").getValue(String.class);
-                                // Save zero score using correct studentId
-                                saveScoreToFirebase(studentId, 0, maxScore);
-                                // Redirect after saving
+                                if (studentId == null || studentId.isEmpty()) {
+                                    Toast.makeText(TakeExamActivity.this, "Student ID missing.", Toast.LENGTH_SHORT).show();
+                                    return;
+                                }
+
+                                com.example.nextgen.sync.SubmissionHelper.saveSubmissionLocallyAndEnqueue(
+                                        TakeExamActivity.this,
+                                        examId,
+                                        studentId,
+                                        questionList,
+                                        0,
+                                        maxScore
+                                );
+                                Toast.makeText(TakeExamActivity.this, "Zero-score submission saved locally and will sync when online.", Toast.LENGTH_LONG).show();
                                 redirectToResultActivity(0, maxScore);
+                                break;
                             }
                         } else {
-                            Toast.makeText(TakeExamActivity.this, "Student ID not found.", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(TakeExamActivity.this, "Student ID not found online.", Toast.LENGTH_SHORT).show();
+                            btnSubmit.setEnabled(true);
                         }
                     }
 
                     @Override
                     public void onCancelled(@NonNull DatabaseError error) {
+                        btnSubmit.setEnabled(true);
                         Toast.makeText(TakeExamActivity.this, "Error fetching student ID.", Toast.LENGTH_SHORT).show();
                     }
                 });
