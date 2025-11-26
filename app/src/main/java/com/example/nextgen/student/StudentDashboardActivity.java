@@ -13,6 +13,10 @@ import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
+import com.example.nextgen.offline.QuestionDao; // <--- must be offline DAO
+import com.example.nextgen.offline.QuestionEntity;
+import com.example.nextgen.offline.AppDatabase; // offline DB instance
+
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
@@ -20,6 +24,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.drawerlayout.widget.DrawerLayout; // Import for Navigation Drawer
+import android.widget.ProgressBar;
 
 import com.example.nextgen.MainActivity;
 import com.example.nextgen.R;
@@ -95,6 +100,9 @@ public class StudentDashboardActivity extends AppCompatActivity
 
     private ImageView imgProfileMenu;
     private Button btnLogout;
+    private LinearLayout layoutOfflinePrep;
+    private TextView tvOfflinePrep;
+    private ProgressBar progressOfflinePrep;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -121,7 +129,9 @@ public class StudentDashboardActivity extends AppCompatActivity
         tvTotalExams = findViewById(R.id.tvTotalExams);
         tvAvgScore = findViewById(R.id.tvAvgScore);
         emptyStateLayout = findViewById(R.id.emptyState);
-
+        layoutOfflinePrep = findViewById(R.id.layoutOfflinePrep);
+        tvOfflinePrep = findViewById(R.id.tvOfflinePrep);
+        progressOfflinePrep = findViewById(R.id.progressOfflinePrep);
         // --- Navigation Drawer Setup (NEW) ---
         // Assuming your layout is a DrawerLayout with ID drawer_layout
         drawerLayout = findViewById(R.id.drawer_layout);
@@ -180,6 +190,8 @@ public class StudentDashboardActivity extends AppCompatActivity
         rvExams.setLayoutManager(new LinearLayoutManager(this));
         examAdapter = new ExamAdapter(this, examList);
         rvExams.setAdapter(examAdapter);
+
+        loadExamsFromLocalDb();
 
         // --- Bottom Navigation Setup ---
         BottomNavigationView bottomNavigationView = findViewById(R.id.bottomNavigationView);
@@ -265,6 +277,47 @@ public class StudentDashboardActivity extends AppCompatActivity
         }
     }
 
+    private void loadExamsFromLocalDb() {
+        new Thread(() -> {
+            com.example.nextgen.offline.AppDatabase db = com.example.nextgen.offline.AppDatabase.getInstance(this);
+            List<com.example.nextgen.offline.ExamEntity> cachedExams = db.examDao().getAllExamsForStudent(currentStudentUid);
+            runOnUiThread(() -> {
+                examList.clear();
+                for (com.example.nextgen.offline.ExamEntity entity : cachedExams) {
+                    examList.add(toExamModel(entity)); // You'll need a converter method
+                }
+                updateExamRecyclerView();
+                // Pre-cache all exam questions (if online)
+                if (isNetworkAvailable()) cacheAllExamQuestionsForOffline(examList);
+            });
+        }).start();
+    }
+    private boolean isNetworkAvailable() {
+        android.net.ConnectivityManager cm = (android.net.ConnectivityManager) getSystemService(android.content.Context.CONNECTIVITY_SERVICE);
+        if (cm == null) return false;
+        android.net.NetworkInfo netInfo = cm.getActiveNetworkInfo();
+        return netInfo != null && netInfo.isConnected();
+    }
+
+    // Example manual converter (add the fields you use)
+    private ExamModel toExamModel(com.example.nextgen.offline.ExamEntity entity) {
+        ExamModel model = new ExamModel();
+        model.setExamId(entity.examId);
+        model.setExamTitle(entity.examTitle);
+        model.setCourseName(entity.courseName);
+        model.setSpecializationName(entity.specializationName);
+        model.setYearName(entity.yearName);
+        model.setSectionName(entity.sectionName);
+        model.setTeacherName(entity.teacherName);
+        model.setScheduledAt(entity.scheduledAt);
+        model.setDurationMinutes(entity.durationMinutes);
+        model.setActive(entity.active);
+        model.setStatus(entity.status);
+        model.setAvailable(entity.isAvailable);
+        model.setPresent(entity.present);
+        // ... add missing mappings as needed
+        return model;
+    }
     // --- Bottom Navigation Handler ---
     // --- Bottom Navigation Handler ---
     @Override
@@ -627,6 +680,10 @@ public class StudentDashboardActivity extends AppCompatActivity
                         Long scheduledAtLong = examSnap.child("scheduledAt").getValue(Long.class);
                         Integer durationMinutesInt = examSnap.child("durationMinutes").getValue(Integer.class);
 
+                        if (scheduledAtLong != null && scheduledAtLong < 1_000_000_000_000L) {
+                            scheduledAtLong = scheduledAtLong * 1000L;
+                        }
+
                         if (exam != null && scheduledAtLong != null && durationMinutesInt != null &&
                                 exam.getCourseDisplay().equals(studentCourseDisplay) &&
                                 exam.isActive()) {
@@ -654,7 +711,11 @@ public class StudentDashboardActivity extends AppCompatActivity
                     String examId = examSnap.getKey();
 
                     exam.setExamId(examId);
-                    exam.setScheduledAt(examSnap.child("scheduledAt").getValue(Long.class));
+                    Long scheduled = examSnap.child("scheduledAt").getValue(Long.class);
+// normalize seconds -> milliseconds if needed
+                    if (scheduled != null && scheduled < 1_000_000_000_000L) scheduled = scheduled * 1000L;
+                    exam.setScheduledAt(scheduled);
+                    exam.setDurationMinutes(examSnap.child("durationMinutes").getValue(Integer.class));
                     exam.setDurationMinutes(examSnap.child("durationMinutes").getValue(Integer.class));
 
                     // Check if exam has been taken
@@ -662,6 +723,9 @@ public class StudentDashboardActivity extends AppCompatActivity
                             .addListenerForSingleValueEvent(new ValueEventListener() {
                                 @Override
                                 public void onDataChange(@NonNull DataSnapshot scoreSnapshot) {
+
+                                    long now = System.currentTimeMillis(); // use fresh time here
+
                                     synchronized (tempExamList) {
                                         if (scoreSnapshot.exists()) {
                                             exam.setStatus("TAKEN");
@@ -670,10 +734,17 @@ public class StudentDashboardActivity extends AppCompatActivity
                                             long start = exam.getScheduledAt();
                                             long endLogin = start + MAX_LOGIN_WINDOW_MILLIS;
 
-                                            if (currentTime < start) {
+                                            // human-readable debug
+                                            Log.d(TAG, "HUMAN_CHECK: examId=" + examId
+                                                    + " scheduledAt=" + (start == 0 ? "<null>" : sdf.format(new Date(start)))
+                                                    + " now=" + sdf.format(new Date(now))
+                                                    + " startMs=" + start
+                                            );
+
+                                            if (now < start) {
                                                 exam.setStatus("Scheduled: Starts at " + sdf.format(new Date(start)));
                                                 exam.setAvailable(false);
-                                            } else if (currentTime <= endLogin) {
+                                            } else if (now <= endLogin) {
                                                 exam.setStatus("AVAILABLE NOW (Login closes at " + sdf.format(new Date(endLogin)) + ")");
                                                 exam.setAvailable(true);
                                             } else {
@@ -681,6 +752,7 @@ public class StudentDashboardActivity extends AppCompatActivity
                                                 exam.setAvailable(false);
                                             }
                                         }
+
 
                                         // Fetch "present"
                                         DatabaseReference examStudentRef = FirebaseDatabase.getInstance()
@@ -707,6 +779,31 @@ public class StudentDashboardActivity extends AppCompatActivity
                                                                 examList.clear();
                                                                 examList.addAll(tempExamList);
                                                                 updateExamRecyclerView();
+                                                                // Save to Room offline cache (run in background thread)
+                                                                new Thread(() -> {
+                                                                    com.example.nextgen.offline.AppDatabase db = com.example.nextgen.offline.AppDatabase.getInstance(StudentDashboardActivity.this);
+                                                                    List<com.example.nextgen.offline.ExamEntity> entities = new ArrayList<>();
+                                                                    for (ExamModel ex : tempExamList) {
+                                                                        com.example.nextgen.offline.ExamEntity entity = new com.example.nextgen.offline.ExamEntity();
+                                                                        entity.examId = ex.getExamId();
+                                                                        entity.examTitle = ex.getExamTitle();
+                                                                        entity.courseName = ex.getCourseName();
+                                                                        entity.specializationName = ex.getSpecializationName();
+                                                                        entity.yearName = ex.getYearName();
+                                                                        entity.sectionName = ex.getSectionName();
+                                                                        entity.teacherName = ex.getTeacherName();
+                                                                        entity.scheduledAt = ex.getScheduledAt();
+                                                                        entity.durationMinutes = ex.getDurationMinutes();
+                                                                        entity.active = ex.isActive();
+                                                                        entity.status = ex.getStatus();
+                                                                        entity.isAvailable = ex.isAvailable();
+                                                                        entity.present = ex.isPresent();
+                                                                        entity.studentUid = currentStudentUid;
+                                                                        // ... add more fields as desired
+                                                                        entities.add(entity);
+                                                                    }
+                                                                    db.examDao().insertExams(entities);
+                                                                }).start();
                                                             }
                                                             isFetchingExams = false;
                                                         });
@@ -761,6 +858,116 @@ public class StudentDashboardActivity extends AppCompatActivity
                 });
             }
         });
+    }
+    private void cacheAllExamQuestionsForOffline(List<ExamModel> exams) {
+        if (exams == null || exams.isEmpty()) return;
+
+        runOnUiThread(() -> {
+            layoutOfflinePrep.setVisibility(View.VISIBLE);
+            tvOfflinePrep.setText("Preparing exams for offline use... 0/" + exams.size());
+        });
+
+        final int total = exams.size();
+        final int[] done = {0};
+
+        for (ExamModel exam : exams) {
+            String examId = exam.getExamId();
+            if (examId == null) {
+                // Count as done to avoid hanging the progress
+                done[0]++;
+                continue;
+            }
+
+            // Skip if already cached (optional)
+            new Thread(() -> {
+                com.example.nextgen.offline.OfflineExamManager mgr = new com.example.nextgen.offline.OfflineExamManager(StudentDashboardActivity.this);
+                if (mgr.hasCachedQuestions(examId)) {
+                    Log.d(TAG, "Skipping already cached examId=" + examId);
+                    runOnUiThread(() -> {
+                        done[0]++;
+                        tvOfflinePrep.setText("Preparing exams for offline use... " + done[0] + "/" + total);
+                        if (done[0] == total) {
+                            layoutOfflinePrep.setVisibility(View.GONE);
+                            Toast.makeText(StudentDashboardActivity.this, "All exams are ready for offline use!", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                    return;
+                }
+
+                DatabaseReference questionsRef = FirebaseDatabase.getInstance().getReference("Questions").child(examId);
+                questionsRef.addListenerForSingleValueEvent(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(@NonNull DataSnapshot snapshot) {
+                        List<com.example.nextgen.offline.QuestionEntity> questions = new ArrayList<>();
+                        for (DataSnapshot snap : snapshot.getChildren()) {
+                            // Try automatic mapping first
+                            com.example.nextgen.offline.QuestionEntity q = snap.getValue(com.example.nextgen.offline.QuestionEntity.class);
+                            if (q == null) q = new com.example.nextgen.offline.QuestionEntity();
+
+                            // Ensure required fields are set (important!)
+                            q.examId = examId;
+                            q.firebaseKey = snap.getKey();
+
+                            // Defensive/manual mapping for fields that might not map automatically
+                            if (snap.child("questionText").exists())
+                                q.questionText = snap.child("questionText").getValue(String.class);
+                            if (snap.child("questionType").exists())
+                                q.questionType = snap.child("questionType").getValue(String.class);
+                            if (snap.child("correctAnswer").exists())
+                                q.correctAnswer = snap.child("correctAnswer").getValue(String.class);
+                            if (snap.child("optionA").exists())
+                                q.optionA = snap.child("optionA").getValue(String.class);
+                            if (snap.child("optionB").exists())
+                                q.optionB = snap.child("optionB").getValue(String.class);
+                            if (snap.child("optionC").exists())
+                                q.optionC = snap.child("optionC").getValue(String.class);
+                            if (snap.child("optionD").exists())
+                                q.optionD = snap.child("optionD").getValue(String.class);
+                            if (snap.child("displayNumber").exists()) {
+                                Long dn = snap.child("displayNumber").getValue(Long.class);
+                                if (dn != null) q.displayNumber = dn.intValue();
+                            }
+                            // matchingOptions (List<String>) mapping if present
+                            if (snap.child("matchingOptions").exists()) {
+                                List<String> mo = (List<String>) snap.child("matchingOptions").getValue();
+                                q.matchingOptions = mo;
+                            }
+
+                            questions.add(q);
+                            Log.d(TAG, "Fetched question for examId=" + examId + " key=" + q.firebaseKey + " text=" + q.questionText);
+                        }
+
+                        // Save via OfflineExamManager (clears old and inserts)
+                        new Thread(() -> {
+                            com.example.nextgen.offline.OfflineExamManager mgr2 =
+                                    new com.example.nextgen.offline.OfflineExamManager(StudentDashboardActivity.this);
+                            mgr2.saveQuestions(examId, questions);
+                            runOnUiThread(() -> {
+                                done[0]++;
+                                tvOfflinePrep.setText("Preparing exams for offline use... " + done[0] + "/" + total);
+                                if (done[0] == total) {
+                                    layoutOfflinePrep.setVisibility(View.GONE);
+                                    Toast.makeText(StudentDashboardActivity.this, "All exams are ready for offline use!", Toast.LENGTH_SHORT).show();
+                                }
+                            });
+                        }).start();
+                    }
+
+                    @Override
+                    public void onCancelled(@NonNull DatabaseError error) {
+                        Log.e(TAG, "Failed to fetch questions for examId: " + examId + " : " + error.getMessage());
+                        runOnUiThread(() -> {
+                            done[0]++;
+                            tvOfflinePrep.setText("Preparing exams for offline use... " + done[0] + "/" + total);
+                            if (done[0] == total) {
+                                layoutOfflinePrep.setVisibility(View.GONE);
+                                Toast.makeText(StudentDashboardActivity.this, "All exams are ready for offline use!", Toast.LENGTH_SHORT).show();
+                            }
+                        });
+                    }
+                });
+            }).start();
+        }
     }
 
     private void fetchRealtimeExamStatus(StudentModel student) {

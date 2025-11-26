@@ -118,20 +118,42 @@ public class ExamAdapter extends RecyclerView.Adapter<ExamAdapter.ExamViewHolder
             return;
         }
 
-        DatabaseReference ref = FirebaseDatabase.getInstance()
-                .getReference("ExamStudents")
-                .child(exam.getExamId())
-                .child(studentId);
+        // Only try to mark as "ongoing" in Firebase if online. Always start activity.
+        if (isNetworkAvailable(context)) {
+            DatabaseReference ref = FirebaseDatabase.getInstance()
+                    .getReference("ExamStudents")
+                    .child(exam.getExamId())
+                    .child(studentId);
 
-        ref.child("ongoing").setValue(true)
-                .addOnSuccessListener(aVoid -> {
-                    Toast.makeText(context, "Exam started! Marked as ongoing.", Toast.LENGTH_SHORT).show();
-                    Intent intent = new Intent(context, TakeExamActivity.class);
-                    intent.putExtra("examId", exam.getExamId());
-                    intent.putExtra("examTitle", exam.getExamTitle());
-                    context.startActivity(intent);
-                })
-                .addOnFailureListener(e -> Toast.makeText(context, "Failed to update ongoing: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+            ref.child("ongoing").setValue(true)
+                    .addOnSuccessListener(aVoid -> {
+                        Toast.makeText(context, "Exam started! Marked as ongoing.", Toast.LENGTH_SHORT).show();
+                        launchExamIntent(exam);
+                    })
+                    .addOnFailureListener(e -> {
+                        Toast.makeText(context, "Failed to update ongoing, starting offline: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                        launchExamIntent(exam);
+                    });
+        } else {
+            // If offline, just start the TakeExamActivity (offline mode)
+            launchExamIntent(exam);
+        }
+    }
+
+    // New helper for launching:
+    private void launchExamIntent(ExamModel exam) {
+        Intent intent = new Intent(context, TakeExamActivity.class);
+        intent.putExtra("examId", exam.getExamId());
+        intent.putExtra("examTitle", exam.getExamTitle());
+        context.startActivity(intent);
+    }
+
+    // Copy/paste this utility as well (top of class):
+    private boolean isNetworkAvailable(Context context) {
+        android.net.ConnectivityManager cm = (android.net.ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+        if (cm == null) return false;
+        android.net.NetworkInfo netInfo = cm.getActiveNetworkInfo();
+        return netInfo != null && netInfo.isConnected();
     }
 
     @Override

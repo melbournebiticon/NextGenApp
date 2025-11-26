@@ -23,6 +23,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.nextgen.R;
 import com.example.nextgen.teacher.Question;
+import com.example.nextgen.offline.QuestionEntity; // <-- added
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DataSnapshot;
@@ -34,6 +35,7 @@ import com.google.firebase.database.ValueEventListener;
 import org.tensorflow.lite.support.audio.TensorAudio;
 import org.tensorflow.lite.task.audio.classifier.AudioClassifier;
 import org.tensorflow.lite.task.audio.classifier.Classifications;
+import android.content.Context;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -100,6 +102,8 @@ public class TakeExamActivity extends AppCompatActivity {
     private boolean isShowingRules = false;
     private boolean isRequestingMicPermission = false;
 
+    // NEW: set to true when we successfully loaded offline data on startup
+    private volatile boolean offlineLoaded = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -125,6 +129,36 @@ public class TakeExamActivity extends AppCompatActivity {
         examId = getIntent().getStringExtra("examId");
         examTitle = getIntent().getStringExtra("examTitle");
 
+        // --- NEW: Load cached exam metadata (title + duration) so we can show title and start timer while offline ---
+        new Thread(() -> {
+            try {
+                com.example.nextgen.offline.AppDatabase db = com.example.nextgen.offline.AppDatabase.getInstance(TakeExamActivity.this);
+                com.example.nextgen.offline.ExamEntity examEntity = db.examDao().getExamById(examId);
+                if (examEntity != null) {
+                    runOnUiThread(() -> {
+                        // Use cached title if the Intent didn't provide one
+                        if (examTitle == null || examTitle.isEmpty()) {
+                            examTitle = examEntity.examTitle;
+                        }
+                        tvExamTitle.setText("Exam: " + (examTitle != null ? examTitle : ""));
+
+                        // Start timer if duration available and timer not already started
+                        if (durationMinutes == 0 && examEntity.durationMinutes != null && examEntity.durationMinutes > 0) {
+                            durationMinutes = examEntity.durationMinutes;
+                            startTimer();
+                        }
+                    });
+                } else {
+                    // If examTitle was provided by Intent, still show it
+                    runOnUiThread(() -> {
+                        if (examTitle != null && !examTitle.isEmpty()) tvExamTitle.setText("Exam: " + examTitle);
+                    });
+                }
+            } catch (Exception e) {
+                Log.e("OfflineDebug", "Error loading cached exam metadata: " + e.getMessage());
+            }
+        }).start();
+
         auth = FirebaseAuth.getInstance();
         FirebaseUser currentUser = auth.getCurrentUser();
         if (currentUser == null) {
@@ -133,6 +167,27 @@ public class TakeExamActivity extends AppCompatActivity {
             return;
         }
         currentStudentUid = currentUser.getUid();
+
+        // --- NEW: Try to load cached questions immediately (background thread) ---
+        new Thread(() -> {
+            try {
+                com.example.nextgen.offline.AppDatabase db = com.example.nextgen.offline.AppDatabase.getInstance(this);
+                List<QuestionEntity> cached = db.questionDao().getQuestionsByExamId(examId);
+                Log.d("OfflineDebug", "onCreate() preload - examId=" + examId + ", cached size=" + cached.size());
+
+                if (!cached.isEmpty()) {
+                    // Map & show on UI thread
+                    runOnUiThread(() -> {
+                        mapEntitiesToQuestionsAndShow(cached);
+                        offlineLoaded = true;
+                        Log.d("OfflineDebug", "onCreate() used cached data and set offlineLoaded=true");
+                    });
+                }
+            } catch (Exception e) {
+                Log.e("OfflineDebug", "Error preloading cached questions: " + e.getMessage());
+            }
+        }).start();
+        // --- END NEW ---
 
         checkIfExamIsAlreadyTaken();
     }
@@ -189,11 +244,16 @@ public class TakeExamActivity extends AppCompatActivity {
         tvExamTitle.setText("Exam: " + examTitle);
         fetchExamDetailsFromFirebase();
         questionsRef = FirebaseDatabase.getInstance().getReference("Questions").child(examId);
-        loadQuestions();
-        checkAndRequestAudioPermission();
 
-        btnSubmit.setOnClickListener(v -> handleNextOrSubmit());
-
+        // IMPORTANT: only call loadQuestions() if we haven't already loaded offline cache in onCreate()
+        if (!offlineLoaded) {
+            loadQuestions();
+        } else {
+            Log.d("OfflineDebug", "offlineLoaded already true - skipping loadQuestions()");
+            // We still want audio permission request / submit listener set
+            checkAndRequestAudioPermission();
+            btnSubmit.setOnClickListener(v -> handleNextOrSubmit());
+        }
 
         // -----------------------------
         // ✅ Listen for exam reset
@@ -215,7 +275,6 @@ public class TakeExamActivity extends AppCompatActivity {
                 });
         // -----------------------------
     }
-
 
     private void checkAndRequestAudioPermission() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
@@ -367,47 +426,153 @@ public class TakeExamActivity extends AppCompatActivity {
     }
 
     private void loadQuestions() {
-        questionsRef.addListenerForSingleValueEvent(new ValueEventListener() {
+        new Thread(() -> {
+            // Get the local Room database instance
+            com.example.nextgen.offline.AppDatabase db = com.example.nextgen.offline.AppDatabase.getInstance(this);
+
+            // Query for cached questions by examId
+            List<com.example.nextgen.offline.QuestionEntity> cachedQuestions = db.questionDao().getQuestionsByExamId(examId);
+
+            // ✅ Add debug log here
+            Log.d("OfflineDebug", "examId=" + examId + ", cached size=" + cachedQuestions.size());
+
+            runOnUiThread(() -> {
+                if (!cachedQuestions.isEmpty()) {
+                    // Found cached questions: convert to Question objects for UI
+                    mapEntitiesToQuestionsAndShow(cachedQuestions);
+                    offlineLoaded = true; // mark it
+                } else if (isNetworkAvailable()) {
+                    // Not cached, online: fetch from Firebase and cache
+                    fetchQuestionsFromFirebaseAndCache(examId);
+                } else {
+                    // Not cached and offline: show message
+                    Toast.makeText(this,
+                            "Questions not yet downloaded. Connect to WiFi or Data before taking this exam.",
+                            Toast.LENGTH_LONG).show();
+                    finish();
+                }
+            });
+        }).start();
+    }
+
+    // Put this helper method in your activity as well:
+    private boolean isNetworkAvailable() {
+        android.net.ConnectivityManager cm = (android.net.ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        if (cm == null) return false;
+        android.net.NetworkInfo netInfo = cm.getActiveNetworkInfo();
+        return netInfo != null && netInfo.isConnected();
+    }
+
+    // And the helper for mapping and showing:
+    private void mapEntitiesToQuestionsAndShow(List<com.example.nextgen.offline.QuestionEntity> list) {
+        questionList.clear();
+        allMatchingAnswers.clear();
+
+        Log.d("OfflineDebug", "Mapping cached questions to Question objects. Total: " + list.size());
+
+        for (com.example.nextgen.offline.QuestionEntity qe : list) {
+            // Log each question for debugging
+            Log.d("OfflineDebug", "Question text: " + qe.questionText);
+            Log.d("OfflineDebug", "Question type (raw): " + qe.questionType);
+
+            Question q = new Question();
+            q.setQuestionText(qe.questionText);
+            q.setQuestionType(qe.questionType);
+            q.setOptionA(qe.optionA);
+            q.setOptionB(qe.optionB);
+            q.setOptionC(qe.optionC);
+            q.setOptionD(qe.optionD);
+            q.setCorrectAnswer(qe.correctAnswer);
+            q.setStudentAnswer(qe.studentAnswer);
+            q.setDisplayNumber(qe.displayNumber);
+            q.setMatchingOptions(qe.matchingOptions);
+
+            questionList.add(q);
+
+            // Collect all Matching Type answers
+            if ("Matching Type".equalsIgnoreCase(q.getQuestionType())) {
+                String answer = q.getCorrectAnswer();
+                if (answer != null && !allMatchingAnswers.contains(answer)) {
+                    allMatchingAnswers.add(answer);
+                }
+            }
+        }
+
+        // Debug log for Matching Type
+        Log.d("OfflineDebug", "All Matching Type answers collected: " + allMatchingAnswers);
+
+        // Setup first section/question
+        typeIndex = 0;
+        filterQuestionsByType(questionTypeOrder[typeIndex]);
+
+        // Log filtered questions for this type
+        Log.d("OfflineDebug", "Questions for first section (" + questionTypeOrder[typeIndex] + "): " + currentTypeQuestions.size());
+
+        showNextQuestion();
+        // At end of mapEntitiesToQuestionsAndShow(...) after showNextQuestion();
+        offlineLoaded = true; // already set earlier in some places, but ensure it
+        checkAndRequestAudioPermission();
+        btnSubmit.setOnClickListener(v -> handleNextOrSubmit());
+    }
+
+    // And the Firebase fetch/cache helper:
+    private void fetchQuestionsFromFirebaseAndCache(String examId) {
+        DatabaseReference questionsRef = FirebaseDatabase.getInstance().getReference("Questions").child(examId);
+        questionsRef.addListenerForSingleValueEvent(new com.google.firebase.database.ValueEventListener() {
             @Override
-            public void onDataChange(@NonNull DataSnapshot snapshot) {
-                questionList.clear();
-                for (DataSnapshot questionSnap : snapshot.getChildren()) {
-                    Question q = questionSnap.getValue(Question.class);
-                    if (q != null && q.getQuestionType() != null) {
-                        questionList.add(q);
+            public void onDataChange(@NonNull com.google.firebase.database.DataSnapshot snapshot) {
+                List<com.example.nextgen.offline.QuestionEntity> toCache = new ArrayList<>();
+                for (com.google.firebase.database.DataSnapshot snap : snapshot.getChildren()) {
+                    com.example.nextgen.offline.QuestionEntity qe = snap.getValue(com.example.nextgen.offline.QuestionEntity.class);
+                    if (qe == null) qe = new com.example.nextgen.offline.QuestionEntity();
+
+                    // MUST set these so Room queries work later
+                    qe.examId = examId;
+                    qe.firebaseKey = snap.getKey();
+
+                    // defensive field mapping (optional, keeps values correct)
+                    if (snap.child("questionText").exists()) qe.questionText = snap.child("questionText").getValue(String.class);
+                    if (snap.child("questionType").exists()) qe.questionType = snap.child("questionType").getValue(String.class);
+                    if (snap.child("correctAnswer").exists()) qe.correctAnswer = snap.child("correctAnswer").getValue(String.class);
+                    if (snap.child("optionA").exists()) qe.optionA = snap.child("optionA").getValue(String.class);
+                    if (snap.child("optionB").exists()) qe.optionB = snap.child("optionB").getValue(String.class);
+                    if (snap.child("optionC").exists()) qe.optionC = snap.child("optionC").getValue(String.class);
+                    if (snap.child("optionD").exists()) qe.optionD = snap.child("optionD").getValue(String.class);
+                    if (snap.child("displayNumber").exists()) {
+                        Long dn = snap.child("displayNumber").getValue(Long.class);
+                        if (dn != null) qe.displayNumber = dn.intValue();
                     }
-                }
-
-                if (questionList.isEmpty()) {
-                    Toast.makeText(TakeExamActivity.this, "No questions found for this exam", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-
-                // --- Collect all correct answers for Matching Type questions ---
-                allMatchingAnswers.clear();
-                for (Question q : questionList) {
-                    if ("Matching Type".equalsIgnoreCase(q.getQuestionType())) {
-                        String answer = q.getCorrectAnswer();
-                        if (answer != null && !allMatchingAnswers.contains(answer)) {
-                            allMatchingAnswers.add(answer);
-                        }
+                    if (snap.child("matchingOptions").exists()) {
+                        List<String> mo = (List<String>) snap.child("matchingOptions").getValue();
+                        qe.matchingOptions = mo;
                     }
+
+                    toCache.add(qe);
                 }
 
+                // Save via your OfflineExamManager so old rows are cleared and new ones inserted
+                new Thread(() -> {
+                    com.example.nextgen.offline.OfflineExamManager mgr = new com.example.nextgen.offline.OfflineExamManager(TakeExamActivity.this);
+                    mgr.saveQuestions(examId, toCache);
 
-                // --- Set up first section/question ---
-                typeIndex = 0;
-                filterQuestionsByType(questionTypeOrder[typeIndex]);
-                showNextQuestion(); // pass it here
+                    // map & show on UI thread
+                    runOnUiThread(() -> {
+                        mapEntitiesToQuestionsAndShow(toCache);
+                        // mark offlineLoaded and ensure audio/submit wiring
+                        offlineLoaded = true;
+                        checkAndRequestAudioPermission();
+                        btnSubmit.setOnClickListener(v -> handleNextOrSubmit());
+                    });
+                }).start();
             }
 
             @Override
-            public void onCancelled(@NonNull DatabaseError error) {
-                Toast.makeText(TakeExamActivity.this, "Error loading questions: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+            public void onCancelled(@NonNull com.google.firebase.database.DatabaseError error) {
+                Toast.makeText(TakeExamActivity.this, "Failed to load questions online: " + error.getMessage(), Toast.LENGTH_LONG).show();
+                finish();
             }
         });
     }
-
 
     private void filterQuestionsByType(String type) {
         currentQuestionType = type;
@@ -511,7 +676,6 @@ public class TakeExamActivity extends AppCompatActivity {
                 });
     }
 
-
     private void submitExamWithZeroScore() {
         stopAudioMonitoring();
         int maxScore = questionList.size();
@@ -542,7 +706,6 @@ public class TakeExamActivity extends AppCompatActivity {
                 });
     }
 
-
     private void saveScoreToFirebase(String studentId, int score, int maxScore) {
         DatabaseReference scoreEntryRef = FirebaseDatabase.getInstance()
                 .getReference("Scores")
@@ -554,7 +717,6 @@ public class TakeExamActivity extends AppCompatActivity {
         scoreEntryRef.child("timestamp").setValue(System.currentTimeMillis());
         scoreEntryRef.child("deductions").setValue(totalDeductions);
     }
-
 
     private void redirectToResultActivity(int score, int maxScore) {
         // NOTE: ALL Firebase lookups for Student/Exam/Subject info are moved here.
@@ -654,7 +816,6 @@ public class TakeExamActivity extends AppCompatActivity {
             }
         });
     }
-
 
     // ----------- AUDIO MONITORING WITH HUMAN VOICE DETECTION -------------
     private void startAudioMonitoring() {
@@ -760,6 +921,7 @@ public class TakeExamActivity extends AppCompatActivity {
             Toast.makeText(this, "Failed to load audio model.", Toast.LENGTH_SHORT).show();
         }
     }
+
     private void listenForExamReset(String studentId){
         DatabaseReference resetRef = FirebaseDatabase.getInstance()
                 .getReference("ExamStudents")
@@ -859,10 +1021,6 @@ public class TakeExamActivity extends AppCompatActivity {
             btnSubmit.setText("Submit Exam");
         }
     }
-
-
-
-
 
 }
 

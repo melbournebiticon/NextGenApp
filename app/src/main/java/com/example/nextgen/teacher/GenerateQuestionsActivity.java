@@ -22,6 +22,8 @@ import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import com.example.nextgen.R;
 import java.io.InputStream;
 import java.util.*;
+import com.example.nextgen.offline.QuestionEntity;
+
 
 public class GenerateQuestionsActivity extends AppCompatActivity {
 
@@ -165,33 +167,59 @@ public class GenerateQuestionsActivity extends AppCompatActivity {
             return;
         }
 
-        for (Question q : questions) q.setExamId(examId);
-
         new Thread(() -> {
             try {
-                AppDatabase.getInstance(this).questionDao().insertAll(questions);
+                // --- 1. Save to Teacher Room DB (teacher-side QuestionDao) ---
+                AppDatabase teacherDb = AppDatabase.getInstance(this); // make sure this is teacher DB
+                teacherDb.questionDao().insertAll(questions);
+
+                // --- 2. Save to Student offline DB (student-side QuestionEntity) ---
+                List<QuestionEntity> entities = new ArrayList<>();
                 for (Question q : questions) {
-                    if (q.getFirebaseKey() == null) {
-                        String key = database.push().getKey();
-                        if (key != null) {
-                            q.setFirebaseKey(key);
-                        }
-                    }
-                    if (q.getFirebaseKey() != null) {
-                        database.child(q.getFirebaseKey()).setValue(q);
-                    }
+                    QuestionEntity entity = new QuestionEntity();
+                    entity.examId = q.getExamId();
+                    entity.questionText = q.getQuestionText();
+                    entity.questionType = q.getQuestionType();
+                    entity.optionA = q.getOptionA();
+                    entity.optionB = q.getOptionB();
+                    entity.optionC = q.getOptionC();
+                    entity.optionD = q.getOptionD();
+                    entity.correctAnswer = q.getCorrectAnswer();
+                    entity.displayNumber = q.getDisplayNumber(); // optional
+                    entity.matchingOptions = q.getMatchingOptions(); // optional
+                    entity.firebaseKey = q.getFirebaseKey(); // keep Firebase key if exists
+                    entities.add(entity);
                 }
+
+                // Get student DB instance
+                com.example.nextgen.offline.AppDatabase studentDb = com.example.nextgen.offline.AppDatabase.getInstance(this);
+                studentDb.questionDao().insertAll(entities);
+
+                // --- 3. Sync to Firebase ---
+                for (Question q : questions) {
+                    if (q.getFirebaseKey() == null || q.getFirebaseKey().isEmpty()) {
+                        String key = database.push().getKey();
+                        q.setFirebaseKey(key);
+                    }
+                    database.child(q.getFirebaseKey()).setValue(q);
+                }
+
                 runOnUiThread(() -> {
                     Toast.makeText(this, questions.size() + " questions saved and synced!", Toast.LENGTH_SHORT).show();
                     clearAllFields();
                     loadQuestions();
                 });
-            } catch (Exception e) {
-                e.printStackTrace();
-                runOnUiThread(() -> Toast.makeText(this, "Failed to save: " + e.getMessage(), Toast.LENGTH_LONG).show());
+
+            } catch (Exception ex) {
+                ex.printStackTrace();
+                runOnUiThread(() ->
+                        Toast.makeText(this, "Failed to save: " + ex.getMessage(), Toast.LENGTH_LONG).show()
+                );
             }
         }).start();
     }
+
+
 
     private void collectQuestionsFromContainer(LinearLayout container, String type, List<Question> allQuestions) {
         for (int i = 0; i < container.getChildCount(); i++) {
