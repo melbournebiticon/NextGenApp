@@ -451,17 +451,32 @@ public class TeacherDashboardActivity extends AppCompatActivity implements Navig
     }
 
     private void logout() {
-        SharedPreferences prefs = getSharedPreferences("user_data", MODE_PRIVATE);
-        prefs.edit().remove("logged_user").apply();
+        new AlertDialog.Builder(this)
+                .setTitle("Logout")
+                .setMessage("Are you sure you want to logout?")
+                .setCancelable(false)
+                .setPositiveButton("Yes", (dialog, which) -> {
 
-        FirebaseAuth.getInstance().signOut();
-        sessionManager.clearSession();
+                    // Delete saved user
+                    SharedPreferences prefs = getSharedPreferences("user_data", MODE_PRIVATE);
+                    prefs.edit().remove("logged_user").apply();
 
-        Intent intent = new Intent(this, MainActivity.class);
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        startActivity(intent);
-        finish();
+                    // Sign out Firebase
+                    FirebaseAuth.getInstance().signOut();
+
+                    // Clear session
+                    sessionManager.clearSession();
+
+                    // Redirect to MainActivity
+                    Intent intent = new Intent(this, MainActivity.class);
+                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                    startActivity(intent);
+                    finish();
+                })
+                .setNegativeButton("No", (dialog, which) -> dialog.dismiss())
+                .show();
     }
+
 
     @Override
     public void onBackPressed() {

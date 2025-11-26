@@ -2,18 +2,18 @@ package com.example.nextgen.student;
 
 public class ActivityModel {
     private String id;
-    private String activityId;   // ✅ for passing unique activity reference
+    private String activityId;
     private String title;
     private String description;
     private String dueDate;
     private String courseDisplay;
     private String subject;
     private String subjectId;
-    private String subjectCode;  // ✅ for passing subject code
+    private String subjectCode;
     private String teacherName;
-
-    private String mainTerm; // e.g., "1st Term", "2nd Term"
-    private String subTerm;  // e.g., "Prelim", "Midterm", "Finals"
+    private String maxScore;     // ✅ CRITICAL: Max Score field
+    private String mainTerm;
+    private String subTerm;
 
 
     public ActivityModel() {} // required for Firebase
@@ -29,6 +29,9 @@ public class ActivityModel {
     public String getSubjectId() { return subjectId; }
     public String getSubjectCode() { return subjectCode; }
     public String getTeacherName() { return teacherName; }
+    public String getMaxScore() { return maxScore; } // ✅ Max Score Getter
+    public String getMainTerm() { return mainTerm; }
+    public String getSubTerm() { return subTerm; }
 
     // ===== Setters =====
     public void setId(String id) { this.id = id; }
@@ -41,11 +44,7 @@ public class ActivityModel {
     public void setSubjectId(String subjectId) { this.subjectId = subjectId; }
     public void setSubjectCode(String subjectCode) { this.subjectCode = subjectCode; }
     public void setTeacherName(String teacherName) { this.teacherName = teacherName; }
-
-    public String getMainTerm() { return mainTerm; }
+    public void setMaxScore(String maxScore) { this.maxScore = maxScore; } // ✅ Max Score Setter
     public void setMainTerm(String mainTerm) { this.mainTerm = mainTerm; }
-
-    public String getSubTerm() { return subTerm; }
     public void setSubTerm(String subTerm) { this.subTerm = subTerm; }
-
 }

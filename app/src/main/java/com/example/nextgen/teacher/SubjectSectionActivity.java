@@ -1,21 +1,23 @@
 package com.example.nextgen.teacher;
 
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.Toast;
+
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+
 import com.example.nextgen.R;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
+
 import java.util.ArrayList;
 import java.util.List;
-import android.util.Log;
-
 
 public class SubjectSectionActivity extends AppCompatActivity {
 
@@ -24,15 +26,8 @@ public class SubjectSectionActivity extends AppCompatActivity {
     private List<StudentModel> studentList;
     private DatabaseReference studentsRef;
     private DatabaseReference submissionsRef;
-    private String activityId; // add at top
-
-    private SubmissionModel submission;
-
-    public void setSubmission(SubmissionModel submission) { this.submission = submission; }
-    public SubmissionModel getSubmission() { return submission; }
-
-
-
+    private String activityId;
+    private String maxScore; // Maximum score for this activity
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -40,18 +35,25 @@ public class SubjectSectionActivity extends AppCompatActivity {
         setContentView(R.layout.activity_subject_section);
 
         activityId = getIntent().getStringExtra("activityId");
+        maxScore = getIntent().getStringExtra("maxScore");
 
+        // Ensure maxScore is never null
+        if (maxScore == null || maxScore.isEmpty()) {
+            maxScore = "100";
+        }
 
         recyclerView = findViewById(R.id.recyclerViewStudents);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         studentList = new ArrayList<>();
-        sectionAdapter = new SectionAdapter(studentList);
+
+        // Pass maxScore to adapter
+        sectionAdapter = new SectionAdapter(studentList, maxScore);
         recyclerView.setAdapter(sectionAdapter);
 
         studentsRef = FirebaseDatabase.getInstance().getReference("Students");
         submissionsRef = FirebaseDatabase.getInstance().getReference("Submissions");
 
-        // Get course info from intent (passed from TeacherActivities or Subject)
+        // Get course info from intent
         String courseName = getIntent().getStringExtra("courseName");
         String specialization = getIntent().getStringExtra("specializationName");
         String year = getIntent().getStringExtra("yearName");
@@ -65,7 +67,7 @@ public class SubjectSectionActivity extends AppCompatActivity {
     }
 
     private void loadStudentsByClass(String courseName, String specialization, String year, String section) {
-        studentsRef.addListenerForSingleValueEvent(new ValueEventListener() {
+        studentsRef.addValueEventListener(new ValueEventListener() { // continuous listener
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 studentList.clear();
@@ -77,18 +79,12 @@ public class SubjectSectionActivity extends AppCompatActivity {
                             year.equals(student.getYearName()) &&
                             section.equals(student.getSectionName())) {
                         studentList.add(student);
-                        Log.d("SUB_LOG", "Loaded student: " + student.getFullName() + " (" + student.getStudentId() + ")");
                     }
                 }
-
-                if (studentList.isEmpty()) {
-                    Toast.makeText(SubjectSectionActivity.this, "No students found in this class", Toast.LENGTH_SHORT).show();
-                }
-                if (activityId != null) {
-                    loadSubmissions(activityId);
-                }
-
                 sectionAdapter.notifyDataSetChanged();
+                if (activityId != null) {
+                    loadSubmissions(activityId); // also continuous
+                }
             }
 
             @Override
@@ -100,27 +96,23 @@ public class SubjectSectionActivity extends AppCompatActivity {
 
     private void loadSubmissions(String activityId) {
         submissionsRef.orderByChild("activityId").equalTo(activityId)
-                .addListenerForSingleValueEvent(new ValueEventListener() {
+                .addValueEventListener(new ValueEventListener() { // continuous listener
                     @Override
                     public void onDataChange(@NonNull DataSnapshot snapshot) {
-                        List<SubmissionModel> submissionList = new ArrayList<>();
                         for (DataSnapshot snap : snapshot.getChildren()) {
                             SubmissionModel submission = snap.getValue(SubmissionModel.class);
                             if (submission != null) {
                                 submission.setId(snap.getKey());
-                                submissionList.add(submission);
-                                Log.d("SUB_LOG", "Loaded submission: " + submission.getFileName() +
-                                        " by student: " + submission.getStudentId() +
-                                        " for activity: " + submission.getActivityId());
+                                // find the corresponding student and update submission
+                                for (StudentModel student : studentList) {
+                                    if (student.getUid().equals(submission.getStudentId())) {
+                                        student.setSubmission(submission);
+                                        break;
+                                    }
+                                }
                             }
                         }
-
-                        if (submissionList.isEmpty()) {
-                            Toast.makeText(SubjectSectionActivity.this, "No submissions yet", Toast.LENGTH_SHORT).show();
-                            Log.d("SUB_LOG", "No submissions found for activityId: " + activityId);
-                        } else {
-                            displaySubmissions(submissionList);
-                        }
+                        sectionAdapter.notifyDataSetChanged(); // instantly reflect any change
                     }
 
                     @Override
@@ -133,7 +125,6 @@ public class SubjectSectionActivity extends AppCompatActivity {
     private void displaySubmissions(List<SubmissionModel> submissions) {
         for (StudentModel student : studentList) {
             for (SubmissionModel s : submissions) {
-                // Compare Firebase UID instead of studentId
                 if (s.getStudentId().equals(student.getUid())) {
                     student.setSubmission(s);
                     break;
@@ -143,6 +134,14 @@ public class SubjectSectionActivity extends AppCompatActivity {
         sectionAdapter.notifyDataSetChanged();
     }
 
-
-
+    // Update a single student's submission immediately (score or resubmit)
+    public void updateStudentSubmission(String studentUid, SubmissionModel newSubmission) {
+        for (StudentModel student : studentList) {
+            if (student.getUid().equals(studentUid)) {
+                student.setSubmission(newSubmission);
+                sectionAdapter.notifyDataSetChanged(); // instantly reflect change
+                break;
+            }
+        }
+    }
 }

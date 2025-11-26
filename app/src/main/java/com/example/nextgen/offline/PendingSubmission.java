@@ -2,10 +2,15 @@ package com.example.nextgen.offline;
 
 import androidx.annotation.NonNull;
 import androidx.room.Entity;
+import androidx.room.Index;
 import androidx.room.PrimaryKey;
 
-// Simple Room entity to hold a locally saved submission pending upload
-@Entity(tableName = "pending_submissions")
+/**
+ * PendingSubmission stored in Room for offline submissions.
+ * Added metadata fields so dashboard can show useful info while offline.
+ */
+@Entity(tableName = "pending_submissions",
+        indices = {@Index(value = {"examId", "studentId"})})
 public class PendingSubmission {
     @PrimaryKey
     @NonNull
@@ -18,4 +23,14 @@ public class PendingSubmission {
     public int maxScore;
     public long timestamp;
     public String status; // "PENDING", "SYNCING", "SYNCED", "FAILED"
+
+    // Optional metadata to improve offline UX
+    public String studentName;
+    public String profileImage; // base64 or URL (nullable)
+    public String subjectName;
+    public String teacherName;
+    public String subjectCode;
+
+    // Use primitive with default 0 to match migration that adds NOT NULL DEFAULT 0
+    public int deductions = 0;
 }

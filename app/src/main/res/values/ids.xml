@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="tvMaxScore" type="id" />
+    <item name="recyclerViewActivities" type="id" />
+</resources>

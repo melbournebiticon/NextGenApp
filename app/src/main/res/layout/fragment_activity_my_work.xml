@@ -6,12 +6,11 @@
     android:padding="16dp">
 
 
-<LinearLayout
+    <LinearLayout
         android:orientation="vertical"
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
 
-        <!-- Submission Status -->
         <TextView
             android:id="@+id/tvWorkStatus"
             android:layout_width="match_parent"
@@ -22,10 +21,19 @@
             android:textColor="#333"
             android:padding="10dp"
             android:background="#F5F5F5"
-            android:layout_marginBottom="10dp"
+            android:layout_marginBottom="4dp"
             android:gravity="center"/>
 
-        <!-- Deadline Warning -->
+        <TextView
+            android:id="@+id/tvMaxScore"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Max Score: 0"
+            android:textSize="14sp"
+            android:textColor="#555"
+            android:gravity="center"
+            android:paddingBottom="10dp"
+            android:layout_marginBottom="10dp"/>
         <TextView
             android:id="@+id/tvDeadlineNotice"
             android:layout_width="match_parent"
@@ -39,7 +47,6 @@
             android:background="#FFEBEE"
             android:layout_marginBottom="16dp"/>
 
-        <!-- File Picker Card -->
         <androidx.cardview.widget.CardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -77,7 +84,6 @@
 
         </androidx.cardview.widget.CardView>
 
-        <!-- Preview Card -->
         <androidx.cardview.widget.CardView
             android:id="@+id/previewContainer"
             android:layout_width="match_parent"
@@ -138,7 +144,6 @@
 
         </androidx.cardview.widget.CardView>
 
-        <!-- Submit Button -->
         <Button
             android:id="@+id/btnSubmitFile"
             android:layout_width="match_parent"

@@ -18,9 +18,10 @@ import java.util.Locale;
 
 public class ActivityDetailsFragment extends Fragment {
 
+    // ✅ FIX 1: Tanggapin ang Max Score mula sa ActivityDetailsPagerAdapter
     public static ActivityDetailsFragment newInstance(
             String code, String name, String teacher, String desc,
-            String dueDate, String mainTerm, String subTerm) {
+            String dueDate, String mainTerm, String subTerm, String maxScore) { // 🏆 IDINAGDAG ANG MAXSCORE
 
         ActivityDetailsFragment fragment = new ActivityDetailsFragment();
         Bundle args = new Bundle();
@@ -31,6 +32,7 @@ public class ActivityDetailsFragment extends Fragment {
         args.putString("dueDate", dueDate);
         args.putString("mainTerm", mainTerm);
         args.putString("subTerm", subTerm);
+        args.putString("maxScore", maxScore); // ✅ Ilagay sa Arguments
         fragment.setArguments(args);
         return fragment;
     }
@@ -40,29 +42,28 @@ public class ActivityDetailsFragment extends Fragment {
     public View onCreateView(@NonNull LayoutInflater inflater,
                              @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
-        // Ensure this matches the file name of the improved UI XML, e.g., R.layout.fragment_activity_details
+
         View view = inflater.inflate(R.layout.fragment_activity_details, container, false);
 
-        // Map the TextViews using your existing IDs
+        // Map the existing TextViews
         TextView tvTeacher = view.findViewById(R.id.tvTeacher);
         TextView tvDesc = view.findViewById(R.id.tvDesc);
         TextView tvDeadline = view.findViewById(R.id.tvDeadline);
         TextView tvTerm = view.findViewById(R.id.tvTerm);
 
+        // 🏆 CRITICAL FIX 2: I-map ang TextView gamit ang TAMANG ID mula sa XML
+        TextView tvMaxScore = view.findViewById(R.id.tvMaxScore);
+
         Bundle args = getArguments();
         if (args != null) {
-            String code = args.getString("code", "N/A");
-            String name = args.getString("name", "N/A");
             String teacher = args.getString("teacher", "N/A");
             String desc = args.getString("desc", "N/A");
             String dueDate = args.getString("dueDate", "N/A");
             String mainTerm = args.getString("mainTerm", "N/A");
             String subTerm = args.getString("subTerm", "N/A");
-
-
+            String maxScore = args.getString("maxScore", "100"); // ✅ Kunin ang Max Score
 
             // 2. METADATA ROWS: Set the raw data for the icon-driven rows.
-            // The XML layout provides the "Instructor:" and icons.
             tvTeacher.setText("Instructor: " + teacher);
 
             // The XML layout provides the "Term:" label and icon.
@@ -73,6 +74,11 @@ public class ActivityDetailsFragment extends Fragment {
 
             // 4. DESCRIPTION
             tvDesc.setText(desc);
+
+            // 🏆 FINAL FIX 3: I-set ang tamang Max Score sa TextView
+            if (tvMaxScore != null) {
+                tvMaxScore.setText(maxScore + " Points");
+            }
         }
 
         return view;

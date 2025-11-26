@@ -51,6 +51,8 @@ android {
 }
 
 dependencies {
+    // Add to dependencies { ... } in app/build.gradle
+    implementation("com.google.zxing:core:3.5.1")
     implementation("androidx.work:work-runtime:2.8.1")
 
     implementation("com.google.code.gson:gson:2.10.1")

@@ -234,7 +234,14 @@ public class GenerateQuestionsActivity extends AppCompatActivity {
                 String c = ((EditText) item.getChildAt(3)).getText().toString().trim();
                 String d = ((EditText) item.getChildAt(4)).getText().toString().trim();
                 String answer = ((Spinner) item.getChildAt(5)).getSelectedItem().toString();
-                q = new Question(examId, qText, type, a, b, c, d, answer);
+                String correctOption = "";
+                switch (answer) {
+                    case "A": correctOption = a; break;
+                    case "B": correctOption = b; break;
+                    case "C": correctOption = c; break;
+                    case "D": correctOption = d; break;
+                }
+                q = new Question(examId, qText, type, a, b, c, d, correctOption);
             } else if (type.equals("True/False")) {
                 String answer = ((Spinner) item.getChildAt(1)).getSelectedItem().toString();
                 q = new Question(examId, qText, type, "", "", "", "", answer);
@@ -399,7 +406,14 @@ public class GenerateQuestionsActivity extends AppCompatActivity {
                 if(current.getQuestionType().equals("Multiple Choice") && options.size() == 4){
                     current.setOptionA(options.get(0)); current.setOptionB(options.get(1));
                     current.setOptionC(options.get(2)); current.setOptionD(options.get(3));
-                    current.setCorrectAnswer(ans);
+                    // If ans is A/B/C/D, convert to actual value
+                    String correctOption = ans;
+                    if(ans.equals("A")) correctOption = options.get(0);
+                    else if(ans.equals("B")) correctOption = options.get(1);
+                    else if(ans.equals("C")) correctOption = options.get(2);
+                    else if(ans.equals("D")) correctOption = options.get(3);
+                    current.setCorrectAnswer(correctOption);
+
                 } else if(current.getQuestionType().equals("True/False")){
                     current.setCorrectAnswer(ans);
                 } else if(current.getQuestionType().equals("Matching Type")){
@@ -506,7 +520,15 @@ public class GenerateQuestionsActivity extends AppCompatActivity {
                         question.setOptionB(etB.getText().toString().trim());
                         question.setOptionC(etC.getText().toString().trim());
                         question.setOptionD(etD.getText().toString().trim());
-                        question.setCorrectAnswer(spMCAnswer.getSelectedItem().toString());
+                        String selected = spMCAnswer.getSelectedItem().toString();
+                        String correctOption = "";
+                        switch (selected) {
+                            case "A": correctOption = etA.getText().toString().trim(); break;
+                            case "B": correctOption = etB.getText().toString().trim(); break;
+                            case "C": correctOption = etC.getText().toString().trim(); break;
+                            case "D": correctOption = etD.getText().toString().trim(); break;
+                        }
+                        question.setCorrectAnswer(correctOption);
                     } else if (question.getQuestionType().equals("True/False")) {
                         question.setCorrectAnswer(spTFAnswer.getSelectedItem().toString());
                         question.setOptionA(""); question.setOptionB(""); question.setOptionC(""); question.setOptionD("");

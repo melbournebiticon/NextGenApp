@@ -250,22 +250,41 @@ public class TakeExamActivity extends AppCompatActivity {
             }
         });
     }
+    private boolean isActivityAlive() {
+        // isDestroyed() exists on API 17+; safe to call on modern projects
+        return !isFinishing() && !isDestroyed();
+    }
 
     private void showExamRulesAlert() {
-        isShowingRules = true;
-        new AlertDialog.Builder(this)
-                .setTitle("IMPORTANT: Exam Rules & Anti-Cheating")
-                .setMessage("By pressing START, you agree to the following rules:\n\n" +
-                        "1. DO NOT EXIT THE APP (Switching or minimizing will deduct points).\n" +
-                        "2. DO NOT USE SPLIT-SCREEN or MULTI-WINDOW mode.\n" +
-                        "3. The PHONE'S BACK BUTTON is DISABLED.\n" +
-                        "4. The In-App Back Arrow will deduct " + DEDUCTION_PER_STRIKE + " point(s) upon press.\n" +
-                        "5. Your microphone will be monitored for HUMAN voice (Speech/Whispering) only.\n\n" +
-                        "Exceeding " + MAX_SWITCHES + " screen/navigation violations or " + MAX_AUDIO_STRIKES + " audio strikes will result in automatic submission with a score of zero (0)."
-                )
-                .setPositiveButton("START EXAM", (dialog, which) -> startExamLoadingProcessContinued())
-                .setCancelable(false)
-                .show();
+        // Ensure the activity is alive before attempting to show a dialog
+        if (!isActivityAlive()) return;
+
+        runOnUiThread(() -> {
+            if (!isActivityAlive()) return;
+
+            try {
+                new AlertDialog.Builder(TakeExamActivity.this)
+                        .setTitle("IMPORTANT: Exam Rules & Anti-Cheating")
+                        .setMessage("By pressing START, you agree to the following rules:\n\n" +
+                                "1. DO NOT EXIT THE APP (Switching or minimizing will deduct points).\n" +
+                                "2. DO NOT USE SPLIT-SCREEN or MULTI-WINDOW mode.\n" +
+                                "3. The PHONE'S BACK BUTTON is DISABLED.\n" +
+                                "4. The In-App Back Arrow will deduct " + DEDUCTION_PER_STRIKE + " point(s) upon press.\n" +
+                                "5. Your microphone will be monitored for HUMAN voice (Speech/Whispering) only.\n\n" +
+                                "Exceeding " + MAX_SWITCHES + " screen/navigation violations or " + MAX_AUDIO_STRIKES + " audio strikes will result in automatic submission with a score of zero (0)."
+                        )
+                        .setPositiveButton("START EXAM", (dialog, which) -> {
+                            if (isActivityAlive()) startExamLoadingProcessContinued();
+                        })
+                        .setCancelable(false)
+                        .show();
+            } catch (WindowManager.BadTokenException e) {
+                // Activity probably finished before the dialog could be shown -> ignore safely
+                Log.w("TakeExamActivity", "Could not show rules dialog: activity not running", e);
+            } catch (Exception e) {
+                Log.e("TakeExamActivity", "Unexpected error showing rules dialog", e);
+            }
+        });
     }
 
     private void startExamLoadingProcessContinued() {
@@ -338,22 +357,52 @@ public class TakeExamActivity extends AppCompatActivity {
         if (countDownTimer != null) countDownTimer.cancel();
         stopAudioMonitoring();
     }
-
     @Override
     protected void onPause() {
         super.onPause();
         if (isFinishing()) return;
-
         if (isShowingRules || isRequestingMicPermission) return;
 
         switchCount++;
         totalDeductions += DEDUCTION_PER_STRIKE;
 
+        // Stop audio monitoring to preserve resources and ensure restart upon resume
+        stopAudioMonitoring();
+
+        // Always show Toast for feedback
         if (switchCount >= MAX_SWITCHES) {
             Toast.makeText(this, "Cheating detected! Auto-submitting exam.", Toast.LENGTH_LONG).show();
-            submitExamWithZeroScore();
+            // Try alert, but if app is backgrounded, submit immediately:
+            try {
+                runOnUiThread(() -> {
+                    new AlertDialog.Builder(TakeExamActivity.this)
+                            .setTitle("Cheating Detected!")
+                            .setMessage("You switched away from the exam too many times.\nYour exam will be auto-submitted with zero score.")
+                            .setPositiveButton("OK", (dialog, which) -> {
+                                dialog.dismiss();
+                                submitExamWithZeroScore();
+                            })
+                            .setCancelable(false)
+                            .show();
+                });
+            } catch (Exception e) {
+                submitExamWithZeroScore();
+            }
         } else {
             Toast.makeText(this, "WARNING: Switching apps detected. " + (MAX_SWITCHES - switchCount) + " attempts left.", Toast.LENGTH_LONG).show();
+            try {
+                runOnUiThread(() -> {
+                    new AlertDialog.Builder(TakeExamActivity.this)
+                            .setTitle("Warning: App Switching Detected")
+                            .setMessage("Switching apps or minimizing during the exam is NOT allowed.\nAttempts left: " +
+                                    (MAX_SWITCHES - switchCount))
+                            .setPositiveButton("OK", (dialog, which) -> dialog.dismiss())
+                            .setCancelable(true)
+                            .show();
+                });
+            } catch (Exception e) {
+                // Ignore dialog failure, Toast is visible
+            }
         }
     }
 
@@ -362,11 +411,49 @@ public class TakeExamActivity extends AppCompatActivity {
         super.onResume();
         if (isFinishing()) return;
 
+        // Restart audio monitoring so cheating detection resumes even after tab/app switch
+        startAudioMonitoring();
+
+        // If cheating threshold was reached while app was in BG, finish immediately:
+        if (switchCount >= MAX_SWITCHES) {
+            Toast.makeText(this, "Cheating detected! Auto-submitting exam.", Toast.LENGTH_LONG).show();
+            runOnUiThread(() -> {
+                try {
+                    new AlertDialog.Builder(TakeExamActivity.this)
+                            .setTitle("Cheating Detected!")
+                            .setMessage("You switched away from the exam too many times. Your exam will be auto-submitted with zero score.")
+                            .setPositiveButton("OK", (dialog, which) -> {
+                                dialog.dismiss();
+                                submitExamWithZeroScore();
+                            })
+                            .setCancelable(false)
+                            .show();
+                } catch (Exception e) {
+                    submitExamWithZeroScore();
+                }
+            });
+            return;
+        }
+
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N && isInMultiWindowMode()) {
             if (countDownTimer != null) countDownTimer.cancel();
             stopAudioMonitoring();
             Toast.makeText(this, "CHEATING DETECTED: Split-screen mode. Auto-submitting.", Toast.LENGTH_LONG).show();
-            submitExamWithZeroScore();
+            runOnUiThread(() -> {
+                try {
+                    new AlertDialog.Builder(TakeExamActivity.this)
+                            .setTitle("Cheating Detected!")
+                            .setMessage("Split-screen/multi-window mode is not allowed during the exam. Your exam will now be auto-submitted with zero score.")
+                            .setPositiveButton("OK", (dialog, which) -> {
+                                dialog.dismiss();
+                                submitExamWithZeroScore();
+                            })
+                            .setCancelable(false)
+                            .show();
+                } catch (Exception e) {
+                    submitExamWithZeroScore();
+                }
+            });
             return;
         }
 
@@ -388,11 +475,37 @@ public class TakeExamActivity extends AppCompatActivity {
 
             if (switchCount >= MAX_SWITCHES) {
                 Toast.makeText(this, "CHEATING DETECTED: Auto-submitting.", Toast.LENGTH_LONG).show();
-                submitExamWithZeroScore();
+                runOnUiThread(() -> {
+                    try {
+                        new AlertDialog.Builder(TakeExamActivity.this)
+                                .setTitle("Cheating Detected!")
+                                .setMessage("You navigated away from the exam too many times.\nYour exam will be auto-submitted with zero score.")
+                                .setPositiveButton("OK", (dialog, which) -> {
+                                    dialog.dismiss();
+                                    submitExamWithZeroScore();
+                                })
+                                .setCancelable(false)
+                                .show();
+                    } catch (Exception e) {
+                        submitExamWithZeroScore();
+                    }
+                });
             } else {
                 Toast.makeText(this, "In-app Back Arrow detected. " + (MAX_SWITCHES - switchCount) + " attempts left.", Toast.LENGTH_LONG).show();
+                try {
+                    runOnUiThread(() -> {
+                        new AlertDialog.Builder(TakeExamActivity.this)
+                                .setTitle("Warning: In-App Back Arrow Detected")
+                                .setMessage("Using the back arrow during an exam is NOT allowed.\nAttempts left: " +
+                                        (MAX_SWITCHES - switchCount))
+                                .setPositiveButton("OK", (dialog, which) -> dialog.dismiss())
+                                .setCancelable(true)
+                                .show();
+                    });
+                } catch (Exception e) {
+                    // Ignore dialog failure
+                }
             }
-
             return true;
         }
         return super.onOptionsItemSelected(item);
@@ -488,6 +601,69 @@ public class TakeExamActivity extends AppCompatActivity {
             });
         }).start();
     }
+
+    private boolean hasNextNonEmptySection() {
+        // Look for any questions that belong to a later section type
+        for (int i = typeIndex + 1; i < questionTypeOrder.length; i++) {
+            String futureType = questionTypeOrder[i];
+            for (Question q : questionList) {
+                if (q.getQuestionType() != null && q.getQuestionType().equalsIgnoreCase(futureType)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    // 2) Helper: check whether all questions have been answered
+    private boolean allQuestionsAnswered() {
+        for (Question q : questionList) {
+            String ans = q.getStudentAnswer();
+            if (ans == null || ans.trim().isEmpty()) return false;
+        }
+        return true;
+    }
+
+    // 3) Confirmation dialog before final submission (handles unanswered case)
+    private void maybeConfirmSubmit() {
+        if (!isActivityAlive()) return;
+
+        runOnUiThread(() -> {
+            if (!isActivityAlive()) return;
+
+            if (allQuestionsAnswered()) {
+                try {
+                    new AlertDialog.Builder(TakeExamActivity.this)
+                            .setTitle("Confirm Submit")
+                            .setMessage("Are you sure you want to submit? You won't be able to change your answers.")
+                            .setPositiveButton("Submit", (dialog, which) -> submitExam())
+                            .setNegativeButton("Cancel", null)
+                            .setCancelable(true)
+                            .show();
+                } catch (WindowManager.BadTokenException e) {
+                    Log.w("TakeExamActivity", "Confirm dialog not shown: activity not running", e);
+                }
+            } else {
+                int unanswered = 0;
+                for (Question q : questionList) {
+                    String ans = q.getStudentAnswer();
+                    if (ans == null || ans.trim().isEmpty()) unanswered++;
+                }
+                try {
+                    new AlertDialog.Builder(TakeExamActivity.this)
+                            .setTitle("Unanswered Questions")
+                            .setMessage("You have " + unanswered + " unanswered question(s). Do you want to submit anyway?")
+                            .setPositiveButton("Submit Anyway", (dialog, which) -> submitExam())
+                            .setNegativeButton("Go Back", null)
+                            .setCancelable(true)
+                            .show();
+                } catch (WindowManager.BadTokenException e) {
+                    Log.w("TakeExamActivity", "Unanswered confirm dialog not shown: activity not running", e);
+                }
+            }
+        });
+    }
+
 
     // Put this helper method in your activity as well:
     private boolean isNetworkAvailable() {
@@ -637,8 +813,8 @@ public class TakeExamActivity extends AppCompatActivity {
             questionAdapter = new TakeExamAdapter(TakeExamActivity.this, singleQuestion, allMatchingAnswers);
             rvQuestions.setAdapter(questionAdapter);
 
-
-            if (currentIndex == currentTypeQuestions.size() - 1 && typeIndex == questionTypeOrder.length - 1) {
+            // NEW: look ahead for actual non-empty sections
+            if (currentIndex == currentTypeQuestions.size() - 1 && !hasNextNonEmptySection()) {
                 btnSubmit.setText("Submit Exam");
             } else if (currentIndex == currentTypeQuestions.size() - 1) {
                 btnSubmit.setText("Next Section");
@@ -665,6 +841,8 @@ public class TakeExamActivity extends AppCompatActivity {
         }
     }
 
+    // Paste these two methods into TakeExamActivity, replacing the existing submitExam() and submitExamWithZeroScore() methods.
+
     private void submitExam() {
         stopAudioMonitoring();
 
@@ -677,10 +855,11 @@ public class TakeExamActivity extends AppCompatActivity {
 
         int totalQuestions = questionList.size();
         int correctAnswers = 0;
-
         for (Question q : questionList) {
             String studentAns = q.getStudentAnswer();
-            if (studentAns != null && q.getCorrectAnswer() != null && studentAns.equalsIgnoreCase(q.getCorrectAnswer())) {
+            String correctAns = q.getCorrectAnswer();
+            if (studentAns != null && correctAns != null &&
+                    studentAns.trim().equalsIgnoreCase(correctAns.trim())) {
                 correctAnswers++;
             }
         }
@@ -691,7 +870,7 @@ public class TakeExamActivity extends AppCompatActivity {
         String localStudentId = com.example.nextgen.SessionManager.getStudentId(this);
         if (localStudentId != null && !localStudentId.isEmpty()) {
             com.example.nextgen.sync.SubmissionHelper.saveSubmissionLocallyAndEnqueue(
-                    TakeExamActivity.this,
+                    getApplicationContext(),
                     examId,
                     localStudentId,
                     questionList,
@@ -710,17 +889,19 @@ public class TakeExamActivity extends AppCompatActivity {
                 .addListenerForSingleValueEvent(new ValueEventListener() {
                     @Override
                     public void onDataChange(@NonNull DataSnapshot snapshot) {
-                        btnSubmit.setEnabled(true);
                         if (snapshot.exists()) {
                             for (DataSnapshot ds : snapshot.getChildren()) {
                                 String studentId = ds.child("studentId").getValue(String.class);
                                 if (studentId == null || studentId.isEmpty()) {
                                     Toast.makeText(TakeExamActivity.this, "Student ID missing.", Toast.LENGTH_SHORT).show();
+                                    // allow retry by re-enabling the button
+                                    btnSubmit.setEnabled(true);
                                     return;
                                 }
 
+                                // Use the studentId read from Firebase
                                 com.example.nextgen.sync.SubmissionHelper.saveSubmissionLocallyAndEnqueue(
-                                        TakeExamActivity.this,
+                                        getApplicationContext(),
                                         examId,
                                         studentId,
                                         questionList,
@@ -756,7 +937,7 @@ public class TakeExamActivity extends AppCompatActivity {
         String localStudentId = com.example.nextgen.SessionManager.getStudentId(this);
         if (localStudentId != null && !localStudentId.isEmpty()) {
             com.example.nextgen.sync.SubmissionHelper.saveSubmissionLocallyAndEnqueue(
-                    TakeExamActivity.this,
+                    getApplicationContext(),
                     examId,
                     localStudentId,
                     questionList,
@@ -774,17 +955,18 @@ public class TakeExamActivity extends AppCompatActivity {
                 .addListenerForSingleValueEvent(new ValueEventListener() {
                     @Override
                     public void onDataChange(@NonNull DataSnapshot snapshot) {
-                        btnSubmit.setEnabled(true);
                         if (snapshot.exists()) {
                             for (DataSnapshot ds : snapshot.getChildren()) {
                                 String studentId = ds.child("studentId").getValue(String.class);
                                 if (studentId == null || studentId.isEmpty()) {
                                     Toast.makeText(TakeExamActivity.this, "Student ID missing.", Toast.LENGTH_SHORT).show();
+                                    btnSubmit.setEnabled(true);
                                     return;
                                 }
 
+                                // Use the studentId read from Firebase (not localStudentId)
                                 com.example.nextgen.sync.SubmissionHelper.saveSubmissionLocallyAndEnqueue(
-                                        TakeExamActivity.this,
+                                        getApplicationContext(),
                                         examId,
                                         studentId,
                                         questionList,
@@ -822,6 +1004,27 @@ public class TakeExamActivity extends AppCompatActivity {
     }
 
     private void redirectToResultActivity(int score, int maxScore) {
+        // Offline fallback: if no network, launch ResultActivity with local data only
+        // Offline behavior: don't show result screen — return to dashboard and inform user
+        if (!isNetworkAvailable()) {
+            // Stop any audio/timers if still running
+            if (countDownTimer != null) countDownTimer.cancel();
+            stopAudioMonitoring();
+
+            // Inform the student and return to dashboard
+            Toast.makeText(TakeExamActivity.this,
+                    "Submission saved locally and will sync when online. You will be returned to the dashboard.",
+                    Toast.LENGTH_LONG).show();
+
+            Intent intent = new Intent(TakeExamActivity.this, StudentDashboardActivity.class);
+// include flag and pending exam id so dashboard can refresh and highlight
+            intent.putExtra("fromSubmitPending", true);
+            intent.putExtra("pendingExamId", examId);
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+            finish();
+            return;
+        }
         // NOTE: ALL Firebase lookups for Student/Exam/Subject info are moved here.
 
         // Step 1: Get Student Info
@@ -920,12 +1123,13 @@ public class TakeExamActivity extends AppCompatActivity {
         });
     }
 
+// ... (unchanged imports and class code above)
+
     // ----------- AUDIO MONITORING WITH HUMAN VOICE DETECTION -------------
     private void startAudioMonitoring() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             return;
         }
-
         startAudioClassification();
     }
 
@@ -934,8 +1138,7 @@ public class TakeExamActivity extends AppCompatActivity {
         if (mediaRecorder != null) {
             try {
                 mediaRecorder.stop();
-            } catch (Exception ignored) {
-            }
+            } catch (Exception ignored) { }
             mediaRecorder.release();
             mediaRecorder = null;
         }
@@ -943,24 +1146,21 @@ public class TakeExamActivity extends AppCompatActivity {
             classifier.close();
             classifier = null;
         }
-        // I-reset ang audio counter kapag nag-submit o nag-stop ang monitoring
         audioCheatingCount = 0;
     }
 
-    // Tandaan: Ang FINAL_HUMAN_THRESHOLD ay dapat mo ring i-update sa taas ng TakeExamActivity.java
-// Halimbawa: private final float FINAL_HUMAN_THRESHOLD = 0.75f;
-// Kung wala ka pang variable sa taas, gamitin muna natin ang hardcoded value.
+    // FINAL MODIFIED AUDIO MONITORING (sensitive only to CLOSE/loud voices)
+    // ... (other unchanged imports and code)
 
     private void startAudioClassification() {
-        // **BAGONG FINAL THRESHOLD: 0.75f**
-        final float NEW_HIGH_CONFIDENCE_THRESHOLD = 0.75f;
+        final float NEW_HIGH_CONFIDENCE_THRESHOLD = 0.6f;   // Lowered for stronger detection
+        final float MIC_LOUDNESS_THRESHOLD = 0.15f;         // Lowered for stronger detection!
 
         try {
-            // Tanging ang detections na may confidence na 0.75f pataas ang papayagan.
             AudioClassifier.AudioClassifierOptions options =
                     AudioClassifier.AudioClassifierOptions.builder()
                             .setMaxResults(1)
-                            .setScoreThreshold(NEW_HIGH_CONFIDENCE_THRESHOLD) // Tumaas na threshold
+                            .setScoreThreshold(NEW_HIGH_CONFIDENCE_THRESHOLD)
                             .build();
 
             classifier = AudioClassifier.createFromFileAndOptions(this, "model.tflite", options);
@@ -975,56 +1175,66 @@ public class TakeExamActivity extends AppCompatActivity {
                         tensorAudio.load(audioRecord);
                         List<Classifications> results = classifier.classify(tensorAudio);
 
+                        // --- GET MIC AMPLITUDE (loudness) ---
+                        float[] audioData = tensorAudio.getTensorBuffer().getFloatArray();
+                        float maxAmplitude = 0f;
+                        for (float v : audioData) {
+                            maxAmplitude = Math.max(maxAmplitude, Math.abs(v));
+                        }
+                        // --- END MIC AMPLITUDE ---
+
                         if (!results.isEmpty()) {
                             Classifications classification = results.get(0);
                             if (!classification.getCategories().isEmpty()) {
                                 String label = classification.getCategories().get(0).getLabel();
                                 float confidence = classification.getCategories().get(0).getScore();
 
-                                // ✅ FINAL CHEATING LOGIC: Human o Speech at Confidence >= 0.75f
-                                // Tandaan: Dahil 0.75f na ang global threshold, lahat ng lalabas na result dito ay 0.75f na.
-                                if (label.equalsIgnoreCase("human") || label.equalsIgnoreCase("speech")) {
+                                // DEBUG LOGGING - helps you tune thresholds!
+                                Log.d("AUDIO_DEBUG", "Label=" + label
+                                        + " Confidence=" + confidence
+                                        + " MaxAmplitude=" + maxAmplitude);
+
+                                // FINAL MODIFIED CHEATING LOGIC: Only strike IF loud voice
+                                if ((label.equalsIgnoreCase("human") || label.equalsIgnoreCase("speech"))
+                                        && confidence >= NEW_HIGH_CONFIDENCE_THRESHOLD
+                                        && maxAmplitude >= MIC_LOUDNESS_THRESHOLD) {
 
                                     audioCheatingCount++;
-                                    Log.w("AUDIO_TFLITE", "!!! CHEATING STRIKE " + audioCheatingCount + ": " + label + " detected! Conf: " + confidence);
+                                    Log.w("AUDIO_TFLITE", "CHEATING STRIKE " + audioCheatingCount + ": " + label +
+                                            " (Conf: " + confidence + ", Loudness: " + maxAmplitude + ")");
 
-                                    // ⚠️ Show warning before auto-submitting
                                     if (audioCheatingCount < MAX_AUDIO_STRIKES) {
                                         runOnUiThread(() -> Toast.makeText(TakeExamActivity.this,
-                                                "WARNING: Human voice detected! (" + audioCheatingCount + "/" + MAX_AUDIO_STRIKES + ")",
+                                                "WARNING: Loud human voice detected! (" + audioCheatingCount + "/" + MAX_AUDIO_STRIKES + ")",
                                                 Toast.LENGTH_SHORT).show());
                                     }
 
-                                    // Auto-submit kapag umabot sa limit
                                     if (audioCheatingCount >= MAX_AUDIO_STRIKES) {
-                                        Log.e("AUDIO_TFLITE", "!!! MAJOR CHEATING: Audio strike limit reached! Auto-submitting!");
+                                        Log.e("AUDIO_TFLITE", "MAJOR CHEATING: Loud audio strike limit reached! Auto-submitting!");
                                         runOnUiThread(() -> submitExamWithZeroScore());
                                     }
-
-                                }
-
-                                // ❌ IGNORED: Non-human sound, o Silence (i-reset ang counter)
-                                else {
-                                    audioCheatingCount = 0; // Reset strike count
-                                    Log.d("AUDIO_TFLITE", "Ignored/Reset: Label: " + label + ", Conf: " + confidence);
+                                } else {
+                                    audioCheatingCount = 0; // Reset strikes unless clear and loud
+                                    Log.d("AUDIO_TFLITE", "Ignored/Reset: Label: " + label +
+                                            ", Conf: " + confidence +
+                                            ", Loudness: " + maxAmplitude);
                                 }
                             }
                         }
-
                     } catch (Exception e) {
                         Log.e("AUDIO_TFLITE", "Error during audio classification: " + e.getMessage());
                     }
-
                     audioHandler.postDelayed(this, AUDIO_DETECTION_INTERVAL);
                 }
             });
-
         } catch (IOException e) {
             e.printStackTrace();
             Toast.makeText(this, "Failed to load audio model.", Toast.LENGTH_SHORT).show();
         }
     }
 
+    // ... (other unchanged code below)
+    // ... (rest of your unchanged TakeExamActivity code)
     private void listenForExamReset(String studentId){
         DatabaseReference resetRef = FirebaseDatabase.getInstance()
                 .getReference("ExamStudents")
@@ -1079,14 +1289,36 @@ public class TakeExamActivity extends AppCompatActivity {
             return;
         }
 
+        Question current = currentTypeQuestions.get(currentIndex);
+        String answer = (current == null) ? null : current.getStudentAnswer();
+
+        if (answer == null || answer.trim().isEmpty()) {
+            if (!isActivityAlive()) return;
+            runOnUiThread(() -> {
+                if (!isActivityAlive()) return;
+                try {
+                    new AlertDialog.Builder(TakeExamActivity.this)
+                            .setTitle("Unanswered Question")
+                            .setMessage("You haven't answered this question yet. Please answer before moving on.")
+                            .setPositiveButton("OK", (dialog, which) -> dialog.dismiss())
+                            .setCancelable(true)
+                            .show();
+                } catch (WindowManager.BadTokenException e) {
+                    Log.w("TakeExamActivity", "Unanswered dialog not shown: activity not running", e);
+                }
+            });
+        } else {
+            moveToNext();
+        }
+    }
+
+    private void moveToNext() {
         if (currentIndex < currentTypeQuestions.size() - 1) {
-            // Move to next question in current type
             currentIndex++;
             typeQuestionNumber++;
             showQuestion(currentTypeQuestions.get(currentIndex));
             updateButtonText();
         } else {
-            // End of current type, go to next type or submit
             goToNextTypeOrSubmit();
         }
     }
@@ -1102,9 +1334,9 @@ public class TakeExamActivity extends AppCompatActivity {
                 goToNextTypeOrSubmit();
             }
         } else {
-            // All sections done, final submission
+            // All sections done -> ask for confirmation (replaces direct submitExam())
             btnSubmit.setText("Submit Exam");
-            submitExam();
+            maybeConfirmSubmit();
         }
     }
     private void showQuestion(Question question) {
@@ -1118,7 +1350,7 @@ public class TakeExamActivity extends AppCompatActivity {
     private void updateButtonText() {
         if (currentIndex < currentTypeQuestions.size() - 1) {
             btnSubmit.setText("Next");
-        } else if (typeIndex < questionTypeOrder.length - 1) {
+        } else if (hasNextNonEmptySection()) {
             btnSubmit.setText("Next Section");
         } else {
             btnSubmit.setText("Submit Exam");

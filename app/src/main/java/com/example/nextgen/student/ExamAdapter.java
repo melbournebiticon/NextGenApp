@@ -3,12 +3,13 @@ package com.example.nextgen.student;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
-import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
@@ -19,11 +20,21 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
+/**
+ * Improved ExamAdapter:
+ * - Uses an ExecutorService for background DB checks instead of raw Threads.
+ * - Uses applicationContext when getting AppDatabase.
+ * - Safely checks context instanceof Activity before casting.
+ * - Disables Take button while the async pending-check is running to avoid double clicks.
+ */
 public class ExamAdapter extends RecyclerView.Adapter<ExamAdapter.ExamViewHolder> {
 
-    private Context context;
-    private List<ExamModel> examList;
+    private final Context context;
+    private final List<ExamModel> examList;
+    private final ExecutorService bgExecutor = Executors.newSingleThreadExecutor();
 
     public ExamAdapter(Context context, List<ExamModel> examList) {
         this.context = context;
@@ -49,11 +60,9 @@ public class ExamAdapter extends RecyclerView.Adapter<ExamAdapter.ExamViewHolder
         holder.tvSchedule.setText("Schedule: " + exam.getScheduledDateDisplay());
 
         // --- 2. SET STATUS CHIP ---
-        // --- STATUS / BUTTON VISIBILITY (with local pending handling) ---
         boolean isPendingLocally = false;
         String statusLower = (examStatus != null) ? examStatus.toLowerCase() : "";
 
-// detect "pending" in status (your dashboard sets "TAKEN (Pending sync)")
         if (statusLower.contains("pending")) isPendingLocally = true;
 
         if (!exam.isPresent()) {
@@ -68,7 +77,6 @@ public class ExamAdapter extends RecyclerView.Adapter<ExamAdapter.ExamViewHolder
             );
 
         } else if (isPendingLocally) {
-            // Locally-submitted but waiting for sync
             holder.chipStatus.setText("SUBMITTED (Pending)");
             holder.chipStatus.setChipBackgroundColorResource(R.color.md_theme_primary);
             holder.chipStatus.setTextColor(Color.WHITE);
@@ -87,7 +95,65 @@ public class ExamAdapter extends RecyclerView.Adapter<ExamAdapter.ExamViewHolder
             holder.btnTakeExam.setVisibility(View.VISIBLE);
             holder.btnTakeExam.setText("Take Exam");
             holder.btnTakeExam.setBackgroundColor(Color.parseColor("#4CAF50"));
-            holder.btnTakeExam.setOnClickListener(v -> startTakeExamActivity(exam));
+
+            // On click: run async pending check then proceed
+            holder.btnTakeExam.setOnClickListener(v -> {
+                // prevent multiple clicks while checking
+                holder.btnTakeExam.setEnabled(false);
+
+                bgExecutor.execute(() -> {
+                    String studentId = com.example.nextgen.SessionManager.getStudentId(context);
+                    if (studentId == null || studentId.isEmpty()) {
+                        runOnUiThread(() -> {
+                            Toast.makeText(context, "Student ID not found.", Toast.LENGTH_SHORT).show();
+                            holder.btnTakeExam.setEnabled(true);
+                        });
+                        return;
+                    }
+
+                    com.example.nextgen.offline.AppDatabase db = com.example.nextgen.offline.AppDatabase.getInstance(context.getApplicationContext());
+                    com.example.nextgen.offline.PendingSubmission pending = null;
+                    try {
+                        pending = db.pendingSubmissionDao().findPendingByExamAndStudent(exam.getExamId(), studentId);
+                    } catch (Exception e) {
+                        Log.e("ExamAdapter", "Room check failed: " + e.getMessage(), e);
+                    }
+
+                    if (pending != null) {
+                        runOnUiThread(() -> {
+                            Toast.makeText(context, "You already submitted this exam (pending upload).", Toast.LENGTH_LONG).show();
+                            holder.btnTakeExam.setEnabled(false); // keep disabled because pending exists
+                        });
+                        return;
+                    }
+
+                    // No local pending -> proceed to mark ongoing (if online) and launch exam
+                    runOnUiThread(() -> {
+                        if (isNetworkAvailable(context)) {
+                            DatabaseReference ref = FirebaseDatabase.getInstance()
+                                    .getReference("ExamStudents")
+                                    .child(exam.getExamId())
+                                    .child(studentId);
+
+                            ref.child("ongoing").setValue(true)
+                                    .addOnSuccessListener(aVoid -> {
+                                        Toast.makeText(context, "Exam started! Marked as ongoing.", Toast.LENGTH_SHORT).show();
+                                        launchExamIntent(exam);
+                                        holder.btnTakeExam.setEnabled(true);
+                                    })
+                                    .addOnFailureListener(e -> {
+                                        Toast.makeText(context, "Failed to update ongoing, starting offline: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                                        launchExamIntent(exam);
+                                        holder.btnTakeExam.setEnabled(true);
+                                    });
+                        } else {
+                            // Offline: directly start the exam activity (offline mode)
+                            launchExamIntent(exam);
+                            holder.btnTakeExam.setEnabled(true);
+                        }
+                    });
+                });
+            });
 
             holder.itemView.setClickable(false);
             holder.itemView.setOnClickListener(null);
@@ -128,67 +194,28 @@ public class ExamAdapter extends RecyclerView.Adapter<ExamAdapter.ExamViewHolder
     }
 
     // Start TakeExamActivity
-    private void startTakeExamActivity(ExamModel exam) {
-        android.util.Log.d("ExamAdapter", "Attempting to start exam: " + exam.getExamId());
-
-        String studentId = com.example.nextgen.SessionManager.getStudentId(context);
-        if (studentId == null || studentId.isEmpty()) {
-            Toast.makeText(context, "Student ID not found.", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        // Check local Room for a pending submission for this exam+student
-        new Thread(() -> {
-            com.example.nextgen.offline.AppDatabase db = com.example.nextgen.offline.AppDatabase.getInstance(context);
-            com.example.nextgen.offline.PendingSubmission pending = null;
-            try {
-                pending = db.pendingSubmissionDao().findPendingByExamAndStudent(exam.getExamId(), studentId);
-            } catch (Exception e) {
-                android.util.Log.e("ExamAdapter", "Room check failed: " + e.getMessage());
-            }
-
-            if (pending != null) {
-                // Found local pending submission -> block retake
-                ((android.app.Activity) context).runOnUiThread(() ->
-                        Toast.makeText(context, "You already submitted this exam (pending upload).", Toast.LENGTH_LONG).show()
-                );
-                return;
-            }
-
-            // No local pending -> proceed to mark ongoing (if online) and launch exam
-            ((android.app.Activity) context).runOnUiThread(() -> {
-                if (isNetworkAvailable(context)) {
-                    DatabaseReference ref = FirebaseDatabase.getInstance()
-                            .getReference("ExamStudents")
-                            .child(exam.getExamId())
-                            .child(studentId);
-
-                    ref.child("ongoing").setValue(true)
-                            .addOnSuccessListener(aVoid -> {
-                                Toast.makeText(context, "Exam started! Marked as ongoing.", Toast.LENGTH_SHORT).show();
-                                launchExamIntent(exam);
-                            })
-                            .addOnFailureListener(e -> {
-                                Toast.makeText(context, "Failed to update ongoing, starting offline: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                                launchExamIntent(exam);
-                            });
-                } else {
-                    // Offline: directly start the exam activity (offline mode)
-                    launchExamIntent(exam);
-                }
-            });
-        }).start();
-    }
-
-    // New helper for launching:
     private void launchExamIntent(ExamModel exam) {
-        Intent intent = new Intent(context, TakeExamActivity.class);
+        Intent intent = new Intent(context.getApplicationContext(), TakeExamActivity.class);
         intent.putExtra("examId", exam.getExamId());
         intent.putExtra("examTitle", exam.getExamTitle());
+        // If context is not an Activity, need FLAG_NEW_TASK
+        if (!(context instanceof android.app.Activity)) {
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        }
         context.startActivity(intent);
     }
 
-    // Copy/paste this utility as well (top of class):
+    // Utility to post back to UI thread safely
+    private void runOnUiThread(Runnable r) {
+        if (context instanceof android.app.Activity) {
+            ((android.app.Activity) context).runOnUiThread(r);
+        } else {
+            // fallback: use main looper
+            android.os.Handler h = new android.os.Handler(android.os.Looper.getMainLooper());
+            h.post(r);
+        }
+    }
+
     private boolean isNetworkAvailable(Context context) {
         android.net.ConnectivityManager cm = (android.net.ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
         if (cm == null) return false;
@@ -212,7 +239,7 @@ public class ExamAdapter extends RecyclerView.Adapter<ExamAdapter.ExamViewHolder
             tvCourseDisplay = itemView.findViewById(R.id.tvCourseDisplay);
             tvTeacherName = itemView.findViewById(R.id.tvTeacherName);
             tvSchedule = itemView.findViewById(R.id.tvSchedule);
-            chipStatus = itemView.findViewById(R.id.chipStatus); // <- use Chip
+            chipStatus = itemView.findViewById(R.id.chipStatus);
             btnTakeExam = itemView.findViewById(R.id.btnTakeExam);
         }
     }
