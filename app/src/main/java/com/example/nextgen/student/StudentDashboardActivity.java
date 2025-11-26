@@ -56,6 +56,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import com.example.nextgen.sync.PresenceHelper;
 
 public class StudentDashboardActivity extends AppCompatActivity
         implements BottomNavigationView.OnNavigationItemSelectedListener {
@@ -248,15 +249,35 @@ public class StudentDashboardActivity extends AppCompatActivity
         handler.post(examRefreshRunnable);
     }
 
-    @Override
-    protected void onPause() {
-        super.onPause();
-        if (handler != null && examRefreshRunnable != null) handler.removeCallbacks(examRefreshRunnable);
-    }
+    private final android.content.BroadcastReceiver presenceSavedReceiver = new android.content.BroadcastReceiver() {
+        @Override
+        public void onReceive(android.content.Context context, android.content.Intent intent) {
+            if (intent == null) return;
+            String action = intent.getAction();
+            if (PresenceHelper.ACTION_PRESENCE_SAVED.equals(action)) {
+                String examId = intent.getStringExtra("examId");
+                // Option A: refresh the whole local list (simpler)
+                runOnUiThread(() -> {
+                    // reload local cache and refresh UI
+                    loadExamsFromLocalDb();
+                    // OR if you prefer lighter update:
+                    // markPendingPresences(new ArrayList<>(examList));
+                });
+            }
+        }
+    };
+
 
     @Override
     protected void onResume() {
         super.onResume();
+
+        // Register receiver so dashboard refreshes immediately after an offline QR scan
+        try {
+            registerReceiver(presenceSavedReceiver, new android.content.IntentFilter(com.example.nextgen.sync.PresenceHelper.ACTION_PRESENCE_SAVED));
+        } catch (Exception ignored) { }
+
+        // Existing resume logic: start periodic exam fetch if user exists
         FirebaseUser currentUser = auth.getCurrentUser();
         if (currentUser != null && studentsRef != null) {
             studentsRef.orderByChild("uid").equalTo(currentUser.getUid())
@@ -275,6 +296,19 @@ public class StudentDashboardActivity extends AppCompatActivity
                         public void onCancelled(@NonNull DatabaseError error) { /* Do nothing */ }
                     });
         }
+    }
+
+    @Override
+    protected void onPause() {
+        // Unregister receiver to avoid leaks
+        try {
+            unregisterReceiver(presenceSavedReceiver);
+        } catch (Exception ignored) { }
+
+        // Keep existing handler cleanup
+        if (handler != null && examRefreshRunnable != null) handler.removeCallbacks(examRefreshRunnable);
+
+        super.onPause();
     }
 
     private void loadExamsFromLocalDb() {
@@ -881,6 +915,43 @@ public class StudentDashboardActivity extends AppCompatActivity
                 });
             }
         });
+    }
+
+    // Insert this method into StudentDashboardActivity (paste near other helpers)
+
+    private void markPendingPresences(List<ExamModel> exams) {
+        if (exams == null || exams.isEmpty()) return;
+
+        new Thread(() -> {
+            try {
+                com.example.nextgen.offline.AppDatabase db = com.example.nextgen.offline.AppDatabase.getInstance(getApplicationContext());
+                String studentIdForDb = com.example.nextgen.SessionManager.getStudentId(StudentDashboardActivity.this);
+                if (studentIdForDb == null) return;
+
+                for (ExamModel e : exams) {
+                    if (e == null || e.getExamId() == null) continue;
+                    try {
+                        int cnt = db.pendingPresenceDao().countByExamAndStudent(e.getExamId(), studentIdForDb);
+                        if (cnt > 0) {
+                            // mark as present (pending sync)
+                            e.setPresent(true);
+                            e.setAvailable(false);
+                            // Use a clear status so adapter shows "PRESENT (Pending)"
+                            e.setStatus("PRESENT (Pending sync)");
+                        }
+                    } catch (Exception ex) {
+                        Log.e(TAG, "Error checking pending presences for exam " + e.getExamId() + ": " + ex.getMessage());
+                    }
+                }
+
+                // Update UI on main thread
+                runOnUiThread(() -> {
+                    if (examAdapter != null) examAdapter.notifyDataSetChanged();
+                });
+            } catch (Exception e) {
+                Log.e(TAG, "markPendingPresences failed: " + e.getMessage(), e);
+            }
+        }).start();
     }
     private void cacheAllExamQuestionsForOffline(List<ExamModel> exams) {
         if (exams == null || exams.isEmpty()) return;

@@ -4,7 +4,9 @@ import android.content.Context;
 import android.util.Log;
 
 import com.example.nextgen.offline.AppDatabase;
+import com.example.nextgen.offline.ExamEntity;
 import com.example.nextgen.offline.PendingSubmission;
+import com.example.nextgen.offline.StudentAnswerEntity; // if needed
 import com.example.nextgen.teacher.Question;
 import com.google.gson.Gson;
 
@@ -15,7 +17,7 @@ import java.util.UUID;
 
 /**
  * Helper to create a PendingSubmission from answers and enqueue sync.
- * Call this from your TakeExamActivity after computing local score.
+ * Populates optional metadata from cached ExamEntity when available.
  */
 public class SubmissionHelper {
 
@@ -28,10 +30,13 @@ public class SubmissionHelper {
                                                        int computedScore,
                                                        int maxScore) {
 
-        // Build answers map (example structure: questionId -> studentAnswer)
+        // Prefer application context to avoid leaking Activity
+        final Context appCtx = ctx.getApplicationContext();
+
+        // Build answers map (questionDisplayNumber -> answer)
         Map<String, String> answers = new HashMap<>();
         for (Question q : questionList) {
-            String key = String.valueOf(q.getDisplayNumber()); // or use q.getId() if present
+            String key = String.valueOf(q.getDisplayNumber() == 0 ? UUID.randomUUID().toString() : q.getDisplayNumber());
             answers.put(key, q.getStudentAnswer() == null ? "" : q.getStudentAnswer());
         }
 
@@ -44,19 +49,41 @@ public class SubmissionHelper {
         p.maxScore = maxScore;
         p.timestamp = System.currentTimeMillis();
         p.status = "PENDING";
+        p.deductions = 0;
 
-        // persist
+        // Try to populate optional metadata from cached ExamEntity (fast, local)
         new Thread(() -> {
-            AppDatabase db = AppDatabase.getInstance(ctx);
-            db.pendingSubmissionDao().insert(p);
-            Log.d(TAG, "Saved pending submission locally: " + p.clientSubmissionId);
+            try {
+                AppDatabase db = AppDatabase.getInstance(appCtx);
+                try {
+                    ExamEntity exam = db.examDao().getExamById(examId);
+                    if (exam != null) {
+                        p.subjectName = exam.examTitle != null ? exam.examTitle : exam.courseName;
+                        p.teacherName = exam.teacherName;
+                        p.subjectCode = exam.courseName; // adjust to real field if available
+                    }
+                } catch (Exception ignored) {
+                    // continue even if exam not present
+                }
 
-            // request immediate sync attempt
-            SyncManager.enqueueImmediateSubmissionSync(ctx);
+                // Optionally, if you cache student info in Room, fetch it here and populate studentName/profileImage
+                // Example:
+                // StudentEntity se = db.studentDao().getByStudentId(studentId);
+                // if (se != null) { p.studentName = se.fullName; p.profileImage = se.profileImageBase64; }
+
+                db.pendingSubmissionDao().insert(p);
+                Log.d(TAG, "Saved pending submission locally: " + p.clientSubmissionId);
+
+                // request immediate sync attempt (use applicationContext)
+                SyncManager.enqueueImmediateSubmissionSync(appCtx);
+
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to save pending submission: " + e.getMessage(), e);
+            }
         }).start();
     }
 
-    // Example deterministic local scoring function
+    // Deterministic local scoring function (unchanged)
     public static int computeLocalScore(List<Question> questions) {
         int correct = 0;
         for (Question q : questions) {

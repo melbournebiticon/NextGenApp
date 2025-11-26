@@ -250,22 +250,41 @@ public class TakeExamActivity extends AppCompatActivity {
             }
         });
     }
+    private boolean isActivityAlive() {
+        // isDestroyed() exists on API 17+; safe to call on modern projects
+        return !isFinishing() && !isDestroyed();
+    }
 
     private void showExamRulesAlert() {
-        isShowingRules = true;
-        new AlertDialog.Builder(this)
-                .setTitle("IMPORTANT: Exam Rules & Anti-Cheating")
-                .setMessage("By pressing START, you agree to the following rules:\n\n" +
-                        "1. DO NOT EXIT THE APP (Switching or minimizing will deduct points).\n" +
-                        "2. DO NOT USE SPLIT-SCREEN or MULTI-WINDOW mode.\n" +
-                        "3. The PHONE'S BACK BUTTON is DISABLED.\n" +
-                        "4. The In-App Back Arrow will deduct " + DEDUCTION_PER_STRIKE + " point(s) upon press.\n" +
-                        "5. Your microphone will be monitored for HUMAN voice (Speech/Whispering) only.\n\n" +
-                        "Exceeding " + MAX_SWITCHES + " screen/navigation violations or " + MAX_AUDIO_STRIKES + " audio strikes will result in automatic submission with a score of zero (0)."
-                )
-                .setPositiveButton("START EXAM", (dialog, which) -> startExamLoadingProcessContinued())
-                .setCancelable(false)
-                .show();
+        // Ensure the activity is alive before attempting to show a dialog
+        if (!isActivityAlive()) return;
+
+        runOnUiThread(() -> {
+            if (!isActivityAlive()) return;
+
+            try {
+                new AlertDialog.Builder(TakeExamActivity.this)
+                        .setTitle("IMPORTANT: Exam Rules & Anti-Cheating")
+                        .setMessage("By pressing START, you agree to the following rules:\n\n" +
+                                "1. DO NOT EXIT THE APP (Switching or minimizing will deduct points).\n" +
+                                "2. DO NOT USE SPLIT-SCREEN or MULTI-WINDOW mode.\n" +
+                                "3. The PHONE'S BACK BUTTON is DISABLED.\n" +
+                                "4. The In-App Back Arrow will deduct " + DEDUCTION_PER_STRIKE + " point(s) upon press.\n" +
+                                "5. Your microphone will be monitored for HUMAN voice (Speech/Whispering) only.\n\n" +
+                                "Exceeding " + MAX_SWITCHES + " screen/navigation violations or " + MAX_AUDIO_STRIKES + " audio strikes will result in automatic submission with a score of zero (0)."
+                        )
+                        .setPositiveButton("START EXAM", (dialog, which) -> {
+                            if (isActivityAlive()) startExamLoadingProcessContinued();
+                        })
+                        .setCancelable(false)
+                        .show();
+            } catch (WindowManager.BadTokenException e) {
+                // Activity probably finished before the dialog could be shown -> ignore safely
+                Log.w("TakeExamActivity", "Could not show rules dialog: activity not running", e);
+            } catch (Exception e) {
+                Log.e("TakeExamActivity", "Unexpected error showing rules dialog", e);
+            }
+        });
     }
 
     private void startExamLoadingProcessContinued() {
@@ -489,6 +508,69 @@ public class TakeExamActivity extends AppCompatActivity {
         }).start();
     }
 
+    private boolean hasNextNonEmptySection() {
+        // Look for any questions that belong to a later section type
+        for (int i = typeIndex + 1; i < questionTypeOrder.length; i++) {
+            String futureType = questionTypeOrder[i];
+            for (Question q : questionList) {
+                if (q.getQuestionType() != null && q.getQuestionType().equalsIgnoreCase(futureType)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    // 2) Helper: check whether all questions have been answered
+    private boolean allQuestionsAnswered() {
+        for (Question q : questionList) {
+            String ans = q.getStudentAnswer();
+            if (ans == null || ans.trim().isEmpty()) return false;
+        }
+        return true;
+    }
+
+    // 3) Confirmation dialog before final submission (handles unanswered case)
+    private void maybeConfirmSubmit() {
+        if (!isActivityAlive()) return;
+
+        runOnUiThread(() -> {
+            if (!isActivityAlive()) return;
+
+            if (allQuestionsAnswered()) {
+                try {
+                    new AlertDialog.Builder(TakeExamActivity.this)
+                            .setTitle("Confirm Submit")
+                            .setMessage("Are you sure you want to submit? You won't be able to change your answers.")
+                            .setPositiveButton("Submit", (dialog, which) -> submitExam())
+                            .setNegativeButton("Cancel", null)
+                            .setCancelable(true)
+                            .show();
+                } catch (WindowManager.BadTokenException e) {
+                    Log.w("TakeExamActivity", "Confirm dialog not shown: activity not running", e);
+                }
+            } else {
+                int unanswered = 0;
+                for (Question q : questionList) {
+                    String ans = q.getStudentAnswer();
+                    if (ans == null || ans.trim().isEmpty()) unanswered++;
+                }
+                try {
+                    new AlertDialog.Builder(TakeExamActivity.this)
+                            .setTitle("Unanswered Questions")
+                            .setMessage("You have " + unanswered + " unanswered question(s). Do you want to submit anyway?")
+                            .setPositiveButton("Submit Anyway", (dialog, which) -> submitExam())
+                            .setNegativeButton("Go Back", null)
+                            .setCancelable(true)
+                            .show();
+                } catch (WindowManager.BadTokenException e) {
+                    Log.w("TakeExamActivity", "Unanswered confirm dialog not shown: activity not running", e);
+                }
+            }
+        });
+    }
+
+
     // Put this helper method in your activity as well:
     private boolean isNetworkAvailable() {
         android.net.ConnectivityManager cm = (android.net.ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
@@ -637,8 +719,8 @@ public class TakeExamActivity extends AppCompatActivity {
             questionAdapter = new TakeExamAdapter(TakeExamActivity.this, singleQuestion, allMatchingAnswers);
             rvQuestions.setAdapter(questionAdapter);
 
-
-            if (currentIndex == currentTypeQuestions.size() - 1 && typeIndex == questionTypeOrder.length - 1) {
+            // NEW: look ahead for actual non-empty sections
+            if (currentIndex == currentTypeQuestions.size() - 1 && !hasNextNonEmptySection()) {
                 btnSubmit.setText("Submit Exam");
             } else if (currentIndex == currentTypeQuestions.size() - 1) {
                 btnSubmit.setText("Next Section");
@@ -664,6 +746,8 @@ public class TakeExamActivity extends AppCompatActivity {
             btnSubmit.setText("Submit Exam");
         }
     }
+
+    // Paste these two methods into TakeExamActivity, replacing the existing submitExam() and submitExamWithZeroScore() methods.
 
     private void submitExam() {
         stopAudioMonitoring();
@@ -691,7 +775,7 @@ public class TakeExamActivity extends AppCompatActivity {
         String localStudentId = com.example.nextgen.SessionManager.getStudentId(this);
         if (localStudentId != null && !localStudentId.isEmpty()) {
             com.example.nextgen.sync.SubmissionHelper.saveSubmissionLocallyAndEnqueue(
-                    TakeExamActivity.this,
+                    getApplicationContext(),
                     examId,
                     localStudentId,
                     questionList,
@@ -710,17 +794,19 @@ public class TakeExamActivity extends AppCompatActivity {
                 .addListenerForSingleValueEvent(new ValueEventListener() {
                     @Override
                     public void onDataChange(@NonNull DataSnapshot snapshot) {
-                        btnSubmit.setEnabled(true);
                         if (snapshot.exists()) {
                             for (DataSnapshot ds : snapshot.getChildren()) {
                                 String studentId = ds.child("studentId").getValue(String.class);
                                 if (studentId == null || studentId.isEmpty()) {
                                     Toast.makeText(TakeExamActivity.this, "Student ID missing.", Toast.LENGTH_SHORT).show();
+                                    // allow retry by re-enabling the button
+                                    btnSubmit.setEnabled(true);
                                     return;
                                 }
 
+                                // Use the studentId read from Firebase
                                 com.example.nextgen.sync.SubmissionHelper.saveSubmissionLocallyAndEnqueue(
-                                        TakeExamActivity.this,
+                                        getApplicationContext(),
                                         examId,
                                         studentId,
                                         questionList,
@@ -756,7 +842,7 @@ public class TakeExamActivity extends AppCompatActivity {
         String localStudentId = com.example.nextgen.SessionManager.getStudentId(this);
         if (localStudentId != null && !localStudentId.isEmpty()) {
             com.example.nextgen.sync.SubmissionHelper.saveSubmissionLocallyAndEnqueue(
-                    TakeExamActivity.this,
+                    getApplicationContext(),
                     examId,
                     localStudentId,
                     questionList,
@@ -774,17 +860,18 @@ public class TakeExamActivity extends AppCompatActivity {
                 .addListenerForSingleValueEvent(new ValueEventListener() {
                     @Override
                     public void onDataChange(@NonNull DataSnapshot snapshot) {
-                        btnSubmit.setEnabled(true);
                         if (snapshot.exists()) {
                             for (DataSnapshot ds : snapshot.getChildren()) {
                                 String studentId = ds.child("studentId").getValue(String.class);
                                 if (studentId == null || studentId.isEmpty()) {
                                     Toast.makeText(TakeExamActivity.this, "Student ID missing.", Toast.LENGTH_SHORT).show();
+                                    btnSubmit.setEnabled(true);
                                     return;
                                 }
 
+                                // Use the studentId read from Firebase (not localStudentId)
                                 com.example.nextgen.sync.SubmissionHelper.saveSubmissionLocallyAndEnqueue(
-                                        TakeExamActivity.this,
+                                        getApplicationContext(),
                                         examId,
                                         studentId,
                                         questionList,
@@ -822,6 +909,27 @@ public class TakeExamActivity extends AppCompatActivity {
     }
 
     private void redirectToResultActivity(int score, int maxScore) {
+        // Offline fallback: if no network, launch ResultActivity with local data only
+        // Offline behavior: don't show result screen — return to dashboard and inform user
+        if (!isNetworkAvailable()) {
+            // Stop any audio/timers if still running
+            if (countDownTimer != null) countDownTimer.cancel();
+            stopAudioMonitoring();
+
+            // Inform the student and return to dashboard
+            Toast.makeText(TakeExamActivity.this,
+                    "Submission saved locally and will sync when online. You will be returned to the dashboard.",
+                    Toast.LENGTH_LONG).show();
+
+            Intent intent = new Intent(TakeExamActivity.this, StudentDashboardActivity.class);
+// include flag and pending exam id so dashboard can refresh and highlight
+            intent.putExtra("fromSubmitPending", true);
+            intent.putExtra("pendingExamId", examId);
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+            finish();
+            return;
+        }
         // NOTE: ALL Firebase lookups for Student/Exam/Subject info are moved here.
 
         // Step 1: Get Student Info
@@ -1079,14 +1187,36 @@ public class TakeExamActivity extends AppCompatActivity {
             return;
         }
 
+        Question current = currentTypeQuestions.get(currentIndex);
+        String answer = (current == null) ? null : current.getStudentAnswer();
+
+        if (answer == null || answer.trim().isEmpty()) {
+            if (!isActivityAlive()) return;
+            runOnUiThread(() -> {
+                if (!isActivityAlive()) return;
+                try {
+                    new AlertDialog.Builder(TakeExamActivity.this)
+                            .setTitle("Unanswered Question")
+                            .setMessage("You haven't answered this question yet. Please answer before moving on.")
+                            .setPositiveButton("OK", (dialog, which) -> dialog.dismiss())
+                            .setCancelable(true)
+                            .show();
+                } catch (WindowManager.BadTokenException e) {
+                    Log.w("TakeExamActivity", "Unanswered dialog not shown: activity not running", e);
+                }
+            });
+        } else {
+            moveToNext();
+        }
+    }
+
+    private void moveToNext() {
         if (currentIndex < currentTypeQuestions.size() - 1) {
-            // Move to next question in current type
             currentIndex++;
             typeQuestionNumber++;
             showQuestion(currentTypeQuestions.get(currentIndex));
             updateButtonText();
         } else {
-            // End of current type, go to next type or submit
             goToNextTypeOrSubmit();
         }
     }
@@ -1102,9 +1232,9 @@ public class TakeExamActivity extends AppCompatActivity {
                 goToNextTypeOrSubmit();
             }
         } else {
-            // All sections done, final submission
+            // All sections done -> ask for confirmation (replaces direct submitExam())
             btnSubmit.setText("Submit Exam");
-            submitExam();
+            maybeConfirmSubmit();
         }
     }
     private void showQuestion(Question question) {
@@ -1118,7 +1248,7 @@ public class TakeExamActivity extends AppCompatActivity {
     private void updateButtonText() {
         if (currentIndex < currentTypeQuestions.size() - 1) {
             btnSubmit.setText("Next");
-        } else if (typeIndex < questionTypeOrder.length - 1) {
+        } else if (hasNextNonEmptySection()) {
             btnSubmit.setText("Next Section");
         } else {
             btnSubmit.setText("Submit Exam");
