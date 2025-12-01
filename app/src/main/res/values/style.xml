@@ -10,12 +10,22 @@
         <item name="colorSurface">@color/md_theme_surface</item>
         <!-- I assume you have these colors defined in your colors.xml -->
     </style>
+    <style name="ShapeAppearanceOverlay.Material3.Corner.None" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">0dp</item>
+    </style>
 
     <style name="BottomNavLabelText" parent="TextAppearance.MaterialComponents.Caption">
         <item name="android:textSize">12sp</item>
         <item name="android:textColor">?attr/colorOnSurfaceVariant</item>
         <item name="android:textStyle">normal</item>
     </style>
+
+    <style name="ShapeAppearanceOverlay.Material3.Corner.Full" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">50%</item>
+    </style>
+
     <style name="ProfileRowContainer">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">wrap_content</item>

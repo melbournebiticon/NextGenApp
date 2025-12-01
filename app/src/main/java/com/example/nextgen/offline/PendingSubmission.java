@@ -18,11 +18,11 @@ public class PendingSubmission {
 
     public String examId;
     public String studentId; // the DB key used in Scores/ExamStudents
-    public String answersJson; // JSON string with student's answers
+    public String answersJson;
     public int computedScore;
     public int maxScore;
     public long timestamp;
-    public String status; // "PENDING", "SYNCING", "SYNCED", "FAILED"
+    public String status;
 
     // Optional metadata to improve offline UX
     public String studentName;

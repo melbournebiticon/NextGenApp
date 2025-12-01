@@ -13,6 +13,8 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import android.widget.ImageView;
+
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AlertDialog;
@@ -23,27 +25,26 @@ import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.example.nextgen.MainActivity;
 import com.example.nextgen.R;
-import com.example.nextgen.SessionManager;
 import com.google.android.material.navigation.NavigationView;
-import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
+
+
 import java.util.ArrayList;
 
-public class SectionsActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener {
+public class SectionsActivity extends AppCompatActivity {
 
     private DrawerLayout drawerLayout;
     private NavigationView navigationView;
     private Toolbar toolbar;
 
     // ORIGINAL COMPONENTS
-    Button btnAddSection;
     RecyclerView recyclerSections;
 
     DatabaseReference dbSections, dbSpecializations, dbYears, dbCourseOptions;
@@ -66,11 +67,18 @@ public class SectionsActivity extends AppCompatActivity implements NavigationVie
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_sections);
 
-        // Initialize Toolbar and Navigation
-        initializeToolbarAndNavigation();
+        // --- BACK BUTTON ---
+        ImageView btnBack = findViewById(R.id.btnBack);
+        btnBack.setOnClickListener(v -> {
+            Intent intent = new Intent(SectionsActivity.this, AdminActivity.class);
+            startActivity(intent);
+            finish();
+        });
 
-        // ORIGINAL CODE
-        btnAddSection = findViewById(R.id.btnAddSection);
+        // ORIGINAL CODE=
+
+        FloatingActionButton addSectionFab = findViewById(R.id.addSectionFab);
+
         recyclerSections = findViewById(R.id.recyclerSections);
 
         // NEW UI COMPONENTS INITIALIZATION
@@ -104,8 +112,7 @@ public class SectionsActivity extends AppCompatActivity implements NavigationVie
             }
         });
         recyclerSections.setAdapter(adapter);
-
-        btnAddSection.setOnClickListener(v -> showAddSectionDialog());
+        addSectionFab.setOnClickListener(v -> showAddSectionDialog());
 
         // Load existing sections
         loadSections();
@@ -128,61 +135,9 @@ public class SectionsActivity extends AppCompatActivity implements NavigationVie
         drawerLayout.addDrawerListener(toggle);
         toggle.syncState();
 
-        // Set navigation item selected listener
-        navigationView.setNavigationItemSelectedListener(this);
 
         // Highlight current menu item
         navigationView.setCheckedItem(R.id.nav_sections);
-    }
-
-    @Override
-    public boolean onNavigationItemSelected(@NonNull MenuItem item) {
-        int id = item.getItemId();
-
-        // Close drawer first
-        drawerLayout.closeDrawer(GravityCompat.START);
-
-        // Handle navigation item clicks
-        if (id == R.id.nav_dashboard) {
-            startActivity(new Intent(this, AdminActivity.class));
-            finish();
-        } else if (id == R.id.nav_specializations) {
-            startActivity(new Intent(this, SpecializationsActivity.class));
-        } else if (id == R.id.nav_years) {
-            startActivity(new Intent(this, YearsActivity.class));
-        } else if (id == R.id.nav_sections) {
-            // We're already in SectionsActivity
-            // Just close the drawer
-        } else if (id == R.id.nav_courses) {
-            startActivity(new Intent(this, CourseActivity.class));
-        } else if (id == R.id.nav_subjects) {
-            startActivity(new Intent(this, SubjectActivity.class));
-        } else if (id == R.id.nav_teachers) {
-            startActivity(new Intent(this, TeacherActivity.class));
-        } else if (id == R.id.nav_students) {
-            startActivity(new Intent(this, StudentActivity.class));
-        } else if (id == R.id.nav_logout) {
-            performLogout();
-        }
-
-        return true;
-    }
-
-    private void performLogout() {
-        // Clear session
-        SessionManager sessionManager = new SessionManager(this);
-        sessionManager.clearSession();
-
-        // Sign out from Firebase
-        FirebaseAuth.getInstance().signOut();
-
-        // Redirect to login
-        Intent intent = new Intent(this, MainActivity.class);
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        startActivity(intent);
-        finish();
-
-        Toast.makeText(this, "Logged out successfully", Toast.LENGTH_SHORT).show();
     }
 
     @Override

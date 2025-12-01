@@ -61,7 +61,8 @@ dependencies {
     implementation("androidx.camera:camera-camera2:1.3.4")
     implementation("androidx.camera:camera-lifecycle:1.3.4")
     implementation("androidx.camera:camera-view:1.3.4")
-
+    implementation("com.google.android.material:material:1.10.0")
+    implementation("com.google.android.material:material:1.9.0")
 
     implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
     // ✅ Firebase BOM - ensures consistent versions
@@ -72,11 +73,17 @@ dependencies {
     implementation("com.google.firebase:firebase-storage")
     implementation("com.google.firebase:firebase-database")
 
+
+    implementation ("androidx.gridlayout:gridlayout:1.0.0")
+
     // ✅ Room (for local database)
     implementation("androidx.room:room-runtime:2.6.1")
     implementation(libs.tensorflow.lite.metadata)
     annotationProcessor("androidx.room:room-compiler:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
+
+    // Add this inside the dependencies { ... } block of your app module build.gradle
+    implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
 
     // ✅ PDF and file utilities
     implementation("com.tom-roush:pdfbox-android:2.0.27.0")

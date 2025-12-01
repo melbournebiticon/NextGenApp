@@ -12,31 +12,26 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
-import androidx.core.view.GravityCompat;
-import androidx.drawerlayout.widget.DrawerLayout;
+
+import android.widget.ImageView;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.example.nextgen.MainActivity;
 import com.example.nextgen.R;
-import com.example.nextgen.SessionManager;
-import com.google.android.material.navigation.NavigationView;
-import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import java.util.ArrayList;
 
-public class YearsActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener {
+public class YearsActivity extends AppCompatActivity {
 
-    private DrawerLayout drawerLayout;
-    private NavigationView navigationView;
+
     private Toolbar toolbar;
 
     // ORIGINAL COMPONENTS
@@ -55,8 +50,21 @@ public class YearsActivity extends AppCompatActivity implements NavigationView.O
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_years);
 
-        // Initialize Toolbar and Navigation
-        initializeToolbarAndNavigation();
+        ImageView btnBack = findViewById(R.id.btnBack);
+        btnBack.setOnClickListener(v -> {
+            Intent intent = new Intent(YearsActivity.this, AdminActivity.class);
+            startActivity(intent);
+            finish();
+        });
+
+
+        FloatingActionButton addYearFab = findViewById(R.id.addYearFab);
+        addYearFab.setOnClickListener(v -> {
+            // Show the Add/Edit Year dialog
+            showAddEditDialog(null, null);
+        });
+
+
 
         // ORIGINAL CODE
         addBtn = findViewById(R.id.addYearBtn);
@@ -74,89 +82,29 @@ public class YearsActivity extends AppCompatActivity implements NavigationView.O
 
         loadYears();
     }
-
-    private void initializeToolbarAndNavigation() {
-        // Setup Toolbar
-        toolbar = findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
-
-        // Setup Drawer Layout and Navigation
-        drawerLayout = findViewById(R.id.drawer_layout);
-        navigationView = findViewById(R.id.nav_view);
-
-        // Setup toggle button
-        ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
-                this, drawerLayout, toolbar,
-                R.string.navigation_drawer_open, R.string.navigation_drawer_close
-        );
-        drawerLayout.addDrawerListener(toggle);
-        toggle.syncState();
-
-        // Set navigation item selected listener
-        navigationView.setNavigationItemSelectedListener(this);
-
-        // Highlight current menu item
-        navigationView.setCheckedItem(R.id.nav_years);
-    }
-
     @Override
-    public boolean onNavigationItemSelected(@NonNull MenuItem item) {
-        int id = item.getItemId();
-
-        // Close drawer first
-        drawerLayout.closeDrawer(GravityCompat.START);
-
-        // Handle navigation item clicks
-        if (id == R.id.nav_dashboard) {
-            startActivity(new Intent(this, AdminActivity.class));
+    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
+        if (item.getItemId() == android.R.id.home) {
+            // Navigate back to AdminActivity
+            Intent intent = new Intent(YearsActivity.this, AdminActivity.class);
+            startActivity(intent);
             finish();
-        } else if (id == R.id.nav_specializations) {
-            startActivity(new Intent(this, SpecializationsActivity.class));
-        } else if (id == R.id.nav_years) {
-            // We're already in YearsActivity
-            // Just close the drawer
-        } else if (id == R.id.nav_sections) {
-            startActivity(new Intent(this, SectionsActivity.class));
-        } else if (id == R.id.nav_courses) {
-            startActivity(new Intent(this, CourseActivity.class));
-        } else if (id == R.id.nav_subjects) {
-            startActivity(new Intent(this, SubjectActivity.class));
-        } else if (id == R.id.nav_teachers) {
-            startActivity(new Intent(this, TeacherActivity.class));
-        } else if (id == R.id.nav_students) {
-            startActivity(new Intent(this, StudentActivity.class));
-        } else if (id == R.id.nav_logout) {
-            performLogout();
+            return true;
         }
-
-        return true;
+        return super.onOptionsItemSelected(item);
     }
 
-    private void performLogout() {
-        // Clear session
-        SessionManager sessionManager = new SessionManager(this);
-        sessionManager.clearSession();
 
-        // Sign out from Firebase
-        FirebaseAuth.getInstance().signOut();
 
-        // Redirect to login
-        Intent intent = new Intent(this, MainActivity.class);
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        startActivity(intent);
-        finish();
-
-        Toast.makeText(this, "Logged out successfully", Toast.LENGTH_SHORT).show();
-    }
 
     @Override
     public void onBackPressed() {
-        if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
-            drawerLayout.closeDrawer(GravityCompat.START);
-        } else {
-            super.onBackPressed();
-        }
+        Intent intent = new Intent(YearsActivity.this, AdminActivity.class);
+        startActivity(intent);
+        finish();
     }
+
+
 
     private void loadYears() {
         dbRef.addValueEventListener(new ValueEventListener() {
@@ -197,7 +145,6 @@ public class YearsActivity extends AppCompatActivity implements NavigationView.O
         }
     }
 
-    // Modal for Add/Edit Year
     public void showAddEditDialog(String id, String currentName) {
         Dialog dialog = new Dialog(this);
         dialog.setContentView(R.layout.dialog_year);
