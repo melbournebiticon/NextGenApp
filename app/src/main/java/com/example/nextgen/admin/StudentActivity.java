@@ -41,6 +41,9 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
+import com.example.nextgen.utils.EmailSender;
+
+
 public class StudentActivity extends AppCompatActivity {
 
     private DrawerLayout drawerLayout;
@@ -441,6 +444,7 @@ public class StudentActivity extends AppCompatActivity {
             auth.createUserWithEmailAndPassword(email, password)
                     .addOnCompleteListener(authTask -> {
                         if (authTask.isSuccessful()) {
+
                             FirebaseUser firebaseUser = authTask.getResult().getUser();
                             String uid = firebaseUser.getUid();
 
@@ -452,16 +456,34 @@ public class StudentActivity extends AppCompatActivity {
                             studentsRef.child(studentId).setValue(student)
                                     .addOnSuccessListener(aVoid -> {
                                         Toast.makeText(this, "Examinee added successfully", Toast.LENGTH_SHORT).show();
+
+                                        // ✅ SEND EMAIL HERE
+                                        sendEmailToStudent(email, studentId, password);
                                     })
                                     .addOnFailureListener(e ->
                                             Toast.makeText(this, "Failed: " + e.getMessage(), Toast.LENGTH_SHORT).show()
                                     );
+
                         } else {
                             Toast.makeText(this, "Auth failed: " + authTask.getException().getMessage(), Toast.LENGTH_SHORT).show();
                         }
                     });
         });
     }
+
+    private void sendEmailToStudent(String email, String studentId, String password) {
+        String subject = "Your Account Details";
+        String body = "Hello,\n\n" +
+                "Your account has been created.\n\n" +
+                "Student ID: " + studentId + "\n" +
+                "Email: " + email + "\n" +
+                "Password: " + password + "\n\n" +
+                "Please login and change your password.";
+
+        EmailSender.send(this, email, subject, body);
+    }
+
+
 
     private void updateStudentInDatabase(StudentModel student, String fullName, String birthday,
                                          String email, String contact, CourseModel selectedCourse) {

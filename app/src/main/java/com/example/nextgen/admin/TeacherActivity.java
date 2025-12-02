@@ -18,6 +18,7 @@ import android.util.Base64;
 import android.widget.ImageView;
 import android.content.Intent;
 
+
 import androidx.annotation.Nullable;
 import android.widget.ProgressBar;
 import android.widget.ImageView;
@@ -46,6 +47,7 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
+import com.example.nextgen.utils.EmailSender;
 
 
 import java.util.ArrayList;
@@ -421,7 +423,23 @@ public class TeacherActivity extends AppCompatActivity {
 
                                         // Save full teacher record
                                         teachersRef.child(teacherId).setValue(teacher)
-                                                .addOnSuccessListener(aVoid -> Toast.makeText(this, "Teacher added successfully", Toast.LENGTH_SHORT).show())
+                                                .addOnSuccessListener(aVoid -> {
+                                                    Toast.makeText(this, "Teacher added successfully", Toast.LENGTH_SHORT).show();
+
+                                                    // Prepare email message
+                                                    String subject = "Your Teacher Account Details";
+                                                    String body = "Hello " + fullName + ",\n\n" +
+                                                            "Your teacher account has been created.\n\n" +
+                                                            "Teacher ID: " + teacherId + "\n" +
+                                                            "Email: " + email + "\n" +
+                                                            "Password: " + password + "\n\n" +
+                                                            "Please log in and change your password.\n\n" +
+                                                            "Thank you.";
+
+                                                    // Send email
+                                                    EmailSender.send(TeacherActivity.this, email, subject, body);
+                                                })
+
                                                 .addOnFailureListener(e -> Toast.makeText(this, "Failed to save teacher: " + e.getMessage(), Toast.LENGTH_SHORT).show());
                                     } else {
                                         Toast.makeText(this, "Auth failed: " + authTask.getException().getMessage(), Toast.LENGTH_SHORT).show();

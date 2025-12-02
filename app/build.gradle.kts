@@ -14,6 +14,7 @@ android {
         versionCode = 1
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        multiDexEnabled = true
     }
 
     buildTypes {
@@ -48,9 +49,24 @@ android {
     buildFeatures {
         mlModelBinding = true
     }
+    packaging {
+        resources {
+            // Pick one or exclude duplicates
+            excludes += setOf(
+                "META-INF/LICENSE.md",
+                "META-INF/LICENSE.txt",
+                "META-INF/NOTICE.md",
+                "META-INF/NOTICE.txt"
+            )
+        }
+    }
 }
 
 dependencies {
+
+    implementation("androidx.multidex:multidex:2.0.1")
+    implementation("com.sun.mail:android-mail:1.6.6")
+    implementation("com.sun.mail:android-activation:1.6.6")
     // Add to dependencies { ... } in app/build.gradle
     implementation("com.google.zxing:core:3.5.1")
     implementation("androidx.work:work-runtime:2.8.1")
