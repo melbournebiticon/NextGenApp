@@ -32,7 +32,7 @@ import java.util.ArrayList;
 public class YearsActivity extends AppCompatActivity {
 
 
-    private Toolbar toolbar;
+
 
     // ORIGINAL COMPONENTS
     Button addBtn;

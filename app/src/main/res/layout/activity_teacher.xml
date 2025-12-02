@@ -1,272 +1,262 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.drawerlayout.widget.DrawerLayout
+<androidx.coordinatorlayout.widget.CoordinatorLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/drawer_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".admin.TeacherActivity">
+    android:background="@color/background"
+    tools:context=".admin.SectionsActivity">
+
+    <!-- ===== TOP FIXED HEADER ===== -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/topHeader"
+        android:layout_width="match_parent"
+        android:layout_height="70dp"
+        android:background="@color/dark_blue_700"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:elevation="6dp">
+
+        <ImageView
+            android:id="@+id/btnBack"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:padding="4dp"
+            android:src="@drawable/ic_arrow_back"
+            android:tint="@android:color/white"
+            android:clickable="true"
+            android:focusable="true"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"/>
+
+        <TextView
+            android:id="@+id/tvHeaderTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Manage Teachers"
+            android:textColor="@android:color/white"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toEndOf="@id/btnBack"
+            app:layout_constraintEnd_toEndOf="parent"/>
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
     <!-- ===== MAIN CONTENT ===== -->
-    <androidx.coordinatorlayout.widget.CoordinatorLayout
+    <LinearLayout
+        android:id="@+id/linearLayout"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#F0F3F9">
+        android:layout_marginTop="70dp"
+        android:orientation="vertical"
+        android:padding="16dp"
+        android:background="#F0F3F9"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
-        <!-- ===== APP BAR WITH TOOLBAR ===== -->
-        <com.google.android.material.appbar.AppBarLayout
-            android:id="@+id/appBarLayout"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar">
-
-            <androidx.appcompat.widget.Toolbar
-                android:id="@+id/toolbar"
-                android:layout_width="match_parent"
-                android:layout_height="?attr/actionBarSize"
-                android:background="#0D47A1"
-                app:popupTheme="@style/ThemeOverlay.AppCompat.Light"
-                app:title="Manage Teachers"
-                app:titleTextColor="@android:color/white" />
-        </com.google.android.material.appbar.AppBarLayout>
-
-        <!-- ===== MAIN CONTENT ===== -->
+        <!-- ===== HEADER SECTION ===== -->
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:orientation="vertical"
-            android:padding="16dp"
-            app:layout_behavior="@string/appbar_scrolling_view_behavior"
-            android:background="#F0F3F9">
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="20dp">
 
-            <!-- ===== HEADER SECTION ===== -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Teachers Management"
+                    android:textColor="#0D47A1"
+                    android:textSize="18sp"
+                    android:textStyle="bold"/>
+
+                <TextView
+                    android:id="@+id/tvTeacherCount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="0 teachers"
+                    android:textColor="#555555"
+                    android:textSize="14sp"
+                    android:layout_marginTop="4dp"/>
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- ===== SEARCH BAR ===== -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="2dp"
+            app:cardBackgroundColor="#FFFFFF"
+            android:layout_marginBottom="16dp">
+
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="match_parent"
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
-                android:layout_marginBottom="20dp">
+                android:padding="12dp">
 
-                <LinearLayout
+                <TextView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:text="🔍"
+                    android:textSize="14sp"
+                    android:textColor="#555555"
+                    android:gravity="center"
+                    android:layout_marginEnd="12dp"/>
+
+                <EditText
+                    android:id="@+id/etSearchTeacher"
                     android:layout_width="0dp"
-                    android:layout_height="wrap_content"
+                    android:layout_height="match_parent"
                     android:layout_weight="1"
-                    android:orientation="vertical">
+                    android:hint="Search teachers..."
+                    android:textSize="14sp"
+                    android:background="@android:color/transparent"
+                    android:maxLines="1"
+                    android:textColor="#0D47A1"
+                    android:textColorHint="#999999"/>
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Teachers Management"
-                        android:textColor="#0D47A1"
-                        android:textSize="18sp"
-                        android:textStyle="bold"/>
-
-                    <TextView
-                        android:id="@+id/tvTeacherCount"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="0 teachers"
-                        android:textColor="#555555"
-                        android:textSize="14sp"
-                        android:layout_marginTop="4dp"/>
-                </LinearLayout>
-
-                <!-- ===== ADD TEACHER BUTTON ===== -->
-                <androidx.cardview.widget.CardView
-                    android:layout_width="wrap_content"
-                    android:layout_height="42dp"
-                    app:cardCornerRadius="21dp"
-                    app:cardElevation="2dp"
-                    app:cardBackgroundColor="#0D47A1">
-
-                    <Button
-                        android:id="@+id/btnAddTeacher"
-                        android:layout_width="wrap_content"
-                        android:layout_height="match_parent"
-                        android:text="Add Teacher"
-                        android:textSize="14sp"
-                        android:paddingStart="20dp"
-                        android:paddingEnd="20dp"
-                        android:background="@android:color/transparent"
-                        android:textColor="#FFFFFF"
-                        android:drawableStart="@drawable/ic_add"
-                        android:drawableTint="#FFFFFF"
-                        android:drawablePadding="8dp"/>
-                </androidx.cardview.widget.CardView>
+                <ImageButton
+                    android:id="@+id/btnClearSearch"
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:src="@drawable/ic_clear"
+                    app:tint="#555555"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:visibility="gone"
+                    android:contentDescription="Clear search"/>
             </LinearLayout>
+        </androidx.cardview.widget.CardView>
 
-            <!-- ===== SEARCH BAR ===== -->
-            <androidx.cardview.widget.CardView
+        <!-- ===== CONTENT BOX ===== -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="4dp"
+            app:cardBackgroundColor="#FFFFFF">
+
+            <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="50dp"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="2dp"
-                app:cardBackgroundColor="#FFFFFF"
-                android:layout_marginBottom="16dp">
+                android:layout_height="match_parent"
+                android:orientation="vertical"
+                android:padding="16dp">
 
+                <!-- ===== SECTION HEADER ===== -->
                 <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="match_parent"
+                    android:layout_height="wrap_content"
                     android:orientation="horizontal"
                     android:gravity="center_vertical"
-                    android:padding="12dp">
+                    android:layout_marginBottom="12dp">
 
                     <TextView
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
-                        android:text="🔍"
-                        android:textSize="14sp"
-                        android:textColor="#555555"
-                        android:gravity="center"
-                        android:layout_marginEnd="12dp"/>
-
-                    <EditText
-                        android:id="@+id/etSearchTeacher"
-                        android:layout_width="0dp"
-                        android:layout_height="match_parent"
-                        android:layout_weight="1"
-                        android:hint="Search teachers..."
-                        android:textSize="14sp"
-                        android:background="@android:color/transparent"
-                        android:maxLines="1"
-                        android:padding="0dp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="📋"
+                        android:textSize="18sp"
                         android:textColor="#0D47A1"
-                        android:textColorHint="#999999"/>
+                        android:layout_marginEnd="8dp"/>
 
-                    <ImageButton
-                        android:id="@+id/btnClearSearch"
-                        android:layout_width="30dp"
-                        android:layout_height="30dp"
-                        android:src="@drawable/ic_clear"
-                        app:tint="#555555"
-                        android:background="?attr/selectableItemBackgroundBorderless"
-                        android:visibility="gone"
-                        android:contentDescription="Clear search"/>
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Teachers List"
+                        android:textStyle="bold"
+                        android:textSize="16sp"
+                        android:textColor="#0D47A1"/>
+
+                    <!-- SORT BUTTON -->
+                    <androidx.cardview.widget.CardView
+                        android:layout_width="wrap_content"
+                        android:layout_height="32dp"
+                        app:cardCornerRadius="16dp"
+                        app:cardElevation="1dp"
+                        app:cardBackgroundColor="#E3F2FD">
+
+                        <Button
+                            android:id="@+id/btnSort"
+                            android:layout_width="wrap_content"
+                            android:layout_height="match_parent"
+                            android:text="A-Z"
+                            android:textSize="12sp"
+                            android:textColor="#0D47A1"
+                            android:background="@android:color/transparent"
+                            android:drawableEnd="@drawable/ic_sort"
+                            android:drawableTint="#0D47A1"
+                            android:drawablePadding="4dp"
+                            android:paddingStart="12dp"
+                            android:paddingEnd="12dp"/>
+                    </androidx.cardview.widget.CardView>
                 </LinearLayout>
-            </androidx.cardview.widget.CardView>
 
-            <!-- ===== CONTENT CARD ===== -->
-            <androidx.cardview.widget.CardView
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="4dp"
-                app:cardBackgroundColor="#FFFFFF">
+                <!-- ===== TEACHERS LIST ===== -->
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/recyclerTeachers"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"/>
 
+                <!-- ===== EMPTY STATE ===== -->
                 <LinearLayout
+                    android:id="@+id/emptyState"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:orientation="vertical"
-                    android:padding="16dp">
+                    android:gravity="center"
+                    android:visibility="gone"
+                    android:padding="40dp">
 
-                    <!-- ===== SECTION HEADER ===== -->
-                    <LinearLayout
-                        android:layout_width="match_parent"
+                    <TextView
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical"
-                        android:layout_marginBottom="12dp">
+                        android:text="👨‍🏫"
+                        android:textSize="64sp"
+                        android:textColor="#CCCCCC"
+                        android:layout_marginBottom="16dp"/>
 
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="📋"
-                            android:textSize="18sp"
-                            android:textColor="#0D47A1"
-                            android:layout_marginEnd="8dp"/>
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="No Teachers Found"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:textColor="#555555"
+                        android:layout_marginBottom="8dp"/>
 
-                        <TextView
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="Teachers List"
-                            android:textStyle="bold"
-                            android:textSize="16sp"
-                            android:textColor="#0D47A1"/>
-
-                        <!-- ===== SORT BUTTON ===== -->
-                        <androidx.cardview.widget.CardView
-                            android:layout_width="wrap_content"
-                            android:layout_height="32dp"
-                            app:cardCornerRadius="16dp"
-                            app:cardElevation="1dp"
-                            app:cardBackgroundColor="#E3F2FD">
-
-                            <Button
-                                android:id="@+id/btnSort"
-                                android:layout_width="wrap_content"
-                                android:layout_height="match_parent"
-                                android:text="A-Z"
-                                android:textSize="12sp"
-                                android:textColor="#0D47A1"
-                                android:background="@android:color/transparent"
-                                android:drawableEnd="@drawable/ic_sort"
-                                android:drawableTint="#0D47A1"
-                                android:drawablePadding="4dp"
-                                android:paddingStart="12dp"
-                                android:paddingEnd="12dp"/>
-                        </androidx.cardview.widget.CardView>
-                    </LinearLayout>
-
-                    <!-- ===== TEACHERS LIST ===== -->
-                    <androidx.recyclerview.widget.RecyclerView
-                        android:id="@+id/recyclerTeachers"
-                        android:layout_width="match_parent"
-                        android:layout_height="0dp"
-                        android:layout_weight="1"/>
-
-                    <!-- ===== EMPTY STATE ===== -->
-                    <LinearLayout
-                        android:id="@+id/emptyState"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:orientation="vertical"
+                    <TextView
+                        android:layout_width="200dp"
+                        android:layout_height="wrap_content"
+                        android:text="Add your first teacher to get started"
+                        android:textSize="14sp"
+                        android:textColor="#999999"
                         android:gravity="center"
-                        android:visibility="gone"
-                        android:padding="40dp">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="👨‍🏫"
-                            android:textSize="64sp"
-                            android:textColor="#CCCCCC"
-                            android:layout_marginBottom="16dp"/>
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="No Teachers Found"
-                            android:textSize="16sp"
-                            android:textStyle="bold"
-                            android:textColor="#555555"
-                            android:layout_marginBottom="8dp"/>
-
-                        <TextView
-                            android:layout_width="200dp"
-                            android:layout_height="wrap_content"
-                            android:text="Add your first teacher to get started"
-                            android:textSize="14sp"
-                            android:textColor="#999999"
-                            android:gravity="center"
-                            android:lineSpacingExtra="4dp"/>
-                    </LinearLayout>
-
+                        android:lineSpacingExtra="4dp"/>
                 </LinearLayout>
-            </androidx.cardview.widget.CardView>
-        </LinearLayout>
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+    </LinearLayout>
 
-    </androidx.coordinatorlayout.widget.CoordinatorLayout>
-
-    <!-- ===== NAVIGATION VIEW (SIDEBAR) ===== -->
-    <com.google.android.material.navigation.NavigationView
-        android:id="@+id/nav_view"
+    <!-- ===== FLOATING BUTTON (must be outside CardView!) ===== -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/addTeacherFab"
         android:layout_width="wrap_content"
-        android:layout_height="match_parent"
-        android:layout_gravity="start"
-        app:headerLayout="@layout/nav_header_admin"
-        app:menu="@menu/admin_navigation_menu" />
-
-</androidx.drawerlayout.widget.DrawerLayout>
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="24dp"
+        app:backgroundTint="@color/dark_blue_700"
+        app:srcCompat="@drawable/ic_add"
+        app:tint="@android:color/white"/>
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

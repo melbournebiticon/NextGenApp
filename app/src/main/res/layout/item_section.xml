@@ -44,31 +44,45 @@
         </LinearLayout>
 
         <!-- Edit Button -->
-        <Button
-            android:id="@+id/btnEdit"
+        <androidx.cardview.widget.CardView
             android:layout_width="wrap_content"
-            android:layout_height="42dp"
-            android:text="Edit"
-            android:textSize="14sp"
-            android:textStyle="bold"
-            android:background="@drawable/button_edit_small"
-            android:textColor="#FFFFFF"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
-            android:layout_marginEnd="8dp" />
+            android:layout_height="36dp"
+            app:cardCornerRadius="18dp"
+            app:cardElevation="2dp"
+            app:cardBackgroundColor="#0D47A1"
+            android:layout_marginEnd="8dp">
+
+            <Button
+                android:id="@+id/editSectionBtn"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:text="Edit"
+                android:textSize="12sp"
+                android:background="@android:color/transparent"
+                android:textColor="#FFFFFF"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"/>
+        </androidx.cardview.widget.CardView>
 
         <!-- Delete Button -->
-        <Button
-            android:id="@+id/btnDelete"
+        <androidx.cardview.widget.CardView
             android:layout_width="wrap_content"
-            android:layout_height="42dp"
-            android:text="Delete"
-            android:textSize="14sp"
-            android:textStyle="bold"
-            android:background="@drawable/button_delete_small"
-            android:textColor="#FFFFFF"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp" />
+            android:layout_height="36dp"
+            app:cardCornerRadius="18dp"
+            app:cardElevation="2dp"
+            app:cardBackgroundColor="#D32F2F">
+
+            <Button
+                android:id="@+id/deleteSpecializationBtn"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:text="Delete"
+                android:textSize="12sp"
+                android:background="@android:color/transparent"
+                android:textColor="#FFFFFF"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"/>
+        </androidx.cardview.widget.CardView>
 
     </LinearLayout>
 
