@@ -2,4 +2,5 @@
 <resources>
     <item name="tvMaxScore" type="id" />
     <item name="recyclerViewActivities" type="id" />
+    <item name="etScore" type="id" />
 </resources>

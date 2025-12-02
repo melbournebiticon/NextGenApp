@@ -28,18 +28,24 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class StudentActivitiesActivity extends AppCompatActivity {
 
     RecyclerView recyclerView;
     SessionManager sessionManager;
-    DatabaseReference activitiesRef;
+    DatabaseReference activitiesRef, submissionsRef;
     List<ActivityModel> activityList;
     ActivitiesAdapter adapter;
 
     TextView tvSubjectCode, tvSubjectName, tvTeacherName;
     Button btnPerformance;
+
+    // Map to preload submissions
+    Map<String, SubmissionModel> submissionMap = new HashMap<>();
+    String studentId;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -62,10 +68,12 @@ public class StudentActivitiesActivity extends AppCompatActivity {
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
 
         activityList = new ArrayList<>();
-        adapter = new ActivitiesAdapter(this, activityList);
+        studentId = FirebaseAuth.getInstance().getCurrentUser().getUid();
+        adapter = new ActivitiesAdapter(this, activityList, submissionMap);
         recyclerView.setAdapter(adapter);
 
         activitiesRef = FirebaseDatabase.getInstance().getReference("Activities");
+        submissionsRef = FirebaseDatabase.getInstance().getReference("Submissions").child(studentId);
 
         // Get intent data
         String subjectId = getIntent().getStringExtra("subjectId");
@@ -113,7 +121,8 @@ public class StudentActivitiesActivity extends AppCompatActivity {
                             Toast.makeText(StudentActivitiesActivity.this, "No activities for this subject.", Toast.LENGTH_SHORT).show();
                         }
 
-                        adapter.notifyDataSetChanged();
+                        // Preload submissions for the student
+                        preloadSubmissions();
                     }
 
                     @Override
@@ -123,14 +132,36 @@ public class StudentActivitiesActivity extends AppCompatActivity {
                 });
     }
 
+    private void preloadSubmissions() {
+        submissionMap.clear();
+        submissionsRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                for (DataSnapshot activitySnap : snapshot.getChildren()) {
+                    SubmissionModel submission = activitySnap.getValue(SubmissionModel.class);
+                    if (submission != null) {
+                        submissionMap.put(activitySnap.getKey(), submission);
+                    }
+                }
+                adapter.notifyDataSetChanged();
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+            }
+        });
+    }
+
     // ===== RecyclerView Adapter =====
     private static class ActivitiesAdapter extends RecyclerView.Adapter<ActivitiesAdapter.ViewHolder> {
         private final List<ActivityModel> list;
         private final Context context;
+        private final Map<String, SubmissionModel> submissionMap;
 
-        public ActivitiesAdapter(Context context, List<ActivityModel> list) {
+        public ActivitiesAdapter(Context context, List<ActivityModel> list, Map<String, SubmissionModel> submissionMap) {
             this.context = context;
             this.list = list;
+            this.submissionMap = submissionMap;
         }
 
         @NonNull
@@ -144,69 +175,41 @@ public class StudentActivitiesActivity extends AppCompatActivity {
         public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
             ActivityModel activity = list.get(position);
 
-            if (holder.tvTitle != null)
-                holder.tvTitle.setText(activity.getTitle() != null ? activity.getTitle() : "N/A");
-            if (holder.tvDueDate != null)
-                holder.tvDueDate.setText(activity.getDueDate() != null ? activity.getDueDate() : "N/A");
-            if (holder.tvDescription != null)
-                holder.tvDescription.setText(activity.getDescription() != null ? activity.getDescription() : "N/A");
-            if (holder.tvTeacher != null) {
-                String subject = activity.getSubject() != null ? activity.getSubject() : "N/A";
-                String teacher = activity.getTeacherName() != null ? activity.getTeacherName() : "N/A";
-                holder.tvTeacher.setText(subject + " • " + teacher);
+            // Display basic data
+            holder.tvTitle.setText(activity.getTitle() != null ? activity.getTitle() : "N/A");
+            holder.tvDueDate.setText(activity.getDueDate() != null ? activity.getDueDate() : "N/A");
+            holder.tvDescription.setText(activity.getDescription() != null ? activity.getDescription() : "N/A");
+
+            String subject = activity.getSubject() != null ? activity.getSubject() : "N/A";
+            String teacher = activity.getTeacherName() != null ? activity.getTeacherName() : "N/A";
+            holder.tvTeacher.setText(subject + " • " + teacher);
+
+            // Reset chip to loading
+            setChip(holder, "Loading...", R.color.white, R.drawable.ic_clock);
+
+            int maxScoreInt = 0;
+            try {
+                if (activity.getMaxScore() != null) maxScoreInt = Integer.parseInt(activity.getMaxScore());
+            } catch (NumberFormatException e) { }
+
+            // Use preloaded submission map
+            SubmissionModel submission = submissionMap.get(activity.getActivityId());
+            if (submission == null) {
+                setChip(holder, "Pending", R.color.dark_blue_700, R.drawable.ic_clock);
+            } else if (Boolean.TRUE.equals(submission.getResubmitRequested())) {
+                setChip(holder, "Resubmit Requested", R.color.teal_700, R.drawable.ic_reset);
+            } else if (submission.getScore() == null || submission.getScore().trim().isEmpty()) {
+                setChip(holder, "Submitted", R.color.teal_700, R.drawable.ic_upload);
+            } else {
+                try {
+                    int score = Integer.parseInt(submission.getScore());
+                    setChip(holder, "Done (" + score + "/" + maxScoreInt + ")", R.color.teal_700, R.drawable.ic_check_circle);
+                } catch (Exception e) {
+                    setChip(holder, "Submitted", R.color.teal_700, R.drawable.ic_upload);
+                }
             }
 
-            // --- Pending/Done Status using chipStatus ---
-            if (holder.chipStatus != null) {
-                String studentId = FirebaseAuth.getInstance().getCurrentUser().getUid();
-                DatabaseReference submissionRef = FirebaseDatabase.getInstance()
-                        .getReference("Submissions")
-                        .child(activity.getActivityId())
-                        .child(studentId);
-
-                submissionRef.addValueEventListener(new ValueEventListener() {
-                    @Override
-                    public void onDataChange(@NonNull DataSnapshot snapshot) {
-                        if (snapshot.exists()) {
-                            Object scoreObj = snapshot.child("score").getValue();
-                            String scoreStr = (scoreObj != null) ? scoreObj.toString() : null;
-
-                            // Parse maxScore safely (stored as String in Firebase)
-                            int maxScoreInt = 0;
-                            try {
-                                if (activity.getMaxScore() != null) {
-                                    maxScoreInt = Integer.parseInt(activity.getMaxScore());
-                                }
-                            } catch (NumberFormatException e) {
-                                Log.w("StudentActivities", "Invalid maxScore format: " + activity.getMaxScore());
-                            }
-
-                            if (scoreStr != null && !scoreStr.isEmpty()) {
-                                holder.chipStatus.setText("Done (" + scoreStr + "/" + maxScoreInt + ")");
-                                holder.chipStatus.setChipBackgroundColorResource(R.color.teal_700);
-                                holder.chipStatus.setChipIconResource(R.drawable.ic_done);
-                            } else {
-                                holder.chipStatus.setText("Pending");
-                                holder.chipStatus.setChipBackgroundColorResource(R.color.dark_blue_700);
-                                holder.chipStatus.setChipIconResource(R.drawable.ic_clock);
-                            }
-                        } else {
-                            holder.chipStatus.setText("Pending");
-                            holder.chipStatus.setChipBackgroundColorResource(R.color.dark_blue_700);
-                            holder.chipStatus.setChipIconResource(R.drawable.ic_clock);
-                        }
-                    }
-
-                    @Override
-                    public void onCancelled(@NonNull DatabaseError error) {
-                        holder.chipStatus.setText("Pending");
-                        holder.chipStatus.setChipBackgroundColorResource(R.color.dark_blue_700);
-                        holder.chipStatus.setChipIconResource(R.drawable.ic_clock);
-                    }
-                });
-            }
-
-            // Open details activity
+            // Open ActivityDetails on click
             holder.itemView.setOnClickListener(v -> {
                 Intent intent = new Intent(context, ActivityDetailsActivity.class);
                 intent.putExtra("activityId", activity.getActivityId());
@@ -228,6 +231,12 @@ public class StudentActivitiesActivity extends AppCompatActivity {
             return list.size();
         }
 
+        private void setChip(ViewHolder holder, String text, int colorRes, int iconRes) {
+            holder.chipStatus.setText(text);
+            holder.chipStatus.setChipBackgroundColorResource(colorRes);
+            holder.chipStatus.setChipIconResource(iconRes);
+        }
+
         static class ViewHolder extends RecyclerView.ViewHolder {
             TextView tvTitle, tvDueDate, tvDescription, tvTeacher;
             com.google.android.material.chip.Chip chipStatus;
@@ -241,5 +250,16 @@ public class StudentActivitiesActivity extends AppCompatActivity {
                 chipStatus = itemView.findViewById(R.id.chipStatus);
             }
         }
+    }
+
+    // ===== Submission Model =====
+    public static class SubmissionModel {
+        private String score;
+        private Boolean resubmitRequested;
+
+        public SubmissionModel() {}
+
+        public String getScore() { return score; }
+        public Boolean getResubmitRequested() { return resubmitRequested; }
     }
 }

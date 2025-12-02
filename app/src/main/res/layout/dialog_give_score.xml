@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <TextView
+        android:id="@+id/tvTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Give Score"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:paddingBottom="12dp" />
+
+    <TextView
+        android:id="@+id/tvInstruction"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Enter student's score below"
+        android:textSize="14sp"
+        android:paddingBottom="10dp" />
+
+    <EditText
+        android:id="@+id/etScore"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Enter score"
+        android:inputType="numberDecimal"
+        android:textSize="16sp"
+        android:padding="12dp"
+        android:background="@android:drawable/edit_text"
+        android:layout_marginBottom="10dp" />
+
+</LinearLayout>

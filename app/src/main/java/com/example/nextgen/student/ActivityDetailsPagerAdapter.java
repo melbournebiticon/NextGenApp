@@ -7,15 +7,15 @@ import androidx.viewpager2.adapter.FragmentStateAdapter;
 
 public class ActivityDetailsPagerAdapter extends FragmentStateAdapter {
 
-    private final String subjectCode;
-    private final String subjectName;
-    private final String teacherName;
-    private final String description;
-    private final String dueDate;
-    private final String activityId;
-    private final String mainTerm;
-    private final String subTerm;
-    private final String maxScore;
+    private String subjectCode;
+    private String subjectName;
+    private String teacherName;
+    private String description;
+    private String dueDate;
+    private String activityId;
+    private String mainTerm;
+    private String subTerm;
+    private String maxScore;
 
     public ActivityDetailsPagerAdapter(@NonNull FragmentActivity activity,
                                        String subjectCode,
@@ -55,7 +55,7 @@ public class ActivityDetailsPagerAdapter extends FragmentStateAdapter {
                         maxScore // Pass Max Score
                 );
             case 1: // My Work tab
-                return ActivityMyWorkFragment.newInstance(activityId, maxScore);
+                return ActivityMyWorkFragment.newInstance(activityId, maxScore); // Pass activityId + maxScore
             default:
                 throw new IllegalArgumentException("Invalid tab position: " + position);
         }
@@ -66,6 +66,9 @@ public class ActivityDetailsPagerAdapter extends FragmentStateAdapter {
         return 2; // Details + My Work
     }
 
+    /** Optional: Update activityId dynamically if needed */
     public void setActivityId(String activityId) {
+        this.activityId = activityId;
+        notifyDataSetChanged(); // Refresh fragments if needed
     }
 }

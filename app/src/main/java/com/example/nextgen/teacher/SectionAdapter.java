@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.graphics.Color;
 import android.net.Uri;
 import android.util.Base64;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -19,6 +20,7 @@ import androidx.core.content.FileProvider;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.nextgen.R;
+import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 
 import java.io.File;
@@ -27,12 +29,14 @@ import java.util.List;
 
 public class SectionAdapter extends RecyclerView.Adapter<SectionAdapter.ViewHolder> {
 
-    private List<StudentModel> studentList;
-    private String maxScore; // fallback max score
+    private final List<StudentModel> studentList;
+    private final String fallbackMaxScore;
+    private final DatabaseReference submissionsRef;
 
     public SectionAdapter(List<StudentModel> studentList, String maxScore) {
         this.studentList = studentList;
-        this.maxScore = maxScore != null ? maxScore : "100";
+        this.fallbackMaxScore = (maxScore != null && !maxScore.isEmpty()) ? maxScore : "100";
+        this.submissionsRef = FirebaseDatabase.getInstance().getReference("Submissions");
     }
 
     @NonNull
@@ -46,96 +50,64 @@ public class SectionAdapter extends RecyclerView.Adapter<SectionAdapter.ViewHold
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         StudentModel student = studentList.get(position);
+
         holder.tvStudentName.setText(student.getFullName());
         holder.tvStudentId.setText(student.getStudentId());
 
-        // Show submission info with score/maxScore and viewed status
         if (student.getSubmission() != null) {
             SubmissionModel sub = student.getSubmission();
-            String status = sub.isResubmitRequested() ? "(Resubmit requested) " : "";
 
-            String actualMaxScore = sub.getMaxScore() != null ? sub.getMaxScore() : maxScore;
-
-            String scoreText = (sub.getScore() != null && !sub.getScore().isEmpty())
-                    ? sub.getScore() + "/" + actualMaxScore
-                    : "Pending";
-
-            if (sub.isViewed()) {
-                status += "[Viewed by Instructor]";
-                holder.tvSubmission.setTextColor(Color.GREEN); // make viewed text green
-            } else {
-                holder.tvSubmission.setTextColor(Color.WHITE); // default color
+            if ((sub.getSubmissionId() == null || sub.getSubmissionId().isEmpty()) && sub.getId() != null) {
+                sub.setSubmissionId(sub.getId());
             }
 
-            holder.tvSubmission.setText(
-                    sub.getFileName() != null ? sub.getFileName() + " " + status + " - " + scoreText
-                            : "No submission"
-            );
+            Log.d("DEBUG_SUBMISSION", "Submission ID → " + sub.getSubmissionId());
+
+            String actualMax = (sub.getMaxScore() != null && !sub.getMaxScore().isEmpty())
+                    ? sub.getMaxScore()
+                    : fallbackMaxScore;
+
+            boolean hasScore = sub.getScore() != null && !sub.getScore().isEmpty();
+
+            String display = (sub.getFileName() != null ? sub.getFileName() : "No file");
+
+            if (sub.isResubmitRequested())
+                display += "  [RESUBMIT]";
+
+            if (hasScore)
+                display += "  ✅ " + sub.getScore() + "/" + actualMax;
+            else
+                display += "  ⏳ Pending";
+
+            holder.tvSubmission.setText(display);
+
+            // COLOR INDICATOR
+            if (sub.isResubmitRequested())
+                holder.tvSubmission.setTextColor(Color.YELLOW);
+            else if (hasScore)
+                holder.tvSubmission.setTextColor(Color.parseColor("#4CAF50")); // green
+            else
+                holder.tvSubmission.setTextColor(Color.WHITE);
+
         } else {
             holder.tvSubmission.setText("No submission");
-            holder.tvSubmission.setTextColor(Color.WHITE);
+            holder.tvSubmission.setTextColor(Color.GRAY);
         }
 
-        // View Work Button
         holder.btnViewWork.setOnClickListener(v -> {
             SubmissionModel submission = student.getSubmission();
+
             if (submission == null || submission.getFileData() == null) {
-                Toast.makeText(v.getContext(), "No submission from this student", Toast.LENGTH_SHORT).show();
+                Toast.makeText(v.getContext(), "No file submitted yet", Toast.LENGTH_SHORT).show();
                 return;
             }
 
-            Context context = v.getContext();
-            String actualMaxScore = submission.getMaxScore() != null ? submission.getMaxScore() : maxScore;
-            String scoreDisplay = submission.getScore() != null ? submission.getScore() + "/" + actualMaxScore : "Pending";
-
-            AlertDialog.Builder builder = new AlertDialog.Builder(context);
-            builder.setTitle(student.getFullName());
-            builder.setMessage("File: " + submission.getFileName() + "\nScore: " + scoreDisplay +
-                    (submission.isViewed() ? "\n[Viewed by Instructor]" : ""));
-            builder.setPositiveButton("View File", (dialog, which) -> openSubmissionFile(context, submission, holder));
-            builder.setNegativeButton("Give Score", (dialog, which) -> giveScoreDialog(context, submission, student, holder));
-            builder.show();
+            showSubmissionDialog(v.getContext(), submission, student, holder);
         });
 
-        // Resubmit Button
-        holder.btnResubmit.setOnClickListener(v -> {
-            SubmissionModel submission = student.getSubmission();
-            if (submission == null) {
-                Toast.makeText(v.getContext(), "Student hasn't submitted yet", Toast.LENGTH_SHORT).show();
-                return;
-            }
-
-            new AlertDialog.Builder(v.getContext())
-                    .setTitle("Request Resubmit")
-                    .setMessage("Are you sure you want to request a resubmission from " + student.getFullName() + "?")
-                    .setPositiveButton("Yes", (dialog, which) -> {
-                        FirebaseDatabase.getInstance().getReference("Submissions")
-                                .child(submission.getSubmissionId())
-                                .child("resubmitRequested")
-                                .setValue(true);
-                        FirebaseDatabase.getInstance().getReference("Submissions")
-                                .child(submission.getSubmissionId())
-                                .child("fileData").setValue(null);
-                        FirebaseDatabase.getInstance().getReference("Submissions")
-                                .child(submission.getSubmissionId())
-                                .child("fileName").setValue(null);
-                        FirebaseDatabase.getInstance().getReference("Submissions")
-                                .child(submission.getSubmissionId())
-                                .child("score").setValue(null);
-
-                        // Update local object immediately
-                        submission.setResubmitRequested(true);
-                        submission.setFileData(null);
-                        submission.setFileName(null);
-                        submission.setScore(null);
-                        submission.setViewed(false);
-                        notifyItemChanged(holder.getAdapterPosition());
-
-                        Toast.makeText(v.getContext(), "Resubmit requested. Student can now submit again!", Toast.LENGTH_SHORT).show();
-                    })
-                    .setNegativeButton("Cancel", null)
-                    .show();
-        });
+        holder.btnResubmit.setOnClickListener(
+                v -> requestResubmit(v.getContext(), student, holder)
+        );
     }
 
     @Override
@@ -157,10 +129,50 @@ public class SectionAdapter extends RecyclerView.Adapter<SectionAdapter.ViewHold
         }
     }
 
-    private void openSubmissionFile(Context context, SubmissionModel submission, ViewHolder holder) {
+    // ========================
+    // ✅ SUBMISSION DIALOG
+    // ========================
+    private void showSubmissionDialog(Context context,
+                                      SubmissionModel submission,
+                                      StudentModel student,
+                                      ViewHolder holder) {
+
+        String actualMax = (submission.getMaxScore() != null && !submission.getMaxScore().isEmpty())
+                ? submission.getMaxScore()
+                : fallbackMaxScore;
+
+        String score = (submission.getScore() != null)
+                ? submission.getScore() + "/" + actualMax
+                : "Pending";
+
+        new AlertDialog.Builder(context)
+                .setTitle(student.getFullName())
+                .setMessage(
+                        "File: " + submission.getFileName() +
+                                "\nScore: " + score +
+                                (submission.isViewed() ? "\n[Viewed]" : "")
+                )
+                .setPositiveButton("Open File", (dialog, which) ->
+                        openSubmissionFile(context, submission, holder))
+
+                .setNegativeButton("Give Score",
+                        (dialog, which) ->
+                                giveScoreDialog(context, submission, student, holder))
+                .show();
+    }
+
+    // ========================
+    // ✅ OPEN FILE
+    // ========================
+    private void openSubmissionFile(Context context,
+                                    SubmissionModel submission,
+                                    ViewHolder holder) {
+
         try {
             byte[] fileBytes = Base64.decode(submission.getFileData(), Base64.DEFAULT);
-            File tempFile = new File(context.getCacheDir(), "submission_" + submission.getFileName());
+            File tempFile = new File(context.getCacheDir(),
+                    "submission_" + submission.getSubmissionId());
+
             try (FileOutputStream fos = new FileOutputStream(tempFile)) {
                 fos.write(fileBytes);
             }
@@ -171,96 +183,179 @@ public class SectionAdapter extends RecyclerView.Adapter<SectionAdapter.ViewHold
                     tempFile
             );
 
-            String mimeType = getMimeType(context, fileUri);
             Intent openIntent = new Intent(Intent.ACTION_VIEW);
-            openIntent.setDataAndType(fileUri, mimeType);
+            openIntent.setDataAndType(fileUri, getMimeType(context, fileUri));
             openIntent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
             context.startActivity(openIntent);
 
-            // Mark as viewed in Firebase & locally
             submission.setViewed(true);
-            FirebaseDatabase.getInstance().getReference("Submissions")
-                    .child(submission.getSubmissionId())
-                    .child("viewed")
-                    .setValue(true);
 
-            notifyItemChanged(holder.getAdapterPosition()); // update UI instantly
+            if (submission.getSubmissionId() != null) {
+                submissionsRef.child(submission.getSubmissionId())
+                        .child("viewed")
+                        .setValue(true);
+            }
+
+            if (holder.getAdapterPosition() != RecyclerView.NO_POSITION)
+                notifyItemChanged(holder.getAdapterPosition());
+
         } catch (Exception e) {
-            e.printStackTrace();
-            Toast.makeText(context, "Failed to open file: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            Toast.makeText(context, "Error: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
 
-    private void giveScoreDialog(Context context, SubmissionModel submission, StudentModel student, ViewHolder holder) {
-        AlertDialog.Builder scoreDialog = new AlertDialog.Builder(context);
-        final EditText input = new EditText(context);
-        String actualMaxScore = submission.getMaxScore() != null ? submission.getMaxScore() : maxScore;
-        input.setHint("Enter score (max " + actualMaxScore + ")");
-        scoreDialog.setView(input);
+    // ========================
+    // ✅ SCORE DIALOG (INT STORAGE)
+    // ========================
+    private void giveScoreDialog(Context context,
+                                 SubmissionModel submission,
+                                 StudentModel student,
+                                 ViewHolder holder) {
 
-        scoreDialog.setPositiveButton("Save", (d, w) -> {
-            String newScore = input.getText().toString().trim();
-            if (newScore.isEmpty()) {
-                Toast.makeText(context, "Please enter a score", Toast.LENGTH_SHORT).show();
+        View view = LayoutInflater.from(context)
+                .inflate(R.layout.dialog_give_score, null);
+
+        EditText input = view.findViewById(R.id.etScore);
+
+        int max = (submission.getMaxScore() != null && !submission.getMaxScore().isEmpty())
+                ? Integer.parseInt(submission.getMaxScore())
+                : Integer.parseInt(fallbackMaxScore);
+
+        input.setHint("Max: " + max);
+
+        if (submission.getScore() != null)
+            input.setText(submission.getScore());
+
+        AlertDialog dialog = new AlertDialog.Builder(context)
+                .setTitle("Give score to " + student.getFullName())
+                .setView(view)
+                .setPositiveButton("Save", null)
+                .setNegativeButton("Cancel", null)
+                .create();
+
+        dialog.show();
+
+        Button saveBtn = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+
+        saveBtn.setOnClickListener(v -> {
+
+            String scoreStr = input.getText().toString().trim();
+
+            if (scoreStr.isEmpty()) {
+                Toast.makeText(context, "Enter score", Toast.LENGTH_SHORT).show();
                 return;
             }
 
+            String id = submission.getSubmissionId();
+
+            if (id == null || id.isEmpty()) {
+                Toast.makeText(context, "Submission ID missing", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            int scoreInt;
             try {
-                float scoreVal = Float.parseFloat(newScore);
-                float maxVal = Float.parseFloat(actualMaxScore);
-                if (scoreVal > maxVal) {
-                    Toast.makeText(context, "Score cannot exceed max score (" + actualMaxScore + ")", Toast.LENGTH_SHORT).show();
+                scoreInt = Integer.parseInt(scoreStr);
+
+                if (scoreInt > max) {
+                    Toast.makeText(context,
+                            "Max allowed: " + max,
+                            Toast.LENGTH_SHORT).show();
                     return;
                 }
             } catch (NumberFormatException e) {
-                Toast.makeText(context, "Invalid score format", Toast.LENGTH_SHORT).show();
+                Toast.makeText(context, "Invalid number", Toast.LENGTH_SHORT).show();
                 return;
             }
 
-            // Save score & maxScore to Firebase
-            FirebaseDatabase.getInstance().getReference("Submissions")
-                    .child(submission.getSubmissionId())
-                    .child("score")
-                    .setValue(newScore);
-            FirebaseDatabase.getInstance().getReference("Submissions")
-                    .child(submission.getSubmissionId())
-                    .child("maxScore")
-                    .setValue(actualMaxScore);
-            FirebaseDatabase.getInstance().getReference("Submissions")
-                    .child(submission.getSubmissionId())
-                    .child("resubmitRequested")
-                    .setValue(false);
-            FirebaseDatabase.getInstance().getReference("Submissions")
-                    .child(submission.getSubmissionId())
-                    .child("viewed")
-                    .setValue(true);
+            // Save as integers in Firebase
+            submissionsRef.child(id).child("score").setValue(scoreInt);
+            submissionsRef.child(id).child("maxScore").setValue(max);
+            submissionsRef.child(id).child("resubmitRequested").setValue(false);
+            submissionsRef.child(id).child("viewed").setValue(true);
 
-            // Update local object & UI instantly
-            submission.setScore(newScore);
-            submission.setMaxScore(actualMaxScore);
+            // Update local object
+            submission.setScore(String.valueOf(scoreInt));
+            submission.setMaxScore(String.valueOf(max));
             submission.setResubmitRequested(false);
             submission.setViewed(true);
-            notifyItemChanged(holder.getAdapterPosition());
 
-            Toast.makeText(context, "Score saved!", Toast.LENGTH_SHORT).show();
+            if (holder.getAdapterPosition() != RecyclerView.NO_POSITION)
+                notifyItemChanged(holder.getAdapterPosition());
+
+            Toast.makeText(context, "Score saved ✅", Toast.LENGTH_SHORT).show();
+            dialog.dismiss();
         });
-
-        scoreDialog.setNegativeButton("Cancel", null);
-        scoreDialog.show();
     }
 
-    private String getMimeType(Context context, Uri uri) {
-        String type = context.getContentResolver().getType(uri);
-        if (type == null) {
-            String path = uri.getPath();
-            if (path != null) {
-                if (path.endsWith(".pdf")) return "application/pdf";
-                if (path.endsWith(".jpg") || path.endsWith(".jpeg")) return "image/jpeg";
-                if (path.endsWith(".png")) return "image/png";
-                if (path.endsWith(".mp4")) return "video/mp4";
-                if (path.endsWith(".doc") || path.endsWith(".docx")) return "application/msword";
-            }
+    // ========================
+    // ✅ REQUEST RESUBMIT
+    // ========================
+    private void requestResubmit(Context context,
+                                 StudentModel student,
+                                 ViewHolder holder) {
+
+        SubmissionModel submission = student.getSubmission();
+
+        if (submission == null) {
+            Toast.makeText(context,
+                    "No submission yet",
+                    Toast.LENGTH_SHORT).show();
+            return;
         }
+
+        new AlertDialog.Builder(context)
+                .setTitle("Request resubmission?")
+                .setMessage("Student: " + student.getFullName())
+                .setPositiveButton("Yes", (dialog, which) -> {
+
+                    String id = submission.getSubmissionId();
+
+                    if (id == null || id.isEmpty()) {
+                        Toast.makeText(context,
+                                "Submission ID not found",
+                                Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+
+                    submissionsRef.child(id).child("resubmitRequested").setValue(true);
+                    submissionsRef.child(id).child("score").setValue(null);
+                    submissionsRef.child(id).child("fileData").setValue(null);
+                    submissionsRef.child(id).child("fileName").setValue(null);
+                    submissionsRef.child(id).child("viewed").setValue(false);
+
+                    submission.setScore(null);
+                    submission.setFileData(null);
+                    submission.setFileName(null);
+                    submission.setViewed(false);
+                    submission.setResubmitRequested(true);
+
+                    if (holder.getAdapterPosition() != RecyclerView.NO_POSITION)
+                        notifyItemChanged(holder.getAdapterPosition());
+
+                    Toast.makeText(context,
+                            "Resubmit requested ✅",
+                            Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    // ========================
+    // ✅ MIME TYPE
+    // ========================
+    private String getMimeType(Context context, Uri uri) {
+
+        String type = context.getContentResolver().getType(uri);
+
+        if (type == null && uri.getPath() != null) {
+            String path = uri.getPath();
+            if (path.endsWith(".pdf")) return "application/pdf";
+            if (path.endsWith(".jpg")) return "image/jpeg";
+            if (path.endsWith(".png")) return "image/png";
+            if (path.endsWith(".doc") || path.endsWith(".docx")) return "application/msword";
+        }
+
         return type != null ? type : "*/*";
     }
 }
