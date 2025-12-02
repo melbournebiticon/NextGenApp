@@ -26,7 +26,9 @@
                 android:background="@color/dark_blue_700"
                 android:paddingStart="20dp"
                 android:paddingEnd="20dp"
-                app:layout_scrollFlags="scroll|exitUntilCollapsed"> <FrameLayout
+                app:layout_scrollFlags="scroll|exitUntilCollapsed">
+
+                <FrameLayout
                 android:layout_width="48dp"
                 android:layout_height="48dp"
                 android:layout_gravity="end|top"
@@ -57,7 +59,7 @@
                         android:id="@+id/header_title"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Welcome Back, Admin!"
+                        android:text="NGX | ADMIN"
                         android:textColor="#FFFFFF"
                         android:textSize="30sp"
                         android:textStyle="bold" />
@@ -140,18 +142,13 @@
                             android:id="@+id/totalCourses"
                             android:text="32"
                             android:textColor="#0D47A1"
-                            android:textSize="26sp"
+                            android:textSize="55sp"
                             android:textStyle="bold"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginBottom="6dp"/>
 
-                        <TextView
-                            android:text="↑ 24.5% vs last 7 days"
-                            android:textColor="#4CAF50"
-                            android:textSize="12sp"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"/>
+
                     </LinearLayout>
                 </androidx.cardview.widget.CardView>
 
@@ -199,18 +196,13 @@
                             android:id="@+id/totalExaminees"
                             android:text="1,240"
                             android:textColor="#0D47A1"
-                            android:textSize="26sp"
+                            android:textSize="55sp"
                             android:textStyle="bold"
                             android:layout_marginBottom="6dp"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"/>
 
-                        <TextView
-                            android:text="↑ 2.5% vs last 7 days"
-                            android:textColor="#4CAF50"
-                            android:textSize="12sp"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"/>
+
                     </LinearLayout>
                 </androidx.cardview.widget.CardView>
 
@@ -258,18 +250,13 @@
                             android:id="@+id/totalTeachers"
                             android:text="48"
                             android:textColor="#0D47A1"
-                            android:textSize="26sp"
+                            android:textSize="55sp"
                             android:textStyle="bold"
                             android:layout_marginBottom="6dp"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"/>
 
-                        <TextView
-                            android:text="↓ 0.15% vs last 7 days"
-                            android:textColor="#F44336"
-                            android:textSize="12sp"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"/>
+
                     </LinearLayout>
                 </androidx.cardview.widget.CardView>
             </androidx.gridlayout.widget.GridLayout>
