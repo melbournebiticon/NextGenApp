@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.NextGen.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/dark_blue_700</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/logo</item>
+        <item name="postSplashScreenTheme">@style/Theme.NextGen</item>
+    </style>
+</resources>
