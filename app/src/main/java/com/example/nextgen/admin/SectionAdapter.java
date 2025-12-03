@@ -55,7 +55,7 @@ public class SectionAdapter extends RecyclerView.Adapter<SectionAdapter.SectionV
 
     @Override
     public int getItemCount() {
-        return sectionList.size();
+        return sectionList.size();  // <-- this was missing
     }
 
     public static class SectionViewHolder extends RecyclerView.ViewHolder {
@@ -66,8 +66,8 @@ public class SectionAdapter extends RecyclerView.Adapter<SectionAdapter.SectionV
             super(itemView);
             tvSectionName = itemView.findViewById(R.id.tvSectionName);
             tvSpecYear = itemView.findViewById(R.id.tvSpecYear);
-            btnEdit = itemView.findViewById(R.id.btnEdit);
-            btnDelete = itemView.findViewById(R.id.btnDelete);
+            btnEdit = itemView.findViewById(R.id.editSectionBtn);
+            btnDelete = itemView.findViewById(R.id.deleteSectionBtn);
         }
     }
 }

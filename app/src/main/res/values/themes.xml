@@ -2,6 +2,10 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
 
     <style name="Theme.NextGen" parent="Theme.Material3.DayNight.NoActionBar">
+
+        <item name="android:windowSplashScreenBackground">@color/dark_blue_700</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/logo</item>
+
         <item name="colorPrimary">@color/dark_blue_700</item>
         <item name="colorOnPrimary">@color/white</item>
         <item name="colorPrimaryContainer">@color/blue_300</item>

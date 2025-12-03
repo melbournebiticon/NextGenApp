@@ -37,7 +37,7 @@
                 android:id="@+id/tvSpecYear"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Specialization - Year"
+                android:text="Section - Year"
                 android:textColor="#666666"
                 android:textSize="12sp"
                 android:layout_marginTop="4dp" />
@@ -73,7 +73,7 @@
             app:cardBackgroundColor="#D32F2F">
 
             <Button
-                android:id="@+id/deleteSpecializationBtn"
+                android:id="@+id/deleteSectionBtn"
                 android:layout_width="wrap_content"
                 android:layout_height="match_parent"
                 android:text="Delete"

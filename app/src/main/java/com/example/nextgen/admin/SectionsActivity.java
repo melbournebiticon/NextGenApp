@@ -8,12 +8,11 @@ import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
-
-import android.widget.ImageView;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.ActionBarDrawerToggle;
@@ -25,8 +24,11 @@ import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.example.nextgen.MainActivity;
 import com.example.nextgen.R;
+import com.example.nextgen.SessionManager;
 import com.google.android.material.navigation.NavigationView;
+import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
@@ -34,8 +36,6 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
-
-
 import java.util.ArrayList;
 
 public class SectionsActivity extends AppCompatActivity {
@@ -45,7 +45,7 @@ public class SectionsActivity extends AppCompatActivity {
     private Toolbar toolbar;
 
     // ORIGINAL COMPONENTS
-    RecyclerView recyclerSections;
+        RecyclerView recyclerSections;
 
     DatabaseReference dbSections, dbSpecializations, dbYears, dbCourseOptions;
 
@@ -67,17 +67,20 @@ public class SectionsActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_sections);
 
-        // --- BACK BUTTON ---
+        initializeToolbarAndBackNavigation();
+
         ImageView btnBack = findViewById(R.id.btnBack);
+
         btnBack.setOnClickListener(v -> {
-            Intent intent = new Intent(SectionsActivity.this, AdminActivity.class);
+            // Go back to AdminActivity
+            Intent intent = new Intent(this, AdminActivity.class);
             startActivity(intent);
             finish();
         });
 
-        // ORIGINAL CODE=
-
-        FloatingActionButton addSectionFab = findViewById(R.id.addSectionFab);
+        // ORIGINAL CODE
+        FloatingActionButton fabAddSection = findViewById(R.id.addSectionFab);
+        fabAddSection.setOnClickListener(v -> showAddSectionDialog());
 
         recyclerSections = findViewById(R.id.recyclerSections);
 
@@ -112,34 +115,23 @@ public class SectionsActivity extends AppCompatActivity {
             }
         });
         recyclerSections.setAdapter(adapter);
-        addSectionFab.setOnClickListener(v -> showAddSectionDialog());
+
 
         // Load existing sections
         loadSections();
     }
 
-    private void initializeToolbarAndNavigation() {
+    private void initializeToolbarAndBackNavigation() {
         // Setup Toolbar
         toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-        // Setup Drawer Layout and Navigation
-        drawerLayout = findViewById(R.id.drawer_layout);
-        navigationView = findViewById(R.id.nav_view);
-
-        // Setup toggle button
-        ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
-                this, drawerLayout, toolbar,
-                R.string.navigation_drawer_open, R.string.navigation_drawer_close
-        );
-        drawerLayout.addDrawerListener(toggle);
-        toggle.syncState();
-
-
-        // Highlight current menu item
-        navigationView.setCheckedItem(R.id.nav_sections);
+        // I-set up ang 'Up' o 'Back' arrow
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+            getSupportActionBar().setDisplayShowHomeEnabled(true);
+        }
     }
-
     @Override
     public void onBackPressed() {
         if (drawerLayout.isDrawerOpen(GravityCompat.START)) {

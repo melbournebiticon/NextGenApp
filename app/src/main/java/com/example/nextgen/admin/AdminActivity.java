@@ -42,8 +42,7 @@ import androidx.appcompat.app.AlertDialog;
 import android.content.DialogInterface;
 
 
-public class AdminActivity extends AppCompatActivity
-        implements NavigationView.OnNavigationItemSelectedListener {
+public class AdminActivity extends AppCompatActivity{
 
     private DrawerLayout drawerLayout;
     private NavigationView navigationView;
@@ -450,40 +449,7 @@ public class AdminActivity extends AppCompatActivity
         });
     }
 
-    @Override
-    public boolean onNavigationItemSelected(@NonNull MenuItem item) {
-        if (drawerLayout != null) {
-            drawerLayout.closeDrawer(GravityCompat.START);
-        }
 
-        // Assuming AcademicsActivity, TeacherActivity, and StudentActivity exist
-        if (item.getItemId() == R.id.nav_academics)
-            // Replace with actual intent if available
-            // startActivity(new Intent(this, AcademicsActivity.class));
-            Toast.makeText(this, "Academics clicked", Toast.LENGTH_SHORT).show();
-        else if (item.getItemId() == R.id.nav_teachers)
-            // startActivity(new Intent(this, TeacherActivity.class));
-            Toast.makeText(this, "Teachers clicked", Toast.LENGTH_SHORT).show();
-        else if (item.getItemId() == R.id.nav_students)
-            // startActivity(new Intent(this, StudentActivity.class));
-            Toast.makeText(this, "Students clicked", Toast.LENGTH_SHORT).show();
-        else if (item.getItemId() == R.id.nav_logout)
-            performLogout();
-
-        return true;
-    }
-
-    private void performLogout() {
-        new SessionManager(this).clearSession();
-        FirebaseAuth.getInstance().signOut();
-
-        Intent i = new Intent(this, MainActivity.class);
-        i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        startActivity(i);
-        finish();
-
-        Toast.makeText(this, "Logged out successfully", Toast.LENGTH_SHORT).show();
-    }
 
     @Override
     protected void onDestroy() {

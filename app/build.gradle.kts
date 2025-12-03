@@ -63,7 +63,7 @@ dependencies {
     implementation("androidx.camera:camera-view:1.3.4")
     implementation("com.google.android.material:material:1.10.0")
     implementation("com.google.android.material:material:1.9.0")
-
+    implementation("androidx.core:core-splashscreen:1.0.1")
     implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
     // ✅ Firebase BOM - ensures consistent versions
     implementation(platform("com.google.firebase:firebase-bom:34.4.0"))
