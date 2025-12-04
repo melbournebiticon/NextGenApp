@@ -147,14 +147,14 @@ public class TeacherDashboardActivity extends AppCompatActivity implements Navig
         tvPendingSubmissionsCount = findViewById(R.id.tvPendingSubmissionsCount);
         listenPendingSubmissions();
 
-
-
-
         // Cards
         cardManageExam = findViewById(R.id.cardManageExam);
         cardCreateActivity = findViewById(R.id.cardCreateActivity);
         cardManageExaminees = findViewById(R.id.cardManageExaminees);
         cardViewProfile = findViewById(R.id.cardViewProfile);
+
+        // NEW: Manage Quiz Card
+        CardView cardManageQuiz = findViewById(R.id.cardManageQuiz);
 
         // Card actions
         cardManageExam.setOnClickListener(v -> startActivity(new Intent(this, ManageExamActivity.class)));
@@ -166,6 +166,12 @@ public class TeacherDashboardActivity extends AppCompatActivity implements Navig
 
         cardManageExaminees.setOnClickListener(v -> startActivity(new Intent(this, ViewStudentsActivity.class)));
         cardViewProfile.setOnClickListener(v -> openProfile()); // Quick action card also opens profile
+
+        // Connect Manage Quiz card
+        cardManageQuiz.setOnClickListener(v -> {
+            Intent intent = new Intent(TeacherDashboardActivity.this, ManageQuizActivity.class);
+            startActivity(intent);
+        });
 
         // Get teacher ID from session
         String teacherId = sessionManager.getUserId();
@@ -179,7 +185,6 @@ public class TeacherDashboardActivity extends AppCompatActivity implements Navig
             Toast.makeText(this, "Teacher ID not found in session!", Toast.LENGTH_SHORT).show();
         }
     }
-
 
     // =================================================================
     // START: TOOLBAR PROFILE/LOGOUT MENU HANDLING (FINAL FIXED VERSION)

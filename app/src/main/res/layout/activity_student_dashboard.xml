@@ -211,7 +211,20 @@
                         android:textColor="?attr/colorOnSurface"
                         android:textSize="22sp"
                         android:textStyle="bold"/>
+
+                    <!-- NEW: Button to open quizzes -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnOpenQuizzes"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Quizzes"
+                        android:layout_marginEnd="24dp"
+                        app:icon="@drawable/ic_quiz"
+                        app:iconPadding="8dp"
+                        app:strokeWidth="0dp"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
                 </LinearLayout>
+
                 <LinearLayout
                     android:id="@+id/layoutOfflinePrep"
                     android:layout_width="match_parent"

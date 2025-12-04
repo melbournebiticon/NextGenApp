@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <!-- Filled pill using the app primary color -->
+    <solid android:color="?attr/colorPrimary" />
+
+    <!-- Rounded corners to look like a pill -->
+    <corners android:radius="16dp" />
+
+    <!-- Optional subtle inner padding so text doesn't touch edges -->
+    <padding
+        android:left="8dp"
+        android:right="8dp"
+        android:top="4dp"
+        android:bottom="4dp" />
+</shape>

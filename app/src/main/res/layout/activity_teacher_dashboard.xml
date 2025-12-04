@@ -14,7 +14,7 @@
         android:layout_height="match_parent"
         android:background="#F0F3F9">
 
-        <!-- ===== APP BAR (Toolbar) - Dito lalabas ang Profile Action Menu ===== -->
+        <!-- ===== APP BAR (Toolbar) ===== -->
         <com.google.android.material.appbar.AppBarLayout
             android:id="@+id/appBarLayout3"
             android:layout_width="match_parent"
@@ -31,7 +31,7 @@
                 app:titleTextColor="@android:color/white" />
         </com.google.android.material.appbar.AppBarLayout>
 
-        <!-- ===== MAIN SCROLL CONTENT - Inayos ang padding sa baba ===== -->
+        <!-- ===== MAIN SCROLL CONTENT ===== -->
         <ScrollView
             android:layout_width="match_parent"
             android:layout_height="match_parent"
@@ -70,7 +70,6 @@
                             android:contentDescription="Profile Picture"
                             android:src="@drawable/tc_profile" />
 
-                        <!-- Teacher Name and ID on Right -->
                         <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
@@ -97,8 +96,7 @@
                     </LinearLayout>
                 </androidx.cardview.widget.CardView>
 
-
-                <!-- 2. SUMMARY STATISTICS (KPIs - Stacked Style) -->
+                <!-- 2. SUMMARY STATISTICS -->
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -108,7 +106,6 @@
                     android:textSize="18sp"
                     android:textStyle="bold" />
 
-
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -116,7 +113,7 @@
                     android:baselineAligned="false"
                     android:orientation="horizontal">
 
-                    <!-- KPI Card 1: Active Exams (Blue Stacked Style) -->
+                    <!-- KPI Card 1: Active Exams -->
                     <androidx.cardview.widget.CardView
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
@@ -133,7 +130,6 @@
                             android:gravity="center_horizontal"
                             android:orientation="vertical">
 
-                            <!-- Icon (Blue) -->
                             <ImageView
                                 android:layout_width="36dp"
                                 android:layout_height="36dp"
@@ -142,7 +138,6 @@
                                 android:src="@drawable/ic_manage"
                                 android:tint="#0D47A1" />
 
-                            <!-- Count -->
                             <TextView
                                 android:id="@+id/tvActiveExamsCount"
                                 android:layout_width="wrap_content"
@@ -153,7 +148,6 @@
                                 android:textSize="28sp"
                                 android:textStyle="bold" />
 
-                            <!-- Label -->
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
@@ -163,7 +157,7 @@
                         </LinearLayout>
                     </androidx.cardview.widget.CardView>
 
-                    <!-- KPI Card 2: Pending Submissions (Red Stacked Style) -->
+                    <!-- KPI Card 2: Pending Submissions -->
                     <androidx.cardview.widget.CardView
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
@@ -180,7 +174,6 @@
                             android:gravity="center_horizontal"
                             android:orientation="vertical">
 
-                            <!-- Icon (Red) -->
                             <ImageView
                                 android:layout_width="36dp"
                                 android:layout_height="36dp"
@@ -189,7 +182,6 @@
                                 android:src="@drawable/ic_notif"
                                 android:tint="#D32F2F" />
 
-                            <!-- Count -->
                             <TextView
                                 android:id="@+id/tvPendingSubmissionsCount"
                                 android:layout_width="wrap_content"
@@ -200,7 +192,6 @@
                                 android:textSize="28sp"
                                 android:textStyle="bold" />
 
-                            <!-- Label -->
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
@@ -211,8 +202,7 @@
                     </androidx.cardview.widget.CardView>
                 </LinearLayout>
 
-
-                <!-- 3. QUICK ACTIONS (Circular Design) -->
+                <!-- 3. QUICK ACTIONS -->
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -303,7 +293,7 @@
                             android:textStyle="bold" />
                     </LinearLayout>
 
-                    <!-- Manage Exams -->
+                    <!-- Create Activity -->
                     <LinearLayout
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
@@ -316,6 +306,7 @@
                             android:id="@+id/cardCreateActivity"
                             android:layout_width="72dp"
                             android:layout_height="72dp"
+                            app:cardBackgroundColor="#FFFFFF"
                             app:cardCornerRadius="36dp"
                             app:cardElevation="4dp">
 
@@ -324,9 +315,8 @@
                                 android:layout_height="36dp"
                                 android:layout_gravity="center"
                                 android:src="@drawable/ic_add"
-                                android:tint="#0D47A1"/>
+                                android:tint="#0D47A1" />
                         </androidx.cardview.widget.CardView>
-
 
                         <TextView
                             android:layout_width="wrap_content"
@@ -375,11 +365,46 @@
                             android:textSize="12sp"
                             android:textStyle="bold" />
                     </LinearLayout>
+
+                    <!-- Manage Quiz -->
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginHorizontal="4dp"
+                        android:layout_weight="1"
+                        android:gravity="center"
+                        android:orientation="vertical">
+
+                        <androidx.cardview.widget.CardView
+                            android:id="@+id/cardManageQuiz"
+                            android:layout_width="72dp"
+                            android:layout_height="72dp"
+                            app:cardBackgroundColor="#FFFFFF"
+                            app:cardCornerRadius="36dp"
+                            app:cardElevation="4dp">
+
+                            <ImageView
+                                android:layout_width="36dp"
+                                android:layout_height="36dp"
+                                android:layout_gravity="center"
+                                android:contentDescription="Manage Quiz Icon"
+                                android:src="@drawable/ic_quiz"
+                                android:tint="#0D47A1" />
+                        </androidx.cardview.widget.CardView>
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:gravity="center"
+                            android:text="Manage Quiz"
+                            android:textColor="#0D47A1"
+                            android:textSize="12sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
                 </LinearLayout>
 
-
                 <!-- ===== RECENT ACTIVITY ===== -->
-
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -388,7 +413,6 @@
                     android:textColor="#0D47A1"
                     android:textSize="18sp"
                     android:textStyle="bold" />
-
 
                 <androidx.cardview.widget.CardView
                     android:layout_width="match_parent"
@@ -412,7 +436,6 @@
                             android:textSize="16sp"
                             android:textStyle="bold" />
 
-
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
@@ -422,10 +445,9 @@
                             android:text="Scheduled"
                             android:textColor="#26408B" />
                     </LinearLayout>
-
                 </androidx.cardview.widget.CardView>
 
-                <!-- Hidden Info - Remains for data visibility/debugging -->
+                <!-- ===== HIDDEN INFO ===== -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -471,9 +493,9 @@
 
             </LinearLayout>
         </ScrollView>
-
     </androidx.coordinatorlayout.widget.CoordinatorLayout>
 
+    <!-- ===== NAVIGATION DRAWER ===== -->
     <com.google.android.material.navigation.NavigationView
         android:id="@+id/nav_view"
         android:layout_width="wrap_content"
@@ -481,4 +503,5 @@
         android:layout_gravity="start"
         app:headerLayout="@layout/nav_header"
         app:menu="@menu/activity_main_drawer" />
+
 </androidx.drawerlayout.widget.DrawerLayout>

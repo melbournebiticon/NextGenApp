@@ -1,6 +1,8 @@
 package com.example.nextgen.student;
 
+import android.annotation.SuppressLint;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
@@ -13,6 +15,7 @@ import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
+
 import com.example.nextgen.offline.QuestionDao; // <--- must be offline DAO
 import com.example.nextgen.offline.QuestionEntity;
 import com.example.nextgen.offline.AppDatabase; // offline DB instance
@@ -110,6 +113,12 @@ public class StudentDashboardActivity extends AppCompatActivity
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_student_dashboard);
 
+        View btnOpenQuizzes = findViewById(R.id.btnOpenQuizzes);
+        if (btnOpenQuizzes != null) {
+            btnOpenQuizzes.setOnClickListener(v -> {
+                startActivity(new Intent(StudentDashboardActivity.this, QuizListActivity.class));
+            });
+        }
         // --- Firebase Auth ---
         auth = FirebaseAuth.getInstance();
         FirebaseUser currentUser = auth.getCurrentUser();
@@ -195,9 +204,36 @@ public class StudentDashboardActivity extends AppCompatActivity
         loadExamsFromLocalDb();
 
         // --- Bottom Navigation Setup ---
+        // place inside onCreate(...) after you initialize bottomNavigationView:
         BottomNavigationView bottomNavigationView = findViewById(R.id.bottomNavigationView);
-        bottomNavigationView.setOnNavigationItemSelectedListener(this);
 
+// if you already set a listener, merge the quiz case into it; otherwise set it like this:
+        bottomNavigationView.setOnNavigationItemSelectedListener(item -> {
+            int id = item.getItemId();
+
+            if (id == R.id.nav_view_activities) {
+                if (currentStudent != null) showSubjectSelection(currentStudent);
+                return true;
+            }
+
+            if (id == R.id.nav_quizzes) {
+                // Open the Quiz list screen
+                startActivity(new Intent(StudentDashboardActivity.this, QuizListActivity.class));
+                return true;
+            }
+
+            if (id == R.id.nav_scanner) {
+                startActivity(new Intent(StudentDashboardActivity.this, StudentQRScannerActivity.class));
+                return true;
+            }
+
+            if (id == R.id.nav_view_profile) {
+                // existing profile navigation
+                return true;
+            }
+
+            return false;
+        });
         // TANGGALIN ANG FAB SCANNER BLOCK DITO
         // ...
 
@@ -268,13 +304,14 @@ public class StudentDashboardActivity extends AppCompatActivity
     };
 
 
+    @SuppressLint("UnspecifiedRegisterReceiverFlag")
     @Override
     protected void onResume() {
         super.onResume();
 
         // Register receiver so dashboard refreshes immediately after an offline QR scan
         try {
-            registerReceiver(presenceSavedReceiver, new android.content.IntentFilter(com.example.nextgen.sync.PresenceHelper.ACTION_PRESENCE_SAVED));
+            @SuppressLint("UnspecifiedRegisterReceiverFlag") Intent intent = registerReceiver(presenceSavedReceiver, new IntentFilter(PresenceHelper.ACTION_PRESENCE_SAVED));
         } catch (Exception ignored) { }
 
         // Existing resume logic: start periodic exam fetch if user exists

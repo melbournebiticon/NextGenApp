@@ -3,4 +3,6 @@
     <item name="tvMaxScore" type="id" />
     <item name="recyclerViewActivities" type="id" />
     <item name="etScore" type="id" />
+    <item name="controlsContainer" type="id" />
+    <item name="studentInfoContainer" type="id" />
 </resources>

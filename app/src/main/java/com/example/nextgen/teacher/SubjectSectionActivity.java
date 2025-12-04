@@ -111,7 +111,7 @@ public class SubjectSectionActivity extends AppCompatActivity {
                             submission.setFileData((String) data.get("fileData"));
 
                             // Firebase-safe score conversion
-                            submission.setScore(data.get("score"));
+                            submission.setScore((String) data.get("score"));
 
                             // Safe maxScore
                             Object maxScoreObj = data.get("maxScore");
@@ -146,7 +146,7 @@ public class SubjectSectionActivity extends AppCompatActivity {
     public void updateStudentSubmission(String studentUid, SubmissionModel newSubmission) {
         // Pass Object instead of String to avoid Firebase conversion issues
         Object scoreObj = newSubmission.getScore();
-        newSubmission.setScore(scoreObj);
+        newSubmission.setScore((String) scoreObj);
 
         if (newSubmission.getMaxScore() == null || newSubmission.getMaxScore().isEmpty()) {
             newSubmission.setMaxScore(maxScore);
