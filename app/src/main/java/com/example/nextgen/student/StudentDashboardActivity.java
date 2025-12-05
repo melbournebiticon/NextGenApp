@@ -113,10 +113,47 @@ public class StudentDashboardActivity extends AppCompatActivity
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_student_dashboard);
 
+        // Replace the existing btnOpenQuizzes click listener in StudentDashboardActivity with this.
         View btnOpenQuizzes = findViewById(R.id.btnOpenQuizzes);
         if (btnOpenQuizzes != null) {
             btnOpenQuizzes.setOnClickListener(v -> {
-                startActivity(new Intent(StudentDashboardActivity.this, QuizListActivity.class));
+                SessionManager sessionManager = new SessionManager(StudentDashboardActivity.this);
+
+                // Debug log current session values
+                Log.d("QUIZ_DEBUG", "Dashboard session: course='" + sessionManager.getCourseName()
+                        + "' spec='" + sessionManager.getSpecializationName()
+                        + "' year='" + sessionManager.getYearName()
+                        + "' section='" + sessionManager.getSectionName()
+                        + "' studentId='" + sessionManager.getStudentId() + "'");
+
+                Intent intent = new Intent(StudentDashboardActivity.this, QuizListActivity.class);
+
+                try {
+                    String studentId = sessionManager.getStudentId();
+                    if (studentId != null && !studentId.isEmpty()) intent.putExtra("studentId", studentId);
+                } catch (Exception ignored) {}
+
+                try {
+                    String course = sessionManager.getCourseName();
+                    if (course != null && !course.trim().isEmpty()) intent.putExtra("courseName", course);
+                } catch (Exception ignored) {}
+
+                try {
+                    String spec = sessionManager.getSpecializationName();
+                    if (spec != null && !spec.trim().isEmpty()) intent.putExtra("specializationName", spec);
+                } catch (Exception ignored) {}
+
+                try {
+                    String year = sessionManager.getYearName();
+                    if (year != null && !year.trim().isEmpty()) intent.putExtra("yearName", year);
+                } catch (Exception ignored) {}
+
+                try {
+                    String section = sessionManager.getSectionName();
+                    if (section != null && !section.trim().isEmpty()) intent.putExtra("sectionName", section);
+                } catch (Exception ignored) {}
+
+                startActivity(intent);
             });
         }
         // --- Firebase Auth ---

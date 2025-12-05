@@ -76,6 +76,9 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
 
     private String autoOpenQuizId;
 
+    // Insert or replace the onCreate (and add helper) in your existing QuizListActivity.
+// Only the relevant changed parts are shown — keep the rest of your file as-is.
+
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -109,12 +112,131 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                 + "' year='" + sessionManager.getYearName()
                 + "' section='" + sessionManager.getSectionName() + "'");
 
+        // Read Intent extras (if StudentDashboard passed them)
+        try {
+            Intent caller = getIntent();
+            if (caller != null) {
+                String intentStudentId = caller.getStringExtra("studentId");
+                String intentCourse = caller.getStringExtra("courseName");
+                String intentSpec = caller.getStringExtra("specializationName");
+                String intentYear = caller.getStringExtra("yearName");
+                String intentSection = caller.getStringExtra("sectionName");
+
+                if (intentStudentId != null && !intentStudentId.isEmpty()) {
+                    try { sessionManager.saveStudentId(intentStudentId); } catch (Exception ignored) {}
+                    scoresStudentId = intentStudentId;
+                }
+
+                if (student == null) student = new StudentModel();
+                if (intentCourse != null && !intentCourse.trim().isEmpty()) student.setCourseName(intentCourse);
+                if (intentSpec != null && !intentSpec.trim().isEmpty()) student.setSpecializationName(intentSpec);
+                if (intentYear != null && !intentYear.trim().isEmpty()) student.setYearName(intentYear);
+                if (intentSection != null && !intentSection.trim().isEmpty()) student.setSectionName(intentSection);
+
+                Log.d(TAG_DEBUG, "Intent-seeded student: course='" + student.getCourseName()
+                        + "' spec='" + student.getSpecializationName()
+                        + "' year='" + student.getYearName()
+                        + "' section='" + student.getSectionName()
+                        + "' scoresStudentId='" + scoresStudentId + "'");
+            }
+        } catch (Exception e) {
+            Log.w(TAG_DEBUG, "Failed to read intent extras: " + e.getMessage());
+        }
+
         autoOpenQuizId = getIntent().getStringExtra("autoOpenQuizId");
         publicRef = FirebaseDatabase.getInstance().getReference("AvailableQuizzes");
 
-        debugFetchAndLog();
-        startRealtimeListener();
-        startChildNotifications();
+        // If we don't have course/section info yet but we do have a saved studentId,
+        // fetch the student's profile from the DB to populate session and local student
+        // BEFORE starting realtime listeners so filtering works immediately.
+        String storedStudentId = null;
+        try { storedStudentId = sessionManager.getStudentId(); } catch (Exception ignored) {}
+
+        boolean hasStudentFields =
+                (student != null &&
+                        ( (student.getCourseName() != null && !student.getCourseName().trim().isEmpty()) ||
+                                (student.getSpecializationName() != null && !student.getSpecializationName().trim().isEmpty()) ||
+                                (student.getYearName() != null && !student.getYearName().trim().isEmpty()) ||
+                                (student.getSectionName() != null && !student.getSectionName().trim().isEmpty())
+                        ));
+
+        if (!hasStudentFields && storedStudentId != null && !storedStudentId.isEmpty()) {
+            fetchStudentProfileByStudentIdAndStart(storedStudentId);
+        } else {
+            // we either have student fields already or no studentId to look up - proceed
+            debugFetchAndLog();
+            startRealtimeListener();
+            startChildNotifications();
+        }
+    }
+
+    /**
+     * Query "Students" for the given studentId, populate sessionManager and local `student`,
+     * then start the listeners (debugFetch/startRealtime/startChildNotifications).
+     */
+    // Replace your fetchStudentProfileByStudentIdAndStart implementation with this version
+// (or update the body where you read the student's DB node).
+
+    private void fetchStudentProfileByStudentIdAndStart(@NonNull String studentId) {
+        try {
+            Log.d(TAG_DEBUG, "Looking up student profile for studentId=" + studentId);
+            DatabaseReference studentsRef = FirebaseDatabase.getInstance().getReference("Students");
+            studentsRef.orderByChild("studentId").equalTo(studentId)
+                    .addListenerForSingleValueEvent(new ValueEventListener() {
+                        @Override public void onDataChange(@NonNull DataSnapshot snapshot) {
+                            if (snapshot != null && snapshot.exists()) {
+                                for (DataSnapshot ds : snapshot.getChildren()) {
+                                    String course = ds.child("courseName").getValue(String.class);
+                                    String spec = ds.child("specializationName").getValue(String.class);
+                                    String year = ds.child("yearName").getValue(String.class);
+                                    String section = ds.child("sectionName").getValue(String.class);
+                                    String uid = ds.child("uid").getValue(String.class);
+                                    String fullName = ds.child("fullName").getValue(String.class);
+                                    String profileImage = ds.child("profileImage").getValue(String.class);
+
+                                    // Build StudentModel and persist it into SessionManager
+                                    StudentModel saved = new StudentModel();
+                                    saved.setStudentId(studentId);
+                                    if (uid != null) saved.setUid(uid);
+                                    if (course != null) saved.setCourseName(course);
+                                    if (spec != null) saved.setSpecializationName(spec);
+                                    if (year != null) saved.setYearName(year);
+                                    if (section != null) saved.setSectionName(section);
+                                    if (fullName != null) saved.setFullName(fullName);
+                                    if (profileImage != null) saved.setProfileImage(profileImage);
+
+                                    try {
+                                        sessionManager.saveStudentModel(saved);
+                                    } catch (Exception ignored) {}
+
+                                    // Update local `student` reference used by buildListFromPublicSnapshot
+                                    student = saved;
+
+                                    break; // use first matching node
+                                }
+                            } else {
+                                Log.w(TAG_DEBUG, "Student profile not found for studentId=" + studentId);
+                            }
+
+                            // Start the listeners after populating student info
+                            debugFetchAndLog();
+                            startRealtimeListener();
+                            startChildNotifications();
+                        }
+
+                        @Override public void onCancelled(@NonNull DatabaseError error) {
+                            Log.w(TAG_DEBUG, "Student profile lookup cancelled: " + error.getMessage());
+                            debugFetchAndLog();
+                            startRealtimeListener();
+                            startChildNotifications();
+                        }
+                    });
+        } catch (Exception e) {
+            Log.w(TAG_DEBUG, "fetchStudentProfile failed: " + e.getMessage());
+            debugFetchAndLog();
+            startRealtimeListener();
+            startChildNotifications();
+        }
     }
 
     private void startChildNotifications() {
@@ -425,23 +547,37 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                         }
                     }
 
-                    // normalize and matching (same as before)
+                    // normalize fields
                     String nCourse = normalize(!parsedCourse.isEmpty() ? parsedCourse : courseNameRaw);
                     String nSpec = normalize(parsedSpec);
                     String nYear = normalize(parsedYear);
                     String nSection = normalize(parsedSection);
                     String nCourseDisplay = normalize(child.child("courseDisplay").getValue(String.class));
 
-                    String nStuCourse = normalize(stuCourse);
+                    // STRICTER MATCHING: require course, and when provided require spec/year/section equality
+                    boolean match = true;
 
-                    boolean match = false;
-                    boolean studentInfoAvailable = !(nStuCourse.isEmpty());
+                    // course matching (allow courseDisplay fallback)
+                    if (!stuCourse.isEmpty()) {
+                        boolean courseMatches = false;
+                        if (!nCourse.isEmpty()) courseMatches = nCourse.contains(stuCourse);
+                        if (!courseMatches && !nCourseDisplay.isEmpty()) courseMatches = nCourseDisplay.contains(stuCourse);
+                        if (!courseMatches) match = false;
+                    }
 
-                    if (studentInfoAvailable) {
-                        match = (!nCourse.isEmpty() ? nCourse.contains(nStuCourse) : true);
-                        if (!match && !nCourseDisplay.isEmpty()) match = nCourseDisplay.contains(nStuCourse);
-                    } else {
-                        match = true;
+                    // specialization match if student provided it
+                    if (match && !stuSpec.isEmpty()) {
+                        if (nSpec.isEmpty() || !nSpec.equals(stuSpec)) match = false;
+                    }
+
+                    // year match if student provided it
+                    if (match && !stuYear.isEmpty()) {
+                        if (nYear.isEmpty() || !nYear.equals(stuYear)) match = false;
+                    }
+
+                    // section match if student provided it
+                    if (match && !stuSection.isEmpty()) {
+                        if (nSection.isEmpty() || !nSection.equals(stuSection)) match = false;
                     }
 
                     if (!match) continue;
