@@ -480,19 +480,20 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
         });
     }
 
+    // Replace the existing buildListFromPublicSnapshot(...) method in your QuizListActivity with this version.
     private void buildListFromPublicSnapshot(@Nullable DataSnapshot snapshot, @NonNull Set<String> takenQuizIds, @Nullable String studentId) {
-        // no presence listeners attached here anymore
+        // Prepare output list
         List<QuizModel> newList = new ArrayList<>();
         quizIds.clear();
         adapter.setHighlightQuizId(null);
 
+        // normalize student fields used for matching
         String stuCourse = normalize(student != null ? student.getCourseName() : null);
         String stuSpec = normalize(student != null ? student.getSpecializationName() : null);
         String stuYear = normalize(student != null ? student.getYearName() : null);
         String stuSection = normalize(student != null ? student.getSectionName() : null);
-        String stuCombined = (stuCourse + " - " + stuSpec + " - " + stuYear + " - " + stuSection).trim();
 
-        Log.d(TAG_DEBUG, "Normalized student: " + stuCombined);
+        Log.d(TAG_DEBUG, "Normalized student: course='" + stuCourse + "' spec='" + stuSpec + "' year='" + stuYear + "' section='" + stuSection + "'");
 
         if (snapshot == null || !snapshot.exists()) {
             Log.d(TAG_DEBUG, "AvailableQuizzes snapshot empty");
@@ -501,11 +502,11 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                 try {
                     String quizId = child.getKey();
                     if (quizId == null) continue;
-
                     if (quizIds.contains(quizId)) continue; // safety guard
 
                     Boolean activeObj = child.child("active").getValue(Boolean.class);
                     boolean active = activeObj != null && activeObj;
+                    if (!active) continue;
 
                     String quizName = child.child("quizName").getValue(String.class);
                     String teacherName = child.child("teacherName").getValue(String.class);
@@ -527,9 +528,7 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                         availableAtFromDb = availableAtFromDb * 1000L;
                     }
 
-                    if (!active) continue;
-
-                    // parse section
+                    // parse section field which may contain "Course - Spec - Year - Section"
                     String parsedCourse = "";
                     String parsedSpec = "";
                     String parsedYear = "";
@@ -543,25 +542,28 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                             if (parts.length > 2) parsedYear = parts[2].trim();
                             if (parts.length > 3) parsedSection = parts[3].trim();
                         } else {
+                            // if the DB stored only the section name, treat it as parsedSection
                             parsedSection = sectionValue.trim();
                         }
                     }
 
-                    // normalize fields
+                    // normalize parsed fields and course display fallback
                     String nCourse = normalize(!parsedCourse.isEmpty() ? parsedCourse : courseNameRaw);
                     String nSpec = normalize(parsedSpec);
                     String nYear = normalize(parsedYear);
                     String nSection = normalize(parsedSection);
                     String nCourseDisplay = normalize(child.child("courseDisplay").getValue(String.class));
 
-                    // STRICTER MATCHING: require course, and when provided require spec/year/section equality
+                    // Strict matching rules:
+                    // - Always require course to match when student has course (prevents showing other-course quizzes)
+                    // - If student has specialization/year/section populated, require equality on those fields as well.
                     boolean match = true;
 
-                    // course matching (allow courseDisplay fallback)
+                    // course matching (use courseDisplay fallback)
                     if (!stuCourse.isEmpty()) {
                         boolean courseMatches = false;
-                        if (!nCourse.isEmpty()) courseMatches = nCourse.contains(stuCourse);
-                        if (!courseMatches && !nCourseDisplay.isEmpty()) courseMatches = nCourseDisplay.contains(stuCourse);
+                        if (!nCourse.isEmpty() && nCourse.equals(stuCourse)) courseMatches = true;
+                        if (!courseMatches && !nCourseDisplay.isEmpty() && nCourseDisplay.equals(stuCourse)) courseMatches = true;
                         if (!courseMatches) match = false;
                     }
 
@@ -575,13 +577,23 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                         if (nYear.isEmpty() || !nYear.equals(stuYear)) match = false;
                     }
 
-                    // section match if student provided it
+                    // SECTION: if student has section set, require section equality
                     if (match && !stuSection.isEmpty()) {
-                        if (nSection.isEmpty() || !nSection.equals(stuSection)) match = false;
+                        if (nSection.isEmpty() || !nSection.equals(stuSection)) {
+                            match = false;
+                        }
                     }
+
+                    // If the student has no section stored, but you still want to restrict by course/spec/year,
+                    // the previous checks above already enforce those when available. If you want an even stricter
+                    // behavior (e.g., require section for every quiz regardless), you can uncomment the block below:
+                    //
+                    // // require quiz to explicitly specify section
+                    // if (nSection.isEmpty()) match = false;
 
                     if (!match) continue;
 
+                    // If not already taken (or debug flag), add to list
                     if (!takenQuizIds.contains(quizId) || SHOW_ALL_ACTIVE_FOR_DEBUG) {
                         QuizModel qm = new QuizModel();
                         qm.setQuizId(quizId);
@@ -594,6 +606,7 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                         qm.setDurationMinutes(duration != null ? duration : 0);
                         qm.setActive(active);
 
+                        // compute availableAt as before
                         long computedAvailableAt = 0L;
                         if (availableAtFromDb != null && availableAtFromDb > 0) {
                             computedAvailableAt = availableAtFromDb;
@@ -616,8 +629,6 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
 
                         newList.add(qm);
                         quizIds.add(quizId);
-
-                        // NO presence listener attachment here (removed)
                     }
                 } catch (Exception e) {
                     Log.w(TAG_DEBUG, "Error processing quiz node: " + e.getMessage());
@@ -625,6 +636,7 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
             }
         }
 
+        // apply to UI on main thread
         runOnUiThread(() -> {
             synchronized (quizList) {
                 quizList.clear();
