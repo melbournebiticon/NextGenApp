@@ -658,11 +658,17 @@ public class TeacherActivity extends AppCompatActivity {
                                         if (loadedCount[0] == teacher.getCourseIds().size()) {
                                             // Map IDs → names for pre-selection
                                             List<String> preselectedNames = new ArrayList<>();
+                                            List<String> assignedSubjects = teacher.getAssignedSubjects();
+                                            if (assignedSubjects == null) {
+                                                assignedSubjects = new ArrayList<>();
+                                            }
+
                                             for (SubjectModel s : loadedSubjects) {
-                                                if (teacher.getAssignedSubjects().contains(s.getId())) {
+                                                if (assignedSubjects.contains(s.getId())) {
                                                     preselectedNames.add(s.getName());
                                                 }
                                             }
+
 
                                             editSubjectAdapter.updateSubjects(loadedSubjects);
                                             editSubjectAdapter.setPreselectedSubjects(preselectedNames);

@@ -42,10 +42,14 @@ import org.tensorflow.lite.support.audio.TensorAudio;
 import org.tensorflow.lite.task.audio.classifier.AudioClassifier;
 import org.tensorflow.lite.task.audio.classifier.Classifications;
 
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.WriterException;
 import com.google.zxing.common.BitMatrix;
 import com.google.zxing.qrcode.QRCodeWriter;
+// add near the top of TakeQuizActivity.java (with the other imports)
+import java.util.Map;
+import java.util.HashMap;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -59,6 +63,10 @@ import java.util.Locale;
  * - Starts timer from intent duration if provided
  * - Keeps existing offline/pending checks and anti-cheating features
  * - Accepts deep links / scanned QR payloads to auto-mark present and open quiz
+ *
+ * Changes in this file:
+ * - Writes scores under "QuizScores" instead of "Scores"
+ * - Launches QuizResultActivity instead of ResultActivity when showing results
  */
 public class TakeQuizActivity extends AppCompatActivity {
 
@@ -443,7 +451,7 @@ public class TakeQuizActivity extends AppCompatActivity {
 
     private void checkIfTakenOnServer() {
         DatabaseReference scoreRef = FirebaseDatabase.getInstance()
-                .getReference("Scores")
+                .getReference("QuizScores") // changed from "Scores"
                 .child(currentStudentUid)
                 .child(quizId);
 
@@ -846,35 +854,16 @@ public class TakeQuizActivity extends AppCompatActivity {
         if (!isActivityAlive()) return;
         runOnUiThread(() -> {
             if (!isActivityAlive()) return;
-            if (allQuestionsAnswered()) {
-                try {
-                    new AlertDialog.Builder(TakeQuizActivity.this)
-                            .setTitle("Confirm Submit")
-                            .setMessage("Are you sure you want to submit? You won't be able to change your answers.")
-                            .setPositiveButton("Submit", (dialog, which) -> submitQuiz())
-                            .setNegativeButton("Cancel", null)
-                            .setCancelable(true)
-                            .show();
-                } catch (WindowManager.BadTokenException e) {
-                    Log.w(TAG, "Confirm dialog not shown", e);
-                }
-            } else {
-                int unanswered = 0;
-                for (Question q : questionList) {
-                    String ans = q.getStudentAnswer();
-                    if (ans == null || ans.trim().isEmpty()) unanswered++;
-                }
-                try {
-                    new AlertDialog.Builder(TakeQuizActivity.this)
-                            .setTitle("Unanswered Questions")
-                            .setMessage("You have " + unanswered + " unanswered question(s). Do you want to submit anyway?")
-                            .setPositiveButton("Submit Anyway", (dialog, which) -> submitQuiz())
-                            .setNegativeButton("Go Back", null)
-                            .setCancelable(true)
-                            .show();
-                } catch (WindowManager.BadTokenException e) {
-                    Log.w(TAG, "Unanswered dialog not shown", e);
-                }
+            try {
+                new AlertDialog.Builder(TakeQuizActivity.this)
+                        .setTitle("Confirm Submit")
+                        .setMessage("Are you sure you want to submit? You won't be able to change your answers.")
+                        .setPositiveButton("Submit", (dialog, which) -> submitQuiz())
+                        .setNegativeButton("Cancel", null)
+                        .setCancelable(true)
+                        .show();
+            } catch (WindowManager.BadTokenException e) {
+                Log.w(TAG, "Confirm dialog not shown", e);
             }
         });
     }
@@ -1054,7 +1043,7 @@ public class TakeQuizActivity extends AppCompatActivity {
                     totalQuestions
             );
 
-            // if online, also write Scores immediately for faster UI update
+            // if online, also write QuizScores immediately for faster UI update
             if (isNetworkAvailable()) saveScoreToFirebase(localStudentId, finalCalculatedScore, totalQuestions);
 
             Toast.makeText(TakeQuizActivity.this, "Submission saved locally; will sync when online.", Toast.LENGTH_LONG).show();
@@ -1083,7 +1072,7 @@ public class TakeQuizActivity extends AppCompatActivity {
                                         totalQuestions
                                 );
 
-                                // if online, also write Scores immediately for faster UI update
+                                // if online, also write QuizScores immediately for faster UI update
                                 if (isNetworkAvailable()) saveScoreToFirebase(studentId, finalCalculatedScore, totalQuestions);
 
                                 Toast.makeText(TakeQuizActivity.this, "Submission saved and will sync when online.", Toast.LENGTH_LONG).show();
@@ -1161,16 +1150,41 @@ public class TakeQuizActivity extends AppCompatActivity {
                 });
     }
 
+    /**
+     * Save score under QuizScores/{studentId}/{quizId}/...
+     */
     private void saveScoreToFirebase(String studentId, int score, int maxScore) {
         DatabaseReference scoreEntryRef = FirebaseDatabase.getInstance()
-                .getReference("Scores")
+                .getReference("QuizScores")
                 .child(studentId)
                 .child(quizId);
 
-        scoreEntryRef.child("score").setValue(score);
-        scoreEntryRef.child("maxScore").setValue(maxScore);
-        scoreEntryRef.child("timestamp").setValue(System.currentTimeMillis());
-        scoreEntryRef.child("deductions").setValue(totalDeductions);
+        // Prepare atomic update so we can reliably know when it's done
+        Map<String, Object> updates = new HashMap<>();
+        updates.put("score", score);
+        updates.put("maxScore", maxScore);
+        updates.put("timestamp", System.currentTimeMillis());
+        updates.put("deductions", totalDeductions);
+
+        Log.d(TAG, "Writing QuizScores/" + studentId + "/" + quizId + " -> " + updates);
+        scoreEntryRef.updateChildren(updates).addOnCompleteListener(task -> {
+            Log.d(TAG, "QuizScores write complete for " + quizId + " success=" + task.isSuccessful()
+                    + (task.isSuccessful() ? "" : " err=" + (task.getException() != null ? task.getException().getMessage() : "null")));
+            if (task.isSuccessful()) {
+                // Notify local UI immediately so QuizList shows "TAKEN" without waiting for realtime propagation
+                notifyLocalTaken(quizId);
+            }
+        });
+    }
+    private void notifyLocalTaken(String quizId) {
+        try {
+            Intent i = new Intent("com.example.nextgen.QUIZ_SUBMITTED");
+            i.putExtra("quizId", quizId);
+            LocalBroadcastManager.getInstance(this).sendBroadcast(i);
+            Log.d(TAG, "Sent local broadcast QUIZ_SUBMITTED for " + quizId);
+        } catch (Exception e) {
+            Log.w(TAG, "notifyLocalTaken failed: " + e.getMessage());
+        }
     }
 
     private void redirectToResultActivity(int score, int maxScore) {
@@ -1191,7 +1205,7 @@ public class TakeQuizActivity extends AppCompatActivity {
             return;
         }
 
-        // Resolve student info and quiz info similar to exam flow, then open ResultActivity
+        // Resolve student info and quiz info similar to exam flow, then open QuizResultActivity
         DatabaseReference studentsRef = FirebaseDatabase.getInstance().getReference("Students");
         studentsRef.orderByChild("uid").equalTo(currentStudentUid).addListenerForSingleValueEvent(new ValueEventListener() {
             @Override public void onDataChange(@NonNull DataSnapshot studentSnap) {
@@ -1229,7 +1243,7 @@ public class TakeQuizActivity extends AppCompatActivity {
                                                 }
                                             }
 
-                                            Intent intent = new Intent(TakeQuizActivity.this, ResultActivity.class);
+                                            Intent intent = new Intent(TakeQuizActivity.this, QuizResultActivity.class); // changed
                                             intent.putExtra("studentName", fullName);
                                             intent.putExtra("studentId", studentId);
                                             intent.putExtra("profileImage", profileImage);
@@ -1238,7 +1252,8 @@ public class TakeQuizActivity extends AppCompatActivity {
                                             intent.putExtra("subjectName", subjectName);
                                             intent.putExtra("teacherName", teacherName);
 
-                                            intent.putExtra("examTitle", quizName);
+                                            // use "quizTitle" key (was "examTitle")
+                                            intent.putExtra("quizTitle", quizName);
                                             intent.putExtra("totalScore", score);
                                             intent.putExtra("maxScore", maxScore);
                                             intent.putExtra("deductions", totalDeductions);

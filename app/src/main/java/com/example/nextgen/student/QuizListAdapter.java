@@ -1,6 +1,8 @@
 package com.example.nextgen.student;
 
 import android.graphics.Color;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -15,23 +17,30 @@ import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.nextgen.R;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
 
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.text.SimpleDateFormat;
 
 /**
  * QuizListAdapter - cleaned and fixed
  *
- * - Removed duplicated/misordered blocks and rebuilt onBindViewHolder to be single, coherent flow.
- * - Keeps optimistic placeholder/merge behavior: markOptimisticPresent, setStudentPresent, updateData.
- * - Ensures optimistic entries force the "Take Quiz" button to appear immediately.
- * - Uses normalizeKey(...) consistently to avoid case/prefix mismatches.
+ * Extended:
+ * - Shows explicit status (ABSENT, AVAILABLE, TAKEN, EXPIRED, SUBMITTED (Pending))
+ * - Performs async local pending-check before launching quiz (uses Room like ExamAdapter)
+ * - When online, attempts to set QuizStudents/{quizId}/{studentId}/ongoing=true before starting
+ *
+ * Note: This implementation uses tvTaken as the status label so no layout changes required.
+ * If you prefer a Material Chip instead, update item_quiz_list.xml and I can switch to it.
  */
 public class QuizListAdapter extends RecyclerView.Adapter<QuizListAdapter.VH> {
 
@@ -48,6 +57,10 @@ public class QuizListAdapter extends RecyclerView.Adapter<QuizListAdapter.VH> {
 
     // track optimistic present state for items that were scanned locally but DB confirmation pending
     private final Set<String> optimisticPresent = new HashSet<>();
+
+    // executor for background checks (Room)
+    private final ExecutorService bgExecutor = Executors.newSingleThreadExecutor();
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
     private String highlightQuizId = null;
 
@@ -184,15 +197,47 @@ public class QuizListAdapter extends RecyclerView.Adapter<QuizListAdapter.VH> {
         // ===== OPTIMISTIC FLAG =====
         boolean isOptimistic = optimisticPresent.contains(normalizeKey(q.getQuizId()));
 
-        // ===== BUTTON LOGIC (NO openNow) =====
-        boolean showButton = (active && !alreadyTaken && attendancePresent && inWindowWithTolerance) || isOptimistic;
-        boolean enableButton = (active && !alreadyTaken && attendancePresent && inWindowStrict) || isOptimistic;
+        // ===== Determine which visible state to show (mirrors ExamAdapter) =====
+        // Use holder.tvTaken as the status label (styled)
+        holder.tvTaken.setVisibility(View.VISIBLE);
+        holder.btnTakeQuiz.setVisibility(View.GONE);
+        holder.btnTakeQuiz.setEnabled(false);
+        holder.itemView.setClickable(true);
+        holder.itemView.setOnClickListener(v -> { /* default no-op */ });
 
-        if (showButton) {
+        // Helper to set status label appearance
+        final Runnable setStatusLabel = () -> {
+            // default style
+            holder.tvTaken.setTextColor(Color.WHITE);
+            holder.tvTaken.setBackgroundColor(ContextCompat.getColor(holder.tvTaken.getContext(), android.R.color.darker_gray));
+        };
+
+        // ABSENT
+        if (!attendancePresent) {
+            holder.tvTaken.setText("ABSENT");
+            holder.tvTaken.setBackgroundColor(ContextCompat.getColor(holder.tvTaken.getContext(), R.color.error));
+            holder.tvTaken.setTextColor(Color.WHITE);
+            holder.btnTakeQuiz.setVisibility(View.GONE);
+            holder.itemView.setOnClickListener(v ->
+                    showToast(holder, "You are marked ABSENT for this quiz.")
+            );
+
+            // SUBMITTED (Pending)
+        } else if (isPending) {
+            holder.tvTaken.setText("SUBMITTED (Pending)");
+            holder.tvTaken.setBackgroundColor(ContextCompat.getColor(holder.tvTaken.getContext(), R.color.md_theme_primary));
+            holder.tvTaken.setTextColor(Color.WHITE);
+            holder.btnTakeQuiz.setVisibility(View.GONE);
+            holder.itemView.setOnClickListener(v ->
+                    showToast(holder, "You have already submitted this quiz (pending sync).")
+            );
+
+            // AVAILABLE & not yet taken
+        } else if ((active && !alreadyTaken && attendancePresent && inWindowWithTolerance) || isOptimistic) {
+            holder.tvTaken.setVisibility(View.GONE);
             holder.btnTakeQuiz.setVisibility(View.VISIBLE);
-            holder.btnTakeQuiz.setEnabled(enableButton);
-
-            if (!enableButton && beforeStart) {
+            holder.btnTakeQuiz.setEnabled((active && !alreadyTaken && attendancePresent && inWindowStrict) || isOptimistic);
+            if (!holder.btnTakeQuiz.isEnabled() && beforeStart) {
                 long startsInMs = Math.max(0, availableAt - now);
                 long secs = TimeUnit.MILLISECONDS.toSeconds(startsInMs);
                 holder.btnTakeQuiz.setText("Starts in " + secs + "s");
@@ -200,39 +245,101 @@ public class QuizListAdapter extends RecyclerView.Adapter<QuizListAdapter.VH> {
                 holder.btnTakeQuiz.setText("Take Quiz");
             }
 
-            holder.tvTaken.setVisibility(View.GONE);
+            // click handling: async pending check then set ongoing / launch
+            holder.btnTakeQuiz.setOnClickListener(v -> {
+                if (!holder.btnTakeQuiz.isEnabled()) return;
+                holder.btnTakeQuiz.setEnabled(false);
+                // background check for local pending
+                bgExecutor.execute(() -> {
+                    String ctxStudentId = com.example.nextgen.SessionManager.getStudentId(holder.btnTakeQuiz.getContext());
+                    if (ctxStudentId == null || ctxStudentId.isEmpty()) {
+                        runOnUiThread(() -> {
+                            showToast(holder, "Student ID not found.");
+                            holder.btnTakeQuiz.setEnabled(true);
+                        });
+                        return;
+                    }
 
-        } else {
+                    // check Room pending submission
+                    com.example.nextgen.offline.PendingSubmission pending = null;
+                    try {
+                        com.example.nextgen.offline.AppDatabase db = com.example.nextgen.offline.AppDatabase.getInstance(holder.btnTakeQuiz.getContext().getApplicationContext());
+                        pending = db.pendingSubmissionDao().findPendingByExamAndStudent(q.getQuizId(), ctxStudentId);
+                    } catch (Exception e) {
+                        Log.e(TAG, "Room check failed: " + e.getMessage(), e);
+                    }
+
+                    if (pending != null) {
+                        runOnUiThread(() -> {
+                            showToast(holder, "You already submitted this quiz (pending upload).");
+                            holder.btnTakeQuiz.setEnabled(false);
+                        });
+                        return;
+                    }
+
+                    // No local pending -> proceed (online attempt to mark ongoing, else offline launch)
+                    runOnUiThread(() -> {
+                        if (isNetworkAvailable(holder.btnTakeQuiz.getContext())) {
+                            DatabaseReference ref = FirebaseDatabase.getInstance()
+                                    .getReference("QuizStudents")
+                                    .child(q.getQuizId())
+                                    .child(ctxStudentId);
+                            ref.child("ongoing").setValue(true)
+                                    .addOnSuccessListener(aVoid -> {
+                                        showToast(holder, "Quiz started! Marked as ongoing.");
+                                        if (listener != null) listener.onQuizClick(q);
+                                        holder.btnTakeQuiz.setEnabled(true);
+                                    })
+                                    .addOnFailureListener(e -> {
+                                        showToast(holder, "Failed to update ongoing, starting offline.");
+                                        if (listener != null) listener.onQuizClick(q);
+                                        holder.btnTakeQuiz.setEnabled(true);
+                                    });
+                        } else {
+                            // offline: start quiz directly
+                            if (listener != null) listener.onQuizClick(q);
+                            holder.btnTakeQuiz.setEnabled(true);
+                        }
+                    });
+                });
+            });
+
+            holder.itemView.setClickable(false);
+            holder.itemView.setOnClickListener(null);
+
+            // TAKEN
+        } else if (alreadyTaken) {
+            holder.tvTaken.setText("TAKEN");
+            holder.tvTaken.setBackgroundColor(ContextCompat.getColor(holder.tvTaken.getContext(), R.color.md_theme_primary));
+            holder.tvTaken.setTextColor(Color.WHITE);
             holder.btnTakeQuiz.setVisibility(View.GONE);
-            holder.tvTaken.setVisibility(View.VISIBLE);
+            holder.itemView.setOnClickListener(v ->
+                    showToast(holder, "You have already taken this quiz.")
+            );
 
-            if (alreadyTaken && !isPending) {
-                holder.tvTaken.setText("Taken");
-            } else if (alreadyTaken && isPending) {
-                holder.tvTaken.setText("Taken (Pending)");
-            } else if (!attendancePresent) {
-                holder.tvTaken.setText("Waiting for teacher to mark you present");
-            } else if (attendancePresent && !inWindowWithTolerance) {
-                if (beforeStart) holder.tvTaken.setText("Available at: " + SDF.format(new Date(availableAt)));
-                else if (afterEnd) holder.tvTaken.setText("No longer available");
-                else holder.tvTaken.setVisibility(View.GONE);
-            } else {
-                holder.tvTaken.setVisibility(View.GONE);
-            }
+            // EXPIRED / NO LONGER AVAILABLE
+        } else if (afterEnd) {
+            holder.tvTaken.setText("EXPIRED");
+            holder.tvTaken.setBackgroundColor(ContextCompat.getColor(holder.tvTaken.getContext(), R.color.error));
+            holder.tvTaken.setTextColor(Color.WHITE);
+            holder.btnTakeQuiz.setVisibility(View.GONE);
+            holder.itemView.setOnClickListener(v ->
+                    showToast(holder, "This quiz has expired.")
+            );
+
+            // SCHEDULED / default
+        } else {
+            holder.tvTaken.setText("SCHEDULED");
+            holder.tvTaken.setBackgroundColor(ContextCompat.getColor(holder.tvTaken.getContext(), R.color.blue_500));
+            holder.tvTaken.setTextColor(Color.WHITE);
+            holder.btnTakeQuiz.setVisibility(View.GONE);
+            final String scheduleCopy = scheduleText;
+
+// Later, when setting the scheduled click handler, use scheduleCopy:
+            holder.itemView.setOnClickListener(v ->
+                    showToast(holder, "Scheduled: " + scheduleCopy)
+            );
         }
-
-        // ===== ON CLICK =====
-        holder.btnTakeQuiz.setOnClickListener(v -> {
-            if (!enableButton) return;
-            if (listener != null) listener.onQuizClick(q);
-        });
-
-        boolean finalAttendancePresent = attendancePresent;
-        holder.cardRoot.setOnClickListener(v -> {
-            if ((active && !alreadyTaken && finalAttendancePresent && inWindowStrict) || isOptimistic) {
-                if (listener != null) listener.onQuizClick(q);
-            }
-        });
 
         // ===== HIGHLIGHT =====
         if (highlightQuizId != null && highlightQuizId.equals(q.getQuizId())) {
@@ -244,6 +351,23 @@ public class QuizListAdapter extends RecyclerView.Adapter<QuizListAdapter.VH> {
             );
             holder.cardRoot.setCardElevation(2f);
         }
+    }
+
+    private void showToast(VH holder, String msg) {
+        if (holder.itemView != null) {
+            holder.itemView.post(() -> android.widget.Toast.makeText(holder.itemView.getContext(), msg, android.widget.Toast.LENGTH_LONG).show());
+        }
+    }
+
+    private void runOnUiThread(Runnable r) {
+        mainHandler.post(r);
+    }
+
+    private boolean isNetworkAvailable(android.content.Context context) {
+        android.net.ConnectivityManager cm = (android.net.ConnectivityManager) context.getSystemService(android.content.Context.CONNECTIVITY_SERVICE);
+        if (cm == null) return false;
+        android.net.NetworkInfo netInfo = cm.getActiveNetworkInfo();
+        return netInfo != null && netInfo.isConnected();
     }
 
     private String safeTrim(String s) { return s == null ? "" : s.trim(); }

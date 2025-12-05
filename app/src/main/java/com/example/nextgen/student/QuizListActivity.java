@@ -35,6 +35,10 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+
+// add these imports near the top of QuizListActivity.java (with the other imports)
+import java.util.Map;
+import java.util.HashMap;
 /**
  * QuizListActivity
  *
@@ -75,6 +79,16 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
     private String scoresStudentId = null;
 
     private String autoOpenQuizId;
+
+    private final Map<String, ValueEventListener> quizPresenceListeners = new HashMap<>();
+    private final Map<String, DatabaseReference> quizPresenceRefs = new HashMap<>();
+    private final Map<String, ValueEventListener> examPresenceListeners = new HashMap<>();
+    private final Map<String, DatabaseReference> examPresenceRefs = new HashMap<>();
+
+    private DatabaseReference quizScoresRefForStudent;
+    private DatabaseReference legacyScoresRefForStudent;
+    private ChildEventListener quizScoresChildListener;
+    private ChildEventListener legacyScoresChildListener;
 
     // Insert or replace the onCreate (and add helper) in your existing QuizListActivity.
 // Only the relevant changed parts are shown — keep the rest of your file as-is.
@@ -259,6 +273,7 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
         super.onDestroy();
         stopChildNotifications();
         detachScoresRealtimeListener();
+        detachAllPresenceListeners();
         // presence listener logic removed intentionally (no confirmation flow)
     }
 
@@ -464,23 +479,42 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
         });
     }
 
+    // Replace your existing fetchScoresAndBuildList(...) with this:
     private void fetchScoresAndBuildList(@Nullable DataSnapshot publicSnapshot, @NonNull String studentId) {
-        DatabaseReference scoresRef = FirebaseDatabase.getInstance().getReference("Scores").child(studentId);
-        scoresRef.get().addOnCompleteListener(task -> {
-            Set<String> takenQuizIds = new HashSet<>();
+        // References for both possible nodes
+        DatabaseReference quizScoresRef = FirebaseDatabase.getInstance().getReference("QuizScores").child(studentId);
+        DatabaseReference legacyScoresRef = FirebaseDatabase.getInstance().getReference("Scores").child(studentId);
+
+        // First read QuizScores, then read legacy Scores and merge
+        Set<String> takenQuizIds = new HashSet<>();
+
+        quizScoresRef.get().addOnCompleteListener(task -> {
             if (task.isSuccessful() && task.getResult() != null) {
                 for (DataSnapshot snap : task.getResult().getChildren()) {
                     String qid = snap.getKey();
                     if (qid != null) takenQuizIds.add(qid);
                 }
             }
-            scoresStudentId = studentId;
-            buildListFromPublicSnapshot(publicSnapshot, takenQuizIds, studentId);
-            attachScoresRealtimeListenerIfNeeded();
+
+            // Now read legacy Scores and merge any keys
+            legacyScoresRef.get().addOnCompleteListener(task2 -> {
+                if (task2.isSuccessful() && task2.getResult() != null) {
+                    for (DataSnapshot snap : task2.getResult().getChildren()) {
+                        String qid = snap.getKey();
+                        if (qid != null) takenQuizIds.add(qid);
+                    }
+                }
+
+                // Now we have the union of quiz IDs in takenQuizIds
+                scoresStudentId = studentId;
+                buildListFromPublicSnapshot(publicSnapshot, takenQuizIds, studentId);
+                attachScoresRealtimeListenerIfNeeded(); // ensure realtime updates are attached
+            });
         });
     }
 
     // Replace the existing buildListFromPublicSnapshot(...) method in your QuizListActivity with this version.
+    // Replace only the buildListFromPublicSnapshot(...) method in your QuizListActivity with this version.
     private void buildListFromPublicSnapshot(@Nullable DataSnapshot snapshot, @NonNull Set<String> takenQuizIds, @Nullable String studentId) {
         // Prepare output list
         List<QuizModel> newList = new ArrayList<>();
@@ -584,13 +618,6 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                         }
                     }
 
-                    // If the student has no section stored, but you still want to restrict by course/spec/year,
-                    // the previous checks above already enforce those when available. If you want an even stricter
-                    // behavior (e.g., require section for every quiz regardless), you can uncomment the block below:
-                    //
-                    // // require quiz to explicitly specify section
-                    // if (nSection.isEmpty()) match = false;
-
                     if (!match) continue;
 
                     // If not already taken (or debug flag), add to list
@@ -627,7 +654,13 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                         qm.setStatus("QUIZ");
                         qm.setAvailable(true);
 
+                        // <-- add model to UI list
                         newList.add(qm);
+
+                        // <-- ATTACH PRESENCE LISTENER FOR THIS QUIZ (exact insertion point)
+                        attachPresenceListenerForQuiz(quizId);
+
+                        // bookkeeping
                         quizIds.add(quizId);
                     }
                 } catch (Exception e) {
@@ -667,14 +700,38 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
             String studentId = scoresStudentId != null && !scoresStudentId.isEmpty() ? scoresStudentId : sessionManager.getStudentId();
             if (studentId == null || studentId.isEmpty()) return;
 
-            if (scoresRefForStudent != null && scoresChildListener != null && studentId.equals(scoresStudentId)) return;
+            // If listeners already attached for same student, do nothing
+            if (quizScoresRefForStudent != null && quizScoresChildListener != null && studentId.equals(scoresStudentId)) return;
 
-            if (scoresRefForStudent != null && scoresChildListener != null) {
-                try { scoresRefForStudent.removeEventListener(scoresChildListener); } catch (Exception ignored) {}
-            }
+            // detach existing if any
+            try {
+                if (quizScoresRefForStudent != null && quizScoresChildListener != null) quizScoresRefForStudent.removeEventListener(quizScoresChildListener);
+            } catch (Exception ignored) {}
+            try {
+                if (legacyScoresRefForStudent != null && legacyScoresChildListener != null) legacyScoresRefForStudent.removeEventListener(legacyScoresChildListener);
+            } catch (Exception ignored) {}
 
-            scoresRefForStudent = FirebaseDatabase.getInstance().getReference("Scores").child(studentId);
-            scoresChildListener = new ChildEventListener() {
+            // Attach to QuizScores (preferred)
+            quizScoresRefForStudent = FirebaseDatabase.getInstance().getReference("QuizScores").child(studentId);
+            quizScoresChildListener = new ChildEventListener() {
+                @Override public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
+                    markQuizTakenLocally(snapshot.getKey());
+                }
+                @Override public void onChildChanged(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
+                    markQuizTakenLocally(snapshot.getKey());
+                }
+                @Override public void onChildRemoved(@NonNull DataSnapshot snapshot) {
+                    // If score removed, refresh list fully
+                    startRealtimeListener();
+                }
+                @Override public void onChildMoved(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {}
+                @Override public void onCancelled(@NonNull DatabaseError error) { Log.w(TAG_DEBUG, "QuizScores listener cancelled: " + error.getMessage()); }
+            };
+            quizScoresRefForStudent.addChildEventListener(quizScoresChildListener);
+
+            // Also attach to legacy Scores for backward compatibility
+            legacyScoresRefForStudent = FirebaseDatabase.getInstance().getReference("Scores").child(studentId);
+            legacyScoresChildListener = new ChildEventListener() {
                 @Override public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
                     markQuizTakenLocally(snapshot.getKey());
                 }
@@ -687,9 +744,10 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                 @Override public void onChildMoved(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {}
                 @Override public void onCancelled(@NonNull DatabaseError error) { Log.w(TAG_DEBUG, "Scores listener cancelled: " + error.getMessage()); }
             };
-            scoresRefForStudent.addChildEventListener(scoresChildListener);
+            legacyScoresRefForStudent.addChildEventListener(legacyScoresChildListener);
+
             scoresStudentId = studentId;
-            Log.d(TAG_DEBUG, "Attached Scores realtime listener for studentId=" + studentId);
+            Log.d(TAG_DEBUG, "Attached QuizScores and Scores realtime listeners for studentId=" + studentId);
         } catch (Exception e) {
             Log.w(TAG_DEBUG, "attachScoresRealtimeListener failed: " + e.getMessage());
         }
@@ -697,12 +755,19 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
 
     private void detachScoresRealtimeListener() {
         try {
-            if (scoresRefForStudent != null && scoresChildListener != null) {
-                scoresRefForStudent.removeEventListener(scoresChildListener);
+            if (quizScoresRefForStudent != null && quizScoresChildListener != null) {
+                quizScoresRefForStudent.removeEventListener(quizScoresChildListener);
             }
         } catch (Exception ignored) {}
-        scoresRefForStudent = null;
-        scoresChildListener = null;
+        try {
+            if (legacyScoresRefForStudent != null && legacyScoresChildListener != null) {
+                legacyScoresRefForStudent.removeEventListener(legacyScoresChildListener);
+            }
+        } catch (Exception ignored) {}
+        quizScoresRefForStudent = null;
+        legacyScoresRefForStudent = null;
+        quizScoresChildListener = null;
+        legacyScoresChildListener = null;
         scoresStudentId = null;
     }
 
@@ -772,5 +837,103 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
         intent.putExtra("availableAt", quiz.getAvailableAt() != null ? quiz.getAvailableAt() : 0L);
         intent.putExtra("durationMinutes", quiz.getDurationMinutes() != null ? quiz.getDurationMinutes() : 0);
         startActivity(intent);
+    }
+
+    // Add this helper method inside the activity (best placed after startRealtimeListener / fetch methods):
+
+    /**
+     * Attach a realtime listener on QuizStudents/{quizId}/{studentId} and fallback ExamStudents/{quizId}/{studentId}.
+     * When allowed or present becomes true, update adapter so the "Take Quiz" button shows immediately.
+     */
+    private void attachPresenceListenerForQuiz(@NonNull final String quizId) {
+        if (quizId == null || quizId.trim().isEmpty()) return;
+        final String key = quizId.trim();
+
+        // already attached?
+        if (quizPresenceListeners.containsKey(key)) return;
+
+        // Determine studentId (scoresStudentId if explicit, otherwise stored studentId)
+        final String studentId = (scoresStudentId != null && !scoresStudentId.isEmpty())
+                ? scoresStudentId
+                : sessionManager.getStudentId();
+
+        if (studentId == null || studentId.isEmpty()) {
+            // cannot attach until we know studentId
+            android.util.Log.d(TAG_DEBUG, "attachPresenceListenerForQuiz: no studentId yet, skipping for quiz=" + key);
+            return;
+        }
+
+        // QuizStudents ref + listener
+        DatabaseReference qRef = FirebaseDatabase.getInstance()
+                .getReference("QuizStudents").child(key).child(studentId);
+
+        ValueEventListener qListener = new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                // if node missing, snapshot.exists() == false
+                boolean allowed = Boolean.TRUE.equals(snapshot.child("allowed").getValue(Boolean.class));
+                boolean present = Boolean.TRUE.equals(snapshot.child("present").getValue(Boolean.class));
+                boolean allowStudent = allowed || present;
+                android.util.Log.d(TAG_DEBUG, "QuizStudents presence change: quiz=" + key + " student=" + studentId + " allowed=" + allowed + " present=" + present);
+                // Update adapter on UI thread
+                runOnUiThread(() -> {
+                    if (adapter != null) adapter.setStudentPresent(key, allowStudent);
+                });
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                android.util.Log.w(TAG_DEBUG, "QuizStudents listener cancelled for quiz=" + key + ": " + error.getMessage());
+            }
+        };
+
+        qRef.addValueEventListener(qListener);
+        quizPresenceListeners.put(key, qListener);
+        quizPresenceRefs.put(key, qRef);
+
+        // Also attach fallback listener under ExamStudents so either write is picked up
+        DatabaseReference eRef = FirebaseDatabase.getInstance()
+                .getReference("ExamStudents").child(key).child(studentId);
+
+        ValueEventListener eListener = new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                boolean allowed = Boolean.TRUE.equals(snapshot.child("allowed").getValue(Boolean.class));
+                boolean present = Boolean.TRUE.equals(snapshot.child("present").getValue(Boolean.class));
+                boolean allowStudent = allowed || present;
+                android.util.Log.d(TAG_DEBUG, "ExamStudents presence change: quiz=" + key + " student=" + studentId + " allowed=" + allowed + " present=" + present);
+                runOnUiThread(() -> {
+                    if (adapter != null) adapter.setStudentPresent(key, allowStudent);
+                });
+            }
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                android.util.Log.w(TAG_DEBUG, "ExamStudents listener cancelled for quiz=" + key + ": " + error.getMessage());
+            }
+        };
+
+        eRef.addValueEventListener(eListener);
+        examPresenceListeners.put(key, eListener);
+        examPresenceRefs.put(key, eRef);
+    }
+
+    // Add this helper to remove all presence listeners (call from onDestroy)
+    private void detachAllPresenceListeners() {
+        try {
+            for (Map.Entry<String, DatabaseReference> en : quizPresenceRefs.entrySet()) {
+                DatabaseReference ref = en.getValue();
+                ValueEventListener l = quizPresenceListeners.get(en.getKey());
+                if (ref != null && l != null) try { ref.removeEventListener(l); } catch (Exception ignored) {}
+            }
+            for (Map.Entry<String, DatabaseReference> en : examPresenceRefs.entrySet()) {
+                DatabaseReference ref = en.getValue();
+                ValueEventListener l = examPresenceListeners.get(en.getKey());
+                if (ref != null && l != null) try { ref.removeEventListener(l); } catch (Exception ignored) {}
+            }
+        } catch (Exception ignored) {}
+        quizPresenceListeners.clear();
+        quizPresenceRefs.clear();
+        examPresenceListeners.clear();
+        examPresenceRefs.clear();
     }
 }
