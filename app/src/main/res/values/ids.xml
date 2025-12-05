@@ -5,4 +5,16 @@
     <item name="etScore" type="id" />
     <item name="controlsContainer" type="id" />
     <item name="studentInfoContainer" type="id" />
+    <item name="row_hsv" type="id" />
+    <item name="btnComputeAverage" type="id" />
+    <item name="tvSelectedDateStatus" type="id" />
+    <item name="calendarView" type="id" />
+    <item name="spinnerStudents" type="id" />
+    <item name="tvRecordTitle" type="id" />
+    <item name="studentRecordLayout" type="id" />
+    <item name="tvAverage" type="id" />
+    <item name="progressRecords" type="id" />
+    <item name="rvRecords" type="id" />
+    <item name="tvRecordDate" type="id" />
+    <item name="tvRecordStatus" type="id" />
 </resources>

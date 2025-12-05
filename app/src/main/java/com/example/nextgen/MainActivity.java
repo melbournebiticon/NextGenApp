@@ -6,12 +6,14 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import com.example.nextgen.student.StudentDashboardActivity;
+import com.example.nextgen.teacher.TeacherDashboardActivity;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DataSnapshot;
@@ -19,6 +21,9 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -68,7 +73,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         if (inputIdOrEmail.contains("@")) {
-            // ✅ Teacher login by email
+            // Teacher login by email (we look up Teachers node first so we can save the node key and assignments)
             DatabaseReference teachersRef = FirebaseDatabase.getInstance().getReference("Teachers");
             teachersRef.orderByChild("email").equalTo(inputIdOrEmail)
                     .addListenerForSingleValueEvent(new ValueEventListener() {
@@ -76,14 +81,50 @@ public class MainActivity extends AppCompatActivity {
                         public void onDataChange(@NonNull DataSnapshot snapshot) {
                             if (snapshot.exists()) {
                                 for (DataSnapshot teacherSnap : snapshot.getChildren()) {
-                                    final String teacherId = teacherSnap.child("id").getValue(String.class);
+                                    // teacher node key (e.g. "-Oc_Cj...")
+                                    final String teacherNodeKey = teacherSnap.getKey();
                                     String teacherEmail = teacherSnap.child("email").getValue(String.class);
 
+                                    // collect assignment lists (may be absent)
+                                    final List<String> assignedSections = new ArrayList<>();
+                                    final List<String> assignedSubjects = new ArrayList<>();
+                                    final List<String> courseDisplays = new ArrayList<>();
+                                    final String fullName = teacherSnap.child("fullName").getValue(String.class);
+
+                                    if (teacherSnap.hasChild("assignedSections")) {
+                                        for (DataSnapshot s : teacherSnap.child("assignedSections").getChildren()) {
+                                            String v = s.getValue(String.class);
+                                            if (v != null) assignedSections.add(v);
+                                        }
+                                    }
+                                    if (teacherSnap.hasChild("assignedSubjects")) {
+                                        for (DataSnapshot s : teacherSnap.child("assignedSubjects").getChildren()) {
+                                            String v = s.getValue(String.class);
+                                            if (v != null) assignedSubjects.add(v);
+                                        }
+                                    }
+                                    if (teacherSnap.hasChild("courseDisplays")) {
+                                        for (DataSnapshot s : teacherSnap.child("courseDisplays").getChildren()) {
+                                            String v = s.getValue(String.class);
+                                            if (v != null) courseDisplays.add(v);
+                                        }
+                                    }
+
                                     if (teacherEmail != null) {
+                                        // Sign in with the teacher's email and password
                                         auth.signInWithEmailAndPassword(teacherEmail, password)
                                                 .addOnCompleteListener(task -> {
                                                     if (task.isSuccessful()) {
-                                                        sessionManager.saveSession(teacherId, "teacher");
+                                                        // Save the teacher node key and assignment lists into session synchronously
+                                                        sessionManager.saveTeacherId(teacherNodeKey);
+                                                        sessionManager.saveAssignedSections(assignedSections);
+                                                        sessionManager.saveAssignedSubjects(assignedSubjects);
+                                                        sessionManager.saveCourseDisplays(courseDisplays);
+                                                        if (fullName != null && !fullName.trim().isEmpty()) {
+                                                            sessionManager.saveFullName(fullName);
+                                                        }
+
+                                                        sessionManager.saveSession(teacherNodeKey, "teacher"); // maintain compatibility
                                                         redirectUser("teacher");
                                                         finish();
                                                     } else {
@@ -93,9 +134,12 @@ public class MainActivity extends AppCompatActivity {
                                     } else {
                                         Toast.makeText(MainActivity.this, "Teacher email not found in DB", Toast.LENGTH_SHORT).show();
                                     }
+
+                                    // only need the first match
+                                    break;
                                 }
                             } else {
-                                // Not a teacher, fallback to normal email login
+                                // Not a teacher record found in Teachers node — fallback to normal FirebaseAuth email login
                                 auth.signInWithEmailAndPassword(inputIdOrEmail, password)
                                         .addOnCompleteListener(task -> {
                                             if (task.isSuccessful()) {
@@ -110,6 +154,13 @@ public class MainActivity extends AppCompatActivity {
 
                                                             if (role != null) {
                                                                 String idToStore = (role.equals("teacher")) ? teacherId : (role.equals("student") ? studentId : user.getUid());
+
+                                                                // If role is teacher but teacherId stored in Users is actually a Teachers node key,
+                                                                // save it in session properly (saveTeacherId).
+                                                                if ("teacher".equals(role) && teacherId != null) {
+                                                                    sessionManager.saveTeacherId(teacherId);
+                                                                }
+
                                                                 sessionManager.saveSession(idToStore, role);
                                                                 redirectUser(role);
                                                                 finish();
@@ -124,13 +175,15 @@ public class MainActivity extends AppCompatActivity {
                                                         }
                                                     });
                                                 } else {
-                                                    user.sendEmailVerification().addOnCompleteListener(verifyTask -> {
-                                                        if (verifyTask.isSuccessful()) {
-                                                            Toast.makeText(MainActivity.this, "Verification email sent. Please check your inbox.", Toast.LENGTH_LONG).show();
-                                                        } else {
-                                                            Toast.makeText(MainActivity.this, "Failed to send verification: " + verifyTask.getException().getMessage(), Toast.LENGTH_LONG).show();
-                                                        }
-                                                    });
+                                                    if (user != null) {
+                                                        user.sendEmailVerification().addOnCompleteListener(verifyTask -> {
+                                                            if (verifyTask.isSuccessful()) {
+                                                                Toast.makeText(MainActivity.this, "Verification email sent. Please check your inbox.", Toast.LENGTH_LONG).show();
+                                                            } else {
+                                                                Toast.makeText(MainActivity.this, "Failed to send verification: " + verifyTask.getException().getMessage(), Toast.LENGTH_LONG).show();
+                                                            }
+                                                        });
+                                                    }
                                                     auth.signOut();
                                                 }
                                             } else {
@@ -147,7 +200,7 @@ public class MainActivity extends AppCompatActivity {
                     });
 
         } else {
-            // Teacher or Student login by ID
+            // Teacher or Student login by ID (inputId may be the Teachers node key or teacher's "id" child)
             String inputId = inputIdOrEmail.toUpperCase();
             DatabaseReference teachersRef = FirebaseDatabase.getInstance().getReference("Teachers");
             teachersRef.child(inputId).addListenerForSingleValueEvent(new ValueEventListener() {
@@ -155,14 +208,48 @@ public class MainActivity extends AppCompatActivity {
                 public void onDataChange(@NonNull DataSnapshot snapshot) {
                     if (snapshot.exists()) {
                         String teacherEmail = snapshot.child("email").getValue(String.class);
-                        final String teacherIdFromDb = snapshot.child("id").getValue(String.class);
-                        if (teacherEmail != null && teacherIdFromDb != null) {
+                        final String teacherNodeKey = snapshot.getKey();
+                        if (teacherEmail != null && teacherNodeKey != null) {
+                            // gather and cache assignment lists
+                            final List<String> assignedSections = new ArrayList<>();
+                            final List<String> assignedSubjects = new ArrayList<>();
+                            final List<String> courseDisplays = new ArrayList<>();
+                            final String fullName = snapshot.child("fullName").getValue(String.class);
+
+                            if (snapshot.hasChild("assignedSections")) {
+                                for (DataSnapshot s : snapshot.child("assignedSections").getChildren()) {
+                                    String v = s.getValue(String.class);
+                                    if (v != null) assignedSections.add(v);
+                                }
+                            }
+                            if (snapshot.hasChild("assignedSubjects")) {
+                                for (DataSnapshot s : snapshot.child("assignedSubjects").getChildren()) {
+                                    String v = s.getValue(String.class);
+                                    if (v != null) assignedSubjects.add(v);
+                                }
+                            }
+                            if (snapshot.hasChild("courseDisplays")) {
+                                for (DataSnapshot s : snapshot.child("courseDisplays").getChildren()) {
+                                    String v = s.getValue(String.class);
+                                    if (v != null) courseDisplays.add(v);
+                                }
+                            }
+
                             auth.signInWithEmailAndPassword(teacherEmail, password)
                                     .addOnCompleteListener(task -> {
                                         if (task.isSuccessful()) {
                                             FirebaseUser user = auth.getCurrentUser();
                                             if (user != null && user.isEmailVerified()) {
-                                                sessionManager.saveSession(teacherIdFromDb, "teacher");
+                                                // Save teacher node key and cached lists
+                                                sessionManager.saveTeacherId(teacherNodeKey);
+                                                sessionManager.saveAssignedSections(assignedSections);
+                                                sessionManager.saveAssignedSubjects(assignedSubjects);
+                                                sessionManager.saveCourseDisplays(courseDisplays);
+                                                if (fullName != null && !fullName.trim().isEmpty()) {
+                                                    sessionManager.saveFullName(fullName);
+                                                }
+
+                                                sessionManager.saveSession(teacherNodeKey, "teacher");
                                                 redirectUser("teacher");
                                                 finish();
                                             } else {
@@ -183,7 +270,7 @@ public class MainActivity extends AppCompatActivity {
                                     });
 
                         } else {
-                            Toast.makeText(MainActivity.this, "Teacher email or ID missing in DB", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(MainActivity.this, "Teacher email or node key missing in DB", Toast.LENGTH_SHORT).show();
                         }
                     } else {
                         // Student login fallback
@@ -252,7 +339,7 @@ public class MainActivity extends AppCompatActivity {
                 intent = new Intent(MainActivity.this, com.example.nextgen.admin.AdminActivity.class);
                 break;
             case "teacher":
-                intent = new Intent(MainActivity.this, com.example.nextgen.teacher.TeacherDashboardActivity.class);
+                intent = new Intent(MainActivity.this, TeacherDashboardActivity.class);
                 break;
             case "student":
                 intent = new Intent(MainActivity.this, StudentDashboardActivity.class);

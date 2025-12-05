@@ -8,7 +8,22 @@ import com.example.nextgen.admin.StudentModel;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Set;
 
+/**
+ * SessionManager - central place to persist small bits of user/teacher/student session data.
+ *
+ * Added helpers to persist and read teacher-related lists so StudentAttendanceActivity and
+ * other screens can read assignedSections / assignedSubjects / courseDisplays / courseIds
+ * from session storage instead of re-querying Firebase every time.
+ *
+ * Usage notes:
+ * - saveTeacherId(...) stores the teacher node key (Teachers/{key}) in the same slot used previously by saveSession(...)
+ *   (KEY_USER_ID). Existing code that calls getUserId() will continue to work.
+ * - When you resolve the teacher node at login (e.g. by querying Teachers by email), call the save* helpers
+ *   to cache assignedSections / assignedSubjects / courseDisplays / courseIds into session prefs. This will
+ *   make StudentAttendanceActivity able to load the spinner immediately from session data.
+ */
 public class SessionManager {
 
     private static final String PREF_NAME = "user_session";
@@ -24,6 +39,12 @@ public class SessionManager {
     private static final String KEY_STUDENT_UID = "student_uid"; // firebase auth uid or teacher's stored uid
     private static final String KEY_STUDENT_ID = "student_id"; // school student id if available
     private static final String KEY_STUDENT_PROFILE_IMAGE = "student_profile_image";
+
+    // Teacher / assignment keys
+    private static final String KEY_ASSIGNED_SECTIONS = "assignedSections";     // set of section node keys
+    private static final String KEY_ASSIGNED_SUBJECTS = "assignedSubjects";     // set of subject ids
+    private static final String KEY_COURSE_DISPLAYS = "courseDisplays";         // set of "Course - Spec - Year - Section"
+    private static final String KEY_COURSE_IDS = "courseIds";                   // already used by some code
 
     private SharedPreferences pref;
     private SharedPreferences.Editor editor;
@@ -69,6 +90,10 @@ public class SessionManager {
         editor.apply();
     }
 
+    /**
+     * Primary user/teacher id saved in session. This has historically been used by other activities
+     * as the teacher node key. Keep this method to remain backward compatible.
+     */
     public String getUserId() {
         return pref.getString(KEY_USER_ID, null);
     }
@@ -89,13 +114,25 @@ public class SessionManager {
         return getUserId() != null;
     }
 
+    /**
+     * Save courseIds (set) into session prefs.
+     */
     public void saveCourseIds(List<String> courseIds) {
-        editor.putStringSet("courseIds", new HashSet<>(courseIds));
+        if (courseIds == null) {
+            editor.remove(KEY_COURSE_IDS);
+            editor.apply();
+            return;
+        }
+        editor.putStringSet(KEY_COURSE_IDS, new HashSet<>(courseIds));
         editor.apply();
     }
 
+    /**
+     * Get courseIds previously saved in session, or empty list if none.
+     */
     public List<String> getCourseIds() {
-        return new ArrayList<>(pref.getStringSet("courseIds", new HashSet<>()));
+        Set<String> set = pref.getStringSet(KEY_COURSE_IDS, new HashSet<>());
+        return new ArrayList<>(set);
     }
 
     // ✅ Static helper method for quick access when Context is available but a SessionManager instance is not.
@@ -192,6 +229,100 @@ public class SessionManager {
     public void saveStudentUid(String uid) {
         if (uid == null) return;
         editor.putString(KEY_STUDENT_UID, uid);
+        editor.apply();
+    }
+
+    // ---------------------------
+    // TEACHER / ASSIGNMENT HELPERS
+    // ---------------------------
+
+    /**
+     * Explicit alias to save teacher node key (keeps backward compatibility with saveSession).
+     * Use this after you resolve the Teachers/{key} node during login.
+     */
+    public void saveTeacherId(String teacherKey) {
+        if (teacherKey == null) return;
+        editor.putString(KEY_USER_ID, teacherKey);
+        editor.apply();
+    }
+
+    /**
+     * Alias for getUserId() but clearer semantically when used by teacher-related code.
+     */
+    public String getTeacherId() {
+        return getUserId();
+    }
+
+    /**
+     * Save assignedSections (list of Section node keys) into session prefs.
+     * Overwrites previous value.
+     */
+    public void saveAssignedSections(List<String> sectionIds) {
+        if (sectionIds == null) {
+            editor.remove(KEY_ASSIGNED_SECTIONS);
+            editor.apply();
+            return;
+        }
+        editor.putStringSet(KEY_ASSIGNED_SECTIONS, new HashSet<>(sectionIds));
+        editor.apply();
+    }
+
+    /**
+     * Return assignedSections previously saved in session or empty list.
+     */
+    public List<String> getAssignedSections() {
+        Set<String> set = pref.getStringSet(KEY_ASSIGNED_SECTIONS, new HashSet<>());
+        return new ArrayList<>(set);
+    }
+
+    /**
+     * Save assignedSubjects (list of subject IDs) into session prefs.
+     */
+    public void saveAssignedSubjects(List<String> subjectIds) {
+        if (subjectIds == null) {
+            editor.remove(KEY_ASSIGNED_SUBJECTS);
+            editor.apply();
+            return;
+        }
+        editor.putStringSet(KEY_ASSIGNED_SUBJECTS, new HashSet<>(subjectIds));
+        editor.apply();
+    }
+
+    /**
+     * Return assignedSubjects previously saved in session or empty list.
+     */
+    public List<String> getAssignedSubjects() {
+        Set<String> set = pref.getStringSet(KEY_ASSIGNED_SUBJECTS, new HashSet<>());
+        return new ArrayList<>(set);
+    }
+
+    /**
+     * Save courseDisplays (strings like "BSIT - Spec - 1 - A") into session prefs.
+     */
+    public void saveCourseDisplays(List<String> displays) {
+        if (displays == null) {
+            editor.remove(KEY_COURSE_DISPLAYS);
+            editor.apply();
+            return;
+        }
+        editor.putStringSet(KEY_COURSE_DISPLAYS, new HashSet<>(displays));
+        editor.apply();
+    }
+
+    /**
+     * Return courseDisplays previously saved in session or empty list.
+     */
+    public List<String> getCourseDisplays() {
+        Set<String> set = pref.getStringSet(KEY_COURSE_DISPLAYS, new HashSet<>());
+        return new ArrayList<>(set);
+    }
+
+    /**
+     * Convenience: save teacher's profile image (base64 or url) into session for quick access.
+     */
+    public void saveProfileImage(String base64OrUrl) {
+        if (base64OrUrl == null) return;
+        editor.putString(KEY_STUDENT_PROFILE_IMAGE, base64OrUrl);
         editor.apply();
     }
 }

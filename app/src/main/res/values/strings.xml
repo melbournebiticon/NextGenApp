@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">NextGen</string>
     <string name="logo_description">NextGen Online Exam System Logo</string>
@@ -33,7 +34,14 @@
     <string name="course">Course</string>
     <string name="section">Section</string>
 
-
+    <!-- Student Attendance / UI -->
+    <string name="mark_attendance_title">Mark Attendance</string>
+    <string name="select_section_prompt">Select a section</string>
+    <string name="section_spinner_desc">Choose a class section</string>
+    <string name="empty_no_sections_or_students">No sections assigned or no students found.</string>
+    <string name="submit_attendance">Submit Attendance</string>
+    <string name="loading_message">Loading…</string>
+    <string name="viewreport">View Report</string>
 
     <string-array name="main_term_options">
         <item>1st Term</item>
@@ -42,10 +50,8 @@
     </string-array>
 
     <string-array name="sub_term_options">
-    <item>Prelim</item>
-    <item>Midterm</item>
-    <item>Finals</item>
+        <item>Prelim</item>
+        <item>Midterm</item>
+        <item>Finals</item>
     </string-array>
-
-
 </resources>

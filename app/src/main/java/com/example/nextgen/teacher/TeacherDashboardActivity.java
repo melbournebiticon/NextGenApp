@@ -97,6 +97,9 @@ public class TeacherDashboardActivity extends AppCompatActivity implements Navig
     // NEW: Variable para hawakan ang reference ng Profile icon
     private MenuItem profileMenuItem;
 
+    // NEW: Quick action for Student Attendance
+    CardView cardStudentAttendance;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -156,6 +159,9 @@ public class TeacherDashboardActivity extends AppCompatActivity implements Navig
         // NEW: Manage Quiz Card
         CardView cardManageQuiz = findViewById(R.id.cardManageQuiz);
 
+        // NEW: Student Attendance quick action card (make sure this ID exists in your layout)
+        cardStudentAttendance = findViewById(R.id.cardStudentAttendance);
+
         // Card actions
         cardManageExam.setOnClickListener(v -> startActivity(new Intent(this, ManageExamActivity.class)));
 
@@ -172,6 +178,14 @@ public class TeacherDashboardActivity extends AppCompatActivity implements Navig
             Intent intent = new Intent(TeacherDashboardActivity.this, ManageQuizActivity.class);
             startActivity(intent);
         });
+
+        // NEW: Connect Student Attendance quick action to StudentAttendanceActivity
+        if (cardStudentAttendance != null) {
+            cardStudentAttendance.setOnClickListener(v -> {
+                Intent intent = new Intent(TeacherDashboardActivity.this, StudentAttendanceActivity.class);
+                startActivity(intent);
+            });
+        }
 
         // Get teacher ID from session
         String teacherId = sessionManager.getUserId();
@@ -754,7 +768,3 @@ public class TeacherDashboardActivity extends AppCompatActivity implements Navig
     }
 
 }
-
-
-
-
