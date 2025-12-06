@@ -43,18 +43,13 @@ import java.util.Map;
 /**
  * StudentAttendanceActivity
  *
- * Changes made:
- * - Attendance records are saved per-teacher at Attendance/{sectionId}/{teacherId}/{yyyy-MM-dd}/{studentKey}
- * - Summary is updated per-teacher at AttendanceSummary/{sectionId}/{teacherId}/{studentId}
- * - Confirmation dialog before saving a student's status
- * - When launching AttendanceReportActivity, the current teacher id is passed via Intent extra "teacherId"
- *   so the report reads the same per-teacher nodes the activity writes to.
- *
- * Additional change:
- * - When a teacher persists an attendance change, we also write a student-facing copy under:
- *     Students/{studentNode}/attendanceHistory/{yyyy-MM-dd}  (map with status, teacher, section, date, timestamp)
- *     Students/{studentNode}/attendanceNotifications/latest  (same map, to trigger realtime notification)
- *   The code attempts to write using the student node key first; if not present it queries Students by studentId.
+ * Full file with teacher-side improvements:
+ * - Attendance records saved at Attendance/{sectionId}/{teacherId}/{yyyy-MM-dd}/{studentKey}
+ * - When persisting attendance, teacher full name (Teachers/{teacherId}.fullName or displayName)
+ *   and the assigned subject display (Subjects/{subjectId}.name) are resolved and written into both
+ *   the per-teacher Attendance node and the Students/{...} attendanceHistory copy.
+ * - Student-facing copy fields: teacherFullName and assignedSubject (when available).
+ * - Keeps per-teacher AttendanceSummary updates and previous behavior.
  */
 public class StudentAttendanceActivity extends AppCompatActivity {
 
@@ -286,8 +281,8 @@ public class StudentAttendanceActivity extends AppCompatActivity {
         // Use real sectionId if available; otherwise create fallback key so marking still works.
         String realSectionId = section.getId();
         boolean usingFallback;
-        String writeSectionId = "";
-        if (isNullOrEmpty(writeSectionId)) {
+        String writeSectionId;
+        if (isNullOrEmpty(realSectionId)) {
             writeSectionId = buildFallbackSectionKey(section);
             usingFallback = true;
             Log.w(TAG, "persistAttendanceChange: using fallback section key: " + writeSectionId);
@@ -304,23 +299,86 @@ public class StudentAttendanceActivity extends AppCompatActivity {
             else teacherId = "unknown-teacher";
         }
 
-        String teacherName;
-        FirebaseUser current = FirebaseAuth.getInstance().getCurrentUser();
-        if (current != null && current.getDisplayName() != null) teacherName = current.getDisplayName();
-        else {
-            teacherName = "";
-        }
+        // Resolve teacher profile to get full name and assigned subject (if available)
+        DatabaseReference teachersRef = FirebaseDatabase.getInstance().getReference("Teachers").child(teacherId);
+        String finalTeacherId = teacherId;
+        String finalTeacherId1 = teacherId;
+        teachersRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override public void onDataChange(@NonNull DataSnapshot teacherSnap) {
+                String teacherFullName = "";
+                String assignedSubjectName = "";
 
+                if (teacherSnap != null && teacherSnap.exists()) {
+                    Object fn = teacherSnap.child("fullName").getValue();
+                    if (fn == null) fn = teacherSnap.child("displayName").getValue();
+                    if (fn != null) teacherFullName = String.valueOf(fn);
+
+                    // If teacher has assignedSubjects (ids), take the first and resolve its display name
+                    if (teacherSnap.hasChild("assignedSubjects")) {
+                        for (DataSnapshot as : teacherSnap.child("assignedSubjects").getChildren()) {
+                            String subjId = as.getValue(String.class);
+                            if (!isNullOrEmpty(subjId)) {
+                                // fetch subject name
+                                DatabaseReference subjRef = FirebaseDatabase.getInstance().getReference("Subjects").child(subjId);
+                                String finalTeacherFullName = teacherFullName;
+                                subjRef.addListenerForSingleValueEvent(new ValueEventListener() {
+                                    @Override public void onDataChange(@NonNull DataSnapshot subjSnap) {
+                                        String subjName = subjSnap.child("name").getValue(String.class);
+                                        writeAttendanceWithTeacherInfo(writeSectionId, finalTeacherId, finalTeacherFullName, subjName != null ? subjName : "", section, student, previousStatus, usingFallback);
+                                    }
+                                    @Override public void onCancelled(@NonNull DatabaseError error) {
+                                        // subject lookup failed; still write attendance without subject
+                                        writeAttendanceWithTeacherInfo(writeSectionId, finalTeacherId, finalTeacherFullName, assignedSubjectName, section, student, previousStatus, usingFallback);
+                                    }
+                                });
+                                return; // only handle first assignedSubject
+                            }
+                        }
+                    }
+                }
+
+                // fallback: use FirebaseAuth displayName if teacher node lacked fullName or assignedSubject
+                if (isNullOrEmpty(teacherFullName)) {
+                    FirebaseUser cu = FirebaseAuth.getInstance().getCurrentUser();
+                    if (cu != null && cu.getDisplayName() != null) teacherFullName = cu.getDisplayName();
+                }
+
+                // write attendance immediately if no assignedSubject to resolve
+                writeAttendanceWithTeacherInfo(writeSectionId, finalTeacherId1, teacherFullName, assignedSubjectName, section, student, previousStatus, usingFallback);
+            }
+
+            @Override public void onCancelled(@NonNull DatabaseError error) {
+                Log.w(TAG, "Failed to read teacher profile: " + error.getMessage());
+                // fallback to auth displayName
+                String fallbackName = "";
+                FirebaseUser cu = FirebaseAuth.getInstance().getCurrentUser();
+                if (cu != null && cu.getDisplayName() != null) fallbackName = cu.getDisplayName();
+                writeAttendanceWithTeacherInfo(writeSectionId, finalTeacherId1, fallbackName, "", section, student, previousStatus, usingFallback);
+            }
+        });
+    }
+
+    /**
+     * Centralized write that uses provided teacherFullName and assignedSubjectName.
+     * Writes to Attendance per-teacher node and then writes Students/{...}/attendanceHistory and notification copies.
+     */
+    private void writeAttendanceWithTeacherInfo(String writeSectionId,
+                                                String teacherId,
+                                                String teacherFullName,
+                                                String assignedSubjectName,
+                                                SectionItem section,
+                                                StudentModel student,
+                                                String previousStatus,
+                                                boolean usingFallback) {
         final String sid = !isNullOrEmpty(student.getStudentId()) ? student.getStudentId() : student.getId();
         if (isNullOrEmpty(sid)) {
-            Log.w(TAG, "persistAttendanceChange: no student id");
+            Log.w(TAG, "writeAttendanceWithTeacherInfo: no student id");
             return;
         }
 
         final String newStatus = !isNullOrEmpty(student.getAttendanceStatus()) ? student.getAttendanceStatus() : "Absent";
         final String date = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
 
-        // Write path includes teacherId so each teacher has separate records
         DatabaseReference attendanceNode = FirebaseDatabase.getInstance()
                 .getReference("Attendance")
                 .child(writeSectionId)
@@ -333,7 +391,7 @@ public class StudentAttendanceActivity extends AppCompatActivity {
         data.put("studentName", student.getFullName());
         data.put("status", newStatus);
         data.put("term", term);
-        data.put("sectionId", realSectionId); // original id (may be null)
+        data.put("sectionId", section.getId());
         if (usingFallback) data.put("sectionFallbackKey", writeSectionId);
         data.put("section", section.getDisplay());
         data.put("courseName", section.getCourseName());
@@ -341,13 +399,13 @@ public class StudentAttendanceActivity extends AppCompatActivity {
         data.put("yearName", section.getYearName());
         data.put("date", date);
         data.put("teacherId", teacherId);
-        data.put("teacherName", teacherName);
+        data.put("teacherFullName", teacherFullName);           // write teacher full name
+        if (!isNullOrEmpty(assignedSubjectName)) data.put("assignedSubject", assignedSubjectName); // assigned subject
         data.put("timestamp", ServerValue.TIMESTAMP);
 
         String finalWriteSectionId = writeSectionId;
         String finalTeacherId = teacherId;
-        String finalTeacherId1 = teacherId;
-        String finalWriteSectionId1 = writeSectionId;
+
         attendanceNode.setValue(data, (error, ref) -> {
             if (error != null) {
                 Log.w(TAG, "Failed to write attendance for " + sid + ": " + error.getMessage());
@@ -358,20 +416,16 @@ public class StudentAttendanceActivity extends AppCompatActivity {
             updateSummaryTransaction(finalWriteSectionId, finalTeacherId, sid, previousStatus, newStatus);
             Toast.makeText(StudentAttendanceActivity.this, "Saved: " + student.getFullName() + " → " + newStatus, Toast.LENGTH_SHORT).show();
 
-            // --------------------------
-            // WRITE A STUDENT-FACING COPY
-            // - Students/{studentNode}/attendanceHistory/{date} = {status, date, sectionDisplay, teacherName, teacherId, timestamp}
-            // - Students/{studentNode}/attendanceNotifications/latest = same map (so app can listen and show notice)
-            // We attempt to write using sid as node key first; if that node doesn't exist, we query Students by studentId == sid.
-            // --------------------------
+            // Student-facing copy (includes teacherFullName and assignedSubject)
             Map<String, Object> studentCopy = new HashMap<>();
             studentCopy.put("status", newStatus);
             studentCopy.put("date", date);
             studentCopy.put("sectionDisplay", section.getDisplay());
-            studentCopy.put("sectionId", realSectionId);
-            if (usingFallback) studentCopy.put("sectionFallbackKey", finalWriteSectionId1);
-            studentCopy.put("teacherId", finalTeacherId1);
-            studentCopy.put("teacherName", teacherName);
+            studentCopy.put("sectionId", section.getId());
+            if (usingFallback) studentCopy.put("sectionFallbackKey", finalWriteSectionId);
+            studentCopy.put("teacherId", finalTeacherId);
+            studentCopy.put("teacherFullName", teacherFullName);
+            if (!isNullOrEmpty(assignedSubjectName)) studentCopy.put("assignedSubject", assignedSubjectName);
             studentCopy.put("timestamp", ServerValue.TIMESTAMP);
 
             // Try direct path Students/{sid}
@@ -379,7 +433,6 @@ public class StudentAttendanceActivity extends AppCompatActivity {
             possibleStudentNode.addListenerForSingleValueEvent(new ValueEventListener() {
                 @Override public void onDataChange(@NonNull DataSnapshot snap) {
                     if (snap != null && snap.exists()) {
-                        // write history and notification
                         possibleStudentNode.child("attendanceHistory").child(date).setValue(studentCopy, (err1, r1) -> {
                             if (err1 != null) Log.w(TAG, "Failed write Students/" + sid + "/attendanceHistory/" + date + " : " + err1.getMessage());
                         });

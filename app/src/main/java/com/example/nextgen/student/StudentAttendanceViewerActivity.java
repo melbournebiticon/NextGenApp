@@ -42,12 +42,15 @@ import java.util.Set;
 /**
  * StudentAttendanceViewerActivity
  *
- * Updated so teacher name is displayed prominently wherever a teacher-marked attendance is shown:
- * - In the date preview (loadStatusForDate) the teacher is shown on the same line as status when possible:
- *     e.g. "2025-12-06: Present — By Prof. Santos"
- * - In history rows the meta already shows "By <teacher>".
+ * Updated so teacher full name and subject (if present) are shown in:
+ * - date preview (loadStatusForDate) and
+ * - history rows (dialog + inline RecyclerView).
  *
- * All other behavior (attendance cache, prompting to save school id, Students history preference) remains intact.
+ * The code prefers the fields written by teacher-side:
+ * - teacherFullName (preferred) / teacherName (fallback)
+ * - assignedSubject (optional)
+ *
+ * Everything else remains as before (attendance cache, prompting to save school id, Students history preference).
  */
 public class StudentAttendanceViewerActivity extends AppCompatActivity {
 
@@ -185,6 +188,8 @@ public class StudentAttendanceViewerActivity extends AppCompatActivity {
      * Attach a realtime listener on Attendance root and filter entries for THIS student's identifiers
      * (schoolId and fullName). When scanning, if we see a studentId in attendance and local Students node
      * does not have schoolId, we prompt the user once to save it.
+     *
+     * This version reads teacherFullName and assignedSubject when present.
      */
     private void attachAttendanceRealtimeListener() {
         attendanceListener = new ValueEventListener() {
@@ -218,7 +223,13 @@ public class StudentAttendanceViewerActivity extends AppCompatActivity {
                                 String status = safeString(studentSnap.child("status").getValue(String.class));
                                 String sectionDisplay = safeString(studentSnap.child("section").getValue(String.class));
                                 if (sectionDisplay.isEmpty()) sectionDisplay = safeString(studentSnap.child("sectionDisplay").getValue(String.class));
-                                String teacherName = safeString(studentSnap.child("teacherName").getValue(String.class));
+
+                                // Prefer teacherFullName then teacherName
+                                String teacherFullName = safeString(studentSnap.child("teacherFullName").getValue(String.class));
+                                if (teacherFullName.isEmpty()) teacherFullName = safeString(studentSnap.child("teacherName").getValue(String.class));
+
+                                String assignedSubject = safeString(studentSnap.child("assignedSubject").getValue(String.class));
+
                                 String sidField = safeString(studentSnap.child("studentId").getValue(String.class));
                                 String studNameField = safeString(studentSnap.child("studentName").getValue(String.class));
                                 if (studNameField.isEmpty()) studNameField = safeString(studentSnap.child("fullName").getValue(String.class));
@@ -235,8 +246,8 @@ public class StudentAttendanceViewerActivity extends AppCompatActivity {
                                 }
 
                                 if (matched) {
-                                    // store into attendanceByDate (include teacherName to show)
-                                    HistoryEntry he = new HistoryEntry(dateKey, status, sectionDisplay, teacherName, studNameField, childKey);
+                                    // store into attendanceByDate (include teacherFullName and assignedSubject to show)
+                                    HistoryEntry he = new HistoryEntry(dateKey, status, sectionDisplay, teacherFullName, assignedSubject, studNameField, childKey);
                                     List<HistoryEntry> list = attendanceByDate.get(dateKey);
                                     if (list == null) {
                                         list = new ArrayList<>();
@@ -339,13 +350,21 @@ public class StudentAttendanceViewerActivity extends AppCompatActivity {
                         if (snap != null && snap.exists()) {
                             String status = snap.child("status").getValue(String.class);
                             String section = snap.child("sectionDisplay").getValue(String.class);
-                            String teacher = snap.child("teacherName").getValue(String.class);
+
+                            // prefer teacherFullName, fallback to teacherName
+                            String teacherFullName = snap.child("teacherFullName").getValue(String.class);
+                            if (teacherFullName == null || teacherFullName.isEmpty()) {
+                                teacherFullName = snap.child("teacherName").getValue(String.class);
+                            }
+                            String assignedSubject = snap.child("assignedSubject").getValue(String.class);
+
                             String studentName = snap.child("studentName").getValue(String.class);
                             StringBuilder sb = new StringBuilder();
                             sb.append(dateKey).append(": ").append(status == null || status.isEmpty() ? "Not marked" : status);
                             // include teacher on same line after status (preferred)
-                            if (teacher != null && !teacher.isEmpty()) {
-                                sb.append(" — By ").append(teacher);
+                            if (teacherFullName != null && !teacherFullName.isEmpty()) {
+                                sb.append(" — By ").append(teacherFullName);
+                                if (assignedSubject != null && !assignedSubject.isEmpty()) sb.append(" (").append(assignedSubject).append(")");
                             } else if (section != null && !section.isEmpty()) {
                                 sb.append(" — ").append(section);
                             }
@@ -364,6 +383,7 @@ public class StudentAttendanceViewerActivity extends AppCompatActivity {
                             // show teacher name prominently if present
                             if (primary.teacher != null && !primary.teacher.isEmpty()) {
                                 sb.append(" — By ").append(primary.teacher);
+                                if (primary.assignedSubject != null && !primary.assignedSubject.isEmpty()) sb.append(" (").append(primary.assignedSubject).append(")");
                             } else if (primary.section != null && !primary.section.isEmpty()) {
                                 sb.append(" — ").append(primary.section);
                             }
@@ -412,13 +432,15 @@ public class StudentAttendanceViewerActivity extends AppCompatActivity {
         final String status;
         final String section;
         final String teacher;
+        final String assignedSubject;
         final String displayStudentName;
         final String childKey;
-        HistoryEntry(String date, String status, String section, String teacher, String displayStudentName, String childKey) {
+        HistoryEntry(String date, String status, String section, String teacher, String assignedSubject, String displayStudentName, String childKey) {
             this.date = date;
             this.status = status;
             this.section = section;
             this.teacher = teacher;
+            this.assignedSubject = assignedSubject;
             this.displayStudentName = displayStudentName;
             this.childKey = childKey;
         }
@@ -455,9 +477,14 @@ public class StudentAttendanceViewerActivity extends AppCompatActivity {
             }
             StringBuilder meta = new StringBuilder();
             if (e.section != null && !e.section.isEmpty()) meta.append(e.section);
+            // show teacher and subject in meta
             if (e.teacher != null && !e.teacher.isEmpty()) {
                 if (meta.length() > 0) meta.append(" • ");
                 meta.append("By ").append(e.teacher);
+            }
+            if (e.assignedSubject != null && !e.assignedSubject.isEmpty()) {
+                if (meta.length() > 0) meta.append(" • ");
+                meta.append(e.assignedSubject);
             }
             tvMeta.setText(meta.toString());
         }
