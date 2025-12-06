@@ -6,6 +6,8 @@ import android.content.IntentFilter;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -65,6 +67,9 @@ public class StudentDashboardActivity extends AppCompatActivity
         implements BottomNavigationView.OnNavigationItemSelectedListener {
 
     private static final String TAG = "StudentDashboard";
+
+    // Programmatic ID for attendance nav item (keeps us independent from resource IDs)
+    private static final int NAV_ATTENDANCE_ID = 1001;
 
     // --- Dashboard UI Fields ---
     private TextView tvGreeting;
@@ -207,7 +212,17 @@ public class StudentDashboardActivity extends AppCompatActivity
         // place inside onCreate(...) after you initialize bottomNavigationView:
         BottomNavigationView bottomNavigationView = findViewById(R.id.bottomNavigationView);
 
-// if you already set a listener, merge the quiz case into it; otherwise set it like this:
+        // Add "Attendance" item programmatically so it appears alongside My Classes, Scan QR, Grades, Quizzes
+        // We use a programmatic id (NAV_ATTENDANCE_ID) so no resource edit is required here.
+        Menu menu = bottomNavigationView.getMenu();
+        // Insert the attendance item - order param attempts to place it near center (adjust order as needed)
+        MenuItem attendanceItem = menu.add(Menu.NONE, NAV_ATTENDANCE_ID, 2, "Attendance");
+        // Use a built-in drawable so compilation does not fail if custom drawable is not added yet.
+        attendanceItem.setIcon(android.R.drawable.ic_menu_my_calendar);
+        // Optional: set checkable so UI highlights selection
+        attendanceItem.setCheckable(true);
+
+        // if you already set a listener, merge the quiz case into it; otherwise set it like this:
         bottomNavigationView.setOnNavigationItemSelectedListener(item -> {
             int id = item.getItemId();
 
@@ -229,6 +244,13 @@ public class StudentDashboardActivity extends AppCompatActivity
 
             if (id == R.id.nav_view_profile) {
                 // existing profile navigation
+                return true;
+            }
+
+            // NEW: handle attendance nav item
+            if (id == NAV_ATTENDANCE_ID) {
+                // Start the StudentAttendanceViewerActivity when Attendance button is tapped
+                startActivity(new Intent(StudentDashboardActivity.this, StudentAttendanceViewerActivity.class));
                 return true;
             }
 
@@ -416,6 +438,12 @@ public class StudentDashboardActivity extends AppCompatActivity
             // Add navigation logic for Grades here, e.g.:
             // Intent intent = new Intent(this, StudentGradesActivity.class);
             // startActivity(intent);
+            return true;
+        }
+
+        // Handle programmatic attendance nav id too (in case this override is used)
+        if (id == NAV_ATTENDANCE_ID) {
+            startActivity(new Intent(StudentDashboardActivity.this, StudentAttendanceViewerActivity.class));
             return true;
         }
 

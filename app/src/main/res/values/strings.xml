@@ -42,6 +42,13 @@
     <string name="submit_attendance">Submit Attendance</string>
     <string name="loading_message">Loading…</string>
     <string name="viewreport">View Report</string>
+    <string name="history_meta_cd" />
+    <string name="history_status_cd" />
+    <string name="history_date_cd" />
+    <string name="day_records_list_cd" />
+    <string name="selected_date_cd" />
+    <string name="calendar_view_cd" />
+    <string name="history_student_name_cd" />
 
     <string-array name="main_term_options">
         <item>1st Term</item>

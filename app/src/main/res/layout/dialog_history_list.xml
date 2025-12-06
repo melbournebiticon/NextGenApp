@@ -2,9 +2,11 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/dialog_history_root"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
+    android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="12dp">
+    android:padding="16dp"
+    android:focusable="true"
+    android:focusableInTouchMode="true">
 
     <TextView
         android:id="@+id/dialogHistoryTitle"
@@ -13,12 +15,15 @@
         android:text="Attendance History"
         android:textAppearance="@style/TextAppearance.AppCompat.Medium"
         android:textStyle="bold"
-        android:paddingBottom="8dp" />
+        android:paddingBottom="8dp"
+        android:importantForAccessibility="yes" />
 
+    <!-- RecyclerView uses 0dp + weight so the dialog can size correctly and the list can scroll -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/dialogHistoryRv"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="0dp"
+        android:layout_weight="1"
         android:minHeight="160dp"
         android:clipToPadding="false"
         android:scrollbars="vertical" />
@@ -31,6 +36,7 @@
         android:visibility="gone"
         android:paddingTop="12dp"
         android:gravity="center"
-        android:textAppearance="@style/TextAppearance.AppCompat.Body1" />
+        android:textAppearance="@style/TextAppearance.AppCompat.Body1"
+        android:importantForAccessibility="yes" />
 
 </LinearLayout>

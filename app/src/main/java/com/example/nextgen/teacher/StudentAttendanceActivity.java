@@ -49,6 +49,12 @@ import java.util.Map;
  * - Confirmation dialog before saving a student's status
  * - When launching AttendanceReportActivity, the current teacher id is passed via Intent extra "teacherId"
  *   so the report reads the same per-teacher nodes the activity writes to.
+ *
+ * Additional change:
+ * - When a teacher persists an attendance change, we also write a student-facing copy under:
+ *     Students/{studentNode}/attendanceHistory/{yyyy-MM-dd}  (map with status, teacher, section, date, timestamp)
+ *     Students/{studentNode}/attendanceNotifications/latest  (same map, to trigger realtime notification)
+ *   The code attempts to write using the student node key first; if not present it queries Students by studentId.
  */
 public class StudentAttendanceActivity extends AppCompatActivity {
 
@@ -154,7 +160,7 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                                                     .setValue(newStatus);
                                         }
                                     }
-                                    @Override public void onCancelled(@NonNull com.google.firebase.database.DatabaseError error) { }
+                                    @Override public void onCancelled(@NonNull DatabaseError error) { }
                                 });
                             }
                         }
@@ -279,12 +285,15 @@ public class StudentAttendanceActivity extends AppCompatActivity {
 
         // Use real sectionId if available; otherwise create fallback key so marking still works.
         String realSectionId = section.getId();
-        boolean usingFallback = false;
-        String writeSectionId = realSectionId;
+        boolean usingFallback;
+        String writeSectionId = "";
         if (isNullOrEmpty(writeSectionId)) {
             writeSectionId = buildFallbackSectionKey(section);
             usingFallback = true;
             Log.w(TAG, "persistAttendanceChange: using fallback section key: " + writeSectionId);
+        } else {
+            writeSectionId = realSectionId;
+            usingFallback = false;
         }
 
         // teacherId for per-teacher records (use SessionManager teacher key first)
@@ -295,9 +304,12 @@ public class StudentAttendanceActivity extends AppCompatActivity {
             else teacherId = "unknown-teacher";
         }
 
-        String teacherName = "";
+        String teacherName;
         FirebaseUser current = FirebaseAuth.getInstance().getCurrentUser();
         if (current != null && current.getDisplayName() != null) teacherName = current.getDisplayName();
+        else {
+            teacherName = "";
+        }
 
         final String sid = !isNullOrEmpty(student.getStudentId()) ? student.getStudentId() : student.getId();
         if (isNullOrEmpty(sid)) {
@@ -334,6 +346,8 @@ public class StudentAttendanceActivity extends AppCompatActivity {
 
         String finalWriteSectionId = writeSectionId;
         String finalTeacherId = teacherId;
+        String finalTeacherId1 = teacherId;
+        String finalWriteSectionId1 = writeSectionId;
         attendanceNode.setValue(data, (error, ref) -> {
             if (error != null) {
                 Log.w(TAG, "Failed to write attendance for " + sid + ": " + error.getMessage());
@@ -343,6 +357,64 @@ public class StudentAttendanceActivity extends AppCompatActivity {
             Log.d(TAG, "Attendance written for " + sid + " status=" + newStatus + " under sectionNode=" + finalWriteSectionId + " teacher=" + finalTeacherId);
             updateSummaryTransaction(finalWriteSectionId, finalTeacherId, sid, previousStatus, newStatus);
             Toast.makeText(StudentAttendanceActivity.this, "Saved: " + student.getFullName() + " → " + newStatus, Toast.LENGTH_SHORT).show();
+
+            // --------------------------
+            // WRITE A STUDENT-FACING COPY
+            // - Students/{studentNode}/attendanceHistory/{date} = {status, date, sectionDisplay, teacherName, teacherId, timestamp}
+            // - Students/{studentNode}/attendanceNotifications/latest = same map (so app can listen and show notice)
+            // We attempt to write using sid as node key first; if that node doesn't exist, we query Students by studentId == sid.
+            // --------------------------
+            Map<String, Object> studentCopy = new HashMap<>();
+            studentCopy.put("status", newStatus);
+            studentCopy.put("date", date);
+            studentCopy.put("sectionDisplay", section.getDisplay());
+            studentCopy.put("sectionId", realSectionId);
+            if (usingFallback) studentCopy.put("sectionFallbackKey", finalWriteSectionId1);
+            studentCopy.put("teacherId", finalTeacherId1);
+            studentCopy.put("teacherName", teacherName);
+            studentCopy.put("timestamp", ServerValue.TIMESTAMP);
+
+            // Try direct path Students/{sid}
+            DatabaseReference possibleStudentNode = studentsRef.child(sid);
+            possibleStudentNode.addListenerForSingleValueEvent(new ValueEventListener() {
+                @Override public void onDataChange(@NonNull DataSnapshot snap) {
+                    if (snap != null && snap.exists()) {
+                        // write history and notification
+                        possibleStudentNode.child("attendanceHistory").child(date).setValue(studentCopy, (err1, r1) -> {
+                            if (err1 != null) Log.w(TAG, "Failed write Students/" + sid + "/attendanceHistory/" + date + " : " + err1.getMessage());
+                        });
+                        possibleStudentNode.child("attendanceNotifications").child("latest").setValue(studentCopy, (err2, r2) -> {
+                            if (err2 != null) Log.w(TAG, "Failed write Students/" + sid + "/attendanceNotifications/latest : " + err2.getMessage());
+                        });
+                    } else {
+                        // fallback: search by studentId property
+                        Query q = studentsRef.orderByChild("studentId").equalTo(sid);
+                        q.addListenerForSingleValueEvent(new ValueEventListener() {
+                            @Override public void onDataChange(@NonNull DataSnapshot snapshot) {
+                                if (snapshot == null || !snapshot.exists()) {
+                                    Log.w(TAG, "Could not find student node for sid=" + sid + " to write history.");
+                                    return;
+                                }
+                                for (DataSnapshot ds : snapshot.getChildren()) {
+                                    DatabaseReference studentNode = ds.getRef();
+                                    studentNode.child("attendanceHistory").child(date).setValue(studentCopy, (err1, r1) -> {
+                                        if (err1 != null) Log.w(TAG, "Failed write Students/" + ds.getKey() + "/attendanceHistory/" + date + " : " + err1.getMessage());
+                                    });
+                                    studentNode.child("attendanceNotifications").child("latest").setValue(studentCopy, (err2, r2) -> {
+                                        if (err2 != null) Log.w(TAG, "Failed write Students/" + ds.getKey() + "/attendanceNotifications/latest : " + err2.getMessage());
+                                    });
+                                }
+                            }
+                            @Override public void onCancelled(@NonNull DatabaseError error) {
+                                Log.w(TAG, "Failed lookup student by studentId=" + sid + " : " + error.getMessage());
+                            }
+                        });
+                    }
+                }
+                @Override public void onCancelled(@NonNull DatabaseError error) {
+                    Log.w(TAG, "Failed checking Students/" + sid + " existence: " + error.getMessage());
+                }
+            });
         });
     }
 
@@ -503,7 +575,7 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                                     }
                                     tryLookupByNameFallback();
                                 }
-                                @Override public void onCancelled(@NonNull com.google.firebase.database.DatabaseError error) { tryLookupByNameFallback(); }
+                                @Override public void onCancelled(@NonNull DatabaseError error) { tryLookupByNameFallback(); }
                                 private void tryLookupByNameFallback() {
                                     if (!isNullOrEmpty(authDisplay)) {
                                         Query byFullName = teachersRef.orderByChild("fullName").equalTo(authDisplay);
@@ -520,10 +592,10 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                                                         }
                                                         loadSectionsByTeacherIdFallback(authUid);
                                                     }
-                                                    @Override public void onCancelled(@NonNull com.google.firebase.database.DatabaseError error) { loadSectionsByTeacherIdFallback(authUid); }
+                                                    @Override public void onCancelled(@NonNull DatabaseError error) { loadSectionsByTeacherIdFallback(authUid); }
                                                 });
                                             }
-                                            @Override public void onCancelled(@NonNull com.google.firebase.database.DatabaseError error) { loadSectionsByTeacherIdFallback(authUid); }
+                                            @Override public void onCancelled(@NonNull DatabaseError error) { loadSectionsByTeacherIdFallback(authUid); }
                                         });
                                     } else { loadSectionsByTeacherIdFallback(authUid); }
                                 }
@@ -544,18 +616,18 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                                                 }
                                                 loadSectionsByTeacherIdFallback(authUid);
                                             }
-                                            @Override public void onCancelled(@NonNull com.google.firebase.database.DatabaseError error) { loadSectionsByTeacherIdFallback(authUid); }
+                                            @Override public void onCancelled(@NonNull DatabaseError error) { loadSectionsByTeacherIdFallback(authUid); }
                                         });
                                     }
-                                    @Override public void onCancelled(@NonNull com.google.firebase.database.DatabaseError error) { loadSectionsByTeacherIdFallback(authUid); }
+                                    @Override public void onCancelled(@NonNull DatabaseError error) { loadSectionsByTeacherIdFallback(authUid); }
                                 });
                             } else { loadSectionsByTeacherIdFallback(authUid); }
                         }
                     }
-                    @Override public void onCancelled(@NonNull com.google.firebase.database.DatabaseError error) { loadSectionsByTeacherIdFallback(authUid); }
+                    @Override public void onCancelled(@NonNull DatabaseError error) { loadSectionsByTeacherIdFallback(authUid); }
                 });
             }
-            @Override public void onCancelled(@NonNull com.google.firebase.database.DatabaseError error) { loadSectionsByTeacherIdFallback(authUid); }
+            @Override public void onCancelled(@NonNull DatabaseError error) { loadSectionsByTeacherIdFallback(authUid); }
         });
     }
 
@@ -640,7 +712,7 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                 loadSectionsByTeacherIdFallback(teacherKey);
             }
 
-            @Override public void onCancelled(@NonNull com.google.firebase.database.DatabaseError error) { loadSectionsByTeacherIdFallback(teacherKey); }
+            @Override public void onCancelled(@NonNull DatabaseError error) { loadSectionsByTeacherIdFallback(teacherKey); }
         });
     }
 
@@ -701,7 +773,7 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                 }
 
                 @Override
-                public void onCancelled(@NonNull com.google.firebase.database.DatabaseError error) {
+                public void onCancelled(@NonNull DatabaseError error) {
                     Log.w(TAG, "loadSectionsByIds cancelled: " + error.getMessage());
                     remaining[0]--;
                     if (remaining[0] == 0) {
@@ -736,7 +808,7 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                             remaining[0]--;
                             if (remaining[0] <= 0) callback.onResult(new ArrayList<>(found.values()));
                         }
-                        @Override public void onCancelled(@NonNull com.google.firebase.database.DatabaseError error) {
+                        @Override public void onCancelled(@NonNull DatabaseError error) {
                             remaining[0]--;
                             if (remaining[0] <= 0) callback.onResult(new ArrayList<>(found.values()));
                         }
@@ -768,7 +840,7 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                             remaining[0]--;
                             if (remaining[0] <= 0) callback.onResult(new ArrayList<>(found.values()));
                         }
-                        @Override public void onCancelled(@NonNull com.google.firebase.database.DatabaseError error) {
+                        @Override public void onCancelled(@NonNull DatabaseError error) {
                             remaining[0]--;
                             if (remaining[0] <= 0) callback.onResult(new ArrayList<>(found.values()));
                         }
@@ -794,7 +866,7 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                         }
                         applySectionsToSpinner(result);
                     }
-                    @Override public void onCancelled(@NonNull com.google.firebase.database.DatabaseError error) { applySectionsToSpinner(new ArrayList<>()); }
+                    @Override public void onCancelled(@NonNull DatabaseError error) { applySectionsToSpinner(new ArrayList<>()); }
                 });
     }
 
@@ -888,7 +960,7 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                         }
 
                         @Override
-                        public void onCancelled(@NonNull com.google.firebase.database.DatabaseError error) {
+                        public void onCancelled(@NonNull DatabaseError error) {
                             Log.w(TAG, "Failed resolving section ids: " + error.getMessage());
                         }
                     });

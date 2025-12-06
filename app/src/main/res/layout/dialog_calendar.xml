@@ -4,15 +4,18 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="12dp"
-    android:background="@android:color/white">
+    android:padding="16dp"
+    android:background="@android:color/white"
+    android:focusable="true"
+    android:focusableInTouchMode="true">
 
     <!-- Calendar for picking a date -->
     <CalendarView
         android:id="@+id/dialogCalendarView"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="8dp" />
+        android:layout_marginBottom="8dp"
+        android:contentDescription="@string/calendar_view_cd" />
 
     <!-- Selected date info -->
     <TextView
@@ -22,14 +25,18 @@
         android:text="Selected: "
         android:textColor="#444"
         android:paddingBottom="8dp"
-        android:textSize="14sp" />
+        android:textSize="14sp"
+        android:contentDescription="@string/selected_date_cd" />
 
     <!-- List of students' records for the selected date -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/dialogRvDayRecords"
         android:layout_width="match_parent"
-        android:layout_height="280dp"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:minHeight="200dp"
         android:clipToPadding="false"
-        android:scrollbars="vertical" />
+        android:scrollbars="vertical"
+        android:contentDescription="@string/day_records_list_cd" />
 
 </LinearLayout>
