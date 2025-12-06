@@ -37,11 +37,13 @@ public class GenerateQuizActivity extends AppCompatActivity {
 
     private TextView tvQuizInfo;
     private Spinner spQuestionType;
+
+    private Button btnSaveQuestions;
     private LinearLayout layoutMultipleChoice, layoutTrueFalse, layoutMatching;
     private LinearLayout layoutMCFields, layoutTFFields, layoutMatchingFields;
     private EditText etNumMC, etNumTF, etNumMatching;
     private CheckBox cbMC, cbTF, cbMatching;
-    private Button btnSaveQuestions, btnImportQuestions;
+    private FloatingActionButton fabImportQuestions;
     private RecyclerView rvQuestions;
     private QuestionAdapter adapter;
     private List<Question> questionList = new ArrayList<>();
@@ -49,7 +51,6 @@ public class GenerateQuizActivity extends AppCompatActivity {
     private String quizTitle;
     private Question editingQuestion = null;
 
-    private FloatingActionButton fabImportQuestions;
     private LinearLayout editingContainer = null;
     private DatabaseReference database;
 
@@ -136,7 +137,7 @@ public class GenerateQuizActivity extends AppCompatActivity {
             }
         });
 
-        btnImportQuestions.setOnClickListener(v -> openFilePicker());
+        fabImportQuestions = findViewById(R.id.fabImportQuestions);
 
         loadQuestions();
     }
