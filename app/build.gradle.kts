@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.nextgen"
+    namespace = "com.finale.nextgen"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.example.nextgen"
+        applicationId = "com.finale.nextgen"
         minSdk = 26
         targetSdk = 36
         versionCode = 1
