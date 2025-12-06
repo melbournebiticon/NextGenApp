@@ -1,22 +1,102 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:padding="12dp"
-    android:orientation="vertical"
+<androidx.cardview.widget.CardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="?attr/selectableItemBackground">
+    android:layout_marginTop="10dp"
+    android:layout_marginBottom="6dp"
+    android:layout_marginStart="16dp"
+    android:layout_marginEnd="16dp"
+    app:cardElevation="3dp"
+    app:cardCornerRadius="12dp"
+    android:backgroundTint="#FFF">
 
-    <TextView
-        android:id="@+id/tvActivityTitle"
-        android:textSize="16sp"
-        android:textStyle="bold"
+    <LinearLayout
+        android:orientation="vertical"
+        android:padding="16dp"
+        android:background="@android:color/white"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"/>
+        android:layout_height="wrap_content">
 
-    <TextView
-        android:id="@+id/tvActivitySubject"
-        android:textSize="14sp"
-        android:textColor="#666"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"/>
-</LinearLayout>
+        <!-- Title -->
+        <TextView
+            android:id="@+id/tvActivityTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Activity Title"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="#222"
+            android:maxLines="2"
+            android:ellipsize="end"/>
+
+        <!-- Subject and Section Line -->
+        <TextView
+            android:id="@+id/tvActivitySubject"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Subject • Section"
+            android:textColor="#607D8B"
+            android:textSize="14sp"
+            android:layout_marginTop="2dp"
+            android:maxLines="1"
+            android:ellipsize="end"/>
+
+        <!-- Description -->
+        <TextView
+            android:id="@+id/tvActivityDescription"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Description: Quiz covering chapters 1-3"
+            android:textColor="#757575"
+            android:textSize="13sp"
+            android:layout_marginTop="6dp"
+            android:layout_marginBottom="6dp"
+            android:maxLines="2"
+            android:ellipsize="end"/>
+
+        <!-- Due Date -->
+        <TextView
+            android:id="@+id/tvActivityDueDate"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Due: 2025-12-02 23:55"
+            android:textColor="#00897B"
+            android:textSize="13sp"
+            android:layout_marginBottom="8dp"/>
+
+        <!-- Action Buttons -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="end">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnEdit"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="Edit"
+                android:textAllCaps="false"
+                android:textColor="@android:color/white"
+                app:icon="@android:drawable/ic_menu_edit"
+                app:iconPadding="6dp"
+                app:backgroundTint="#1976D2"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_marginEnd="10dp"/>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnDelete"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="Delete"
+                android:textAllCaps="false"
+                android:textColor="@android:color/white"
+                app:icon="@android:drawable/ic_menu_delete"
+                app:iconPadding="6dp"
+                app:backgroundTint="#D32F2F"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"/>
+        </LinearLayout>
+    </LinearLayout>
+</androidx.cardview.widget.CardView>

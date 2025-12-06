@@ -1,7 +1,6 @@
 package com.example.nextgen.student;
 
 import android.content.Context;
-import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -19,25 +18,39 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.nextgen.R;
 import com.example.nextgen.teacher.Question;
+import com.google.android.material.button.MaterialButton;
 
 import java.util.ArrayList;
 import java.util.List;
 import android.util.Log;
-
 
 public class TakeExamAdapter extends RecyclerView.Adapter<TakeExamAdapter.QuestionViewHolder> {
 
     private Context context;
     private List<Question> questions;
 
+    private int totalQuestions = 1; // Add to top, default 1
     private List<String> allMatchingAnswers;
+    private String buttonText; // Add this field
 
-    public TakeExamAdapter(Context context, List<Question> questions, List<String> allMatchingAnswers) {
+    // Listener to pass next/submit actions to the Activity
+    public interface OnActionListener {
+        void onNextOrSubmit(int position, String actionText);
+    }
+    private OnActionListener actionListener;
+
+    public void setOnActionListener(OnActionListener listener) {
+        this.actionListener = listener;
+    }
+
+    // Constructor now takes buttonText and totalQuestions
+    public TakeExamAdapter(Context context, List<Question> questions, List<String> allMatchingAnswers, String buttonText, int totalQuestions) {
         this.context = context;
         this.questions = (questions != null) ? questions : new ArrayList<>();
         this.allMatchingAnswers = (allMatchingAnswers != null) ? allMatchingAnswers : new ArrayList<>();
+        this.buttonText = (buttonText != null) ? buttonText : "Next";
+        this.totalQuestions = totalQuestions;
     }
-
 
     @NonNull
     @Override
@@ -51,24 +64,27 @@ public class TakeExamAdapter extends RecyclerView.Adapter<TakeExamAdapter.Questi
         if (questions.isEmpty()) return;
 
         Question q = questions.get(position);
+        int currentQuestion = q.getDisplayNumber(); // or (position+1) kung sequential
+        holder.tvProgress.setText("Question " + currentQuestion + "/" + totalQuestions);
 
-        // Display question number
         holder.tvQuestion.setText(q.getDisplayNumber() + ". " + q.getQuestionText());
 
-        // Hide all input views by default
+        // Hide all views first
         holder.radioGroupMCQ.setVisibility(View.GONE);
         holder.radioGroupTF.setVisibility(View.GONE);
         holder.etAnswer.setVisibility(View.GONE);
         holder.spinnerAnswer.setVisibility(View.GONE);
 
-        // Clear previous states
+        // Clear previous state
         holder.radioGroupMCQ.clearCheck();
         holder.radioGroupTF.clearCheck();
         holder.etAnswer.setText("");
+
         if (holder.textWatcher != null) {
             holder.etAnswer.removeTextChangedListener(holder.textWatcher);
             holder.textWatcher = null;
         }
+
         holder.radioGroupMCQ.setOnCheckedChangeListener(null);
         holder.radioGroupTF.setOnCheckedChangeListener(null);
         holder.spinnerAnswer.setOnItemSelectedListener(null);
@@ -77,12 +93,12 @@ public class TakeExamAdapter extends RecyclerView.Adapter<TakeExamAdapter.Questi
 
             case "multiple choice":
                 holder.radioGroupMCQ.setVisibility(View.VISIBLE);
-                holder.rbOptionA.setText("A. " + q.getOptionA());
-                holder.rbOptionB.setText("B. " + q.getOptionB());
-                holder.rbOptionC.setText("C. " + q.getOptionC());
-                holder.rbOptionD.setText("D. " + q.getOptionD());
 
-                // Restore previous answer
+                holder.rbOptionA.setText(q.getOptionA());
+                holder.rbOptionB.setText(q.getOptionB());
+                holder.rbOptionC.setText(q.getOptionC());
+                holder.rbOptionD.setText(q.getOptionD());
+
                 if (q.getStudentAnswer() != null) {
                     String ans = q.getStudentAnswer();
                     if (ans.equals(q.getOptionA())) holder.rbOptionA.setChecked(true);
@@ -96,7 +112,7 @@ public class TakeExamAdapter extends RecyclerView.Adapter<TakeExamAdapter.Questi
                     if (pos != RecyclerView.NO_POSITION) {
                         RadioButton selected = group.findViewById(checkedId);
                         if (selected != null) {
-                            String answerText = selected.getText().toString().substring(3).trim();
+                            String answerText = selected.getText().toString();
                             questions.get(pos).setStudentAnswer(answerText);
                         }
                     }
@@ -105,55 +121,80 @@ public class TakeExamAdapter extends RecyclerView.Adapter<TakeExamAdapter.Questi
 
             case "true/false":
                 holder.radioGroupTF.setVisibility(View.VISIBLE);
+                holder.rbTrue.setChecked(false);
+                holder.rbFalse.setChecked(false);
 
-                if ("True".equalsIgnoreCase(q.getStudentAnswer())) holder.rbTrue.setChecked(true);
-                else if ("False".equalsIgnoreCase(q.getStudentAnswer())) holder.rbFalse.setChecked(true);
+                if ("True".equalsIgnoreCase(q.getStudentAnswer())) {
+                    holder.rbTrue.setChecked(true);
+                } else if ("False".equalsIgnoreCase(q.getStudentAnswer())) {
+                    holder.rbFalse.setChecked(true);
+                }
 
                 holder.radioGroupTF.setOnCheckedChangeListener((group, checkedId) -> {
                     int pos = holder.getBindingAdapterPosition();
                     if (pos != RecyclerView.NO_POSITION) {
                         RadioButton selected = group.findViewById(checkedId);
-                        if (selected != null) questions.get(pos).setStudentAnswer(selected.getText().toString());
+                        if (selected != null) {
+                            questions.get(pos).setStudentAnswer(selected.getText().toString());
+                        }
                     }
                 });
                 break;
 
-            default: // Matching Type
+            default:
                 holder.spinnerAnswer.setVisibility(View.VISIBLE);
 
-                // Inside onBindViewHolder(), default case for Matching Type
-                List<String> matchingOptions = allMatchingAnswers; // use global list
+                List<String> matchingOptions = allMatchingAnswers;
 
-// --- DEBUG CHECK ---
                 Log.d("TakeExamAdapter", "Question: " + q.getQuestionText());
-                Log.d("TakeExamAdapter", "Matching options: " + matchingOptions.toString());
-// ---------------------
+                Log.d("TakeExamAdapter", "Matching options: " + matchingOptions);
 
-                ArrayAdapter<String> adapter = new ArrayAdapter<>(context,
-                        android.R.layout.simple_spinner_item, matchingOptions);
+                ArrayAdapter<String> adapter = new ArrayAdapter<>(
+                        context,
+                        android.R.layout.simple_spinner_item,
+                        matchingOptions
+                );
                 adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
                 holder.spinnerAnswer.setAdapter(adapter);
 
-
+                // Restore previous answer
                 if (q.getStudentAnswer() != null) {
                     int index = matchingOptions.indexOf(q.getStudentAnswer());
                     if (index >= 0) holder.spinnerAnswer.setSelection(index);
                 }
 
-                final List<String> finalOptions = matchingOptions;
                 holder.spinnerAnswer.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
                     @Override
                     public void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
                         int currentPos = holder.getBindingAdapterPosition();
                         if (currentPos != RecyclerView.NO_POSITION) {
-                            questions.get(currentPos).setStudentAnswer(finalOptions.get(pos));
+                            questions.get(currentPos).setStudentAnswer(matchingOptions.get(pos));
                         }
                     }
-
                     @Override
                     public void onNothingSelected(AdapterView<?> parent) {}
                 });
                 break;
+        }
+
+        // Use the buttonText passed from activity
+        if (holder.btnNextOrSubmit != null) {
+            holder.btnNextOrSubmit.setText(buttonText);
+            holder.btnNextOrSubmit.setOnClickListener(v -> {
+                int actualPos = holder.getBindingAdapterPosition();
+                if (actualPos != RecyclerView.NO_POSITION && actionListener != null) {
+                    Question currQ = questions.get(actualPos); // changed variable name here to fix conflict
+                    // Check for blank answer before proceeding
+                    String answer = currQ != null ? currQ.getStudentAnswer() : null;
+                    if (answer == null || answer.trim().isEmpty()) {
+                        if (context != null) {
+                            android.widget.Toast.makeText(context, "You haven't answered this question yet. Please answer before moving on.", android.widget.Toast.LENGTH_SHORT).show();
+                        }
+                    } else {
+                        actionListener.onNextOrSubmit(actualPos, buttonText);
+                    }
+                }
+            });
         }
     }
 
@@ -163,6 +204,7 @@ public class TakeExamAdapter extends RecyclerView.Adapter<TakeExamAdapter.Questi
     }
 
     public static class QuestionViewHolder extends RecyclerView.ViewHolder {
+        TextView tvProgress;
         TextView tvQuestion;
         EditText etAnswer;
         TextWatcher textWatcher;
@@ -171,9 +213,12 @@ public class TakeExamAdapter extends RecyclerView.Adapter<TakeExamAdapter.Questi
         RadioGroup radioGroupTF;
         RadioButton rbTrue, rbFalse;
         Spinner spinnerAnswer;
+        MaterialButton btnNextOrSubmit;
 
         public QuestionViewHolder(@NonNull View itemView) {
             super(itemView);
+
+            tvProgress = itemView.findViewById(R.id.tvProgress);
             tvQuestion = itemView.findViewById(R.id.tvQuestion);
             etAnswer = itemView.findViewById(R.id.etAnswer);
             spinnerAnswer = itemView.findViewById(R.id.spinnerAnswer);
@@ -188,8 +233,7 @@ public class TakeExamAdapter extends RecyclerView.Adapter<TakeExamAdapter.Questi
             rbTrue = itemView.findViewById(R.id.rbTrue);
             rbFalse = itemView.findViewById(R.id.rbFalse);
 
-            radioGroupMCQ.setOnCheckedChangeListener(null);
-            radioGroupTF.setOnCheckedChangeListener(null);
+            btnNextOrSubmit = itemView.findViewById(R.id.btnNextOrSubmit);
         }
     }
 

@@ -26,7 +26,7 @@ import com.google.zxing.qrcode.QRCodeWriter;
 
 import android.view.View;
 
-
+import com.google.android.material.switchmaterial.SwitchMaterial;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -38,6 +38,8 @@ public class ExamMonitorActivity extends AppCompatActivity {
     private String examTitle;
     private String examId;
 
+    // Add this field to keep track of currently matched students
+    private List<StudentExamStatus> currentStudents = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -53,12 +55,23 @@ public class ExamMonitorActivity extends AppCompatActivity {
 
         setTitle("Monitoring: " + examTitle);
 
-
         // Show QR button
         findViewById(R.id.btnShowQR).setOnClickListener(v -> showQrDialog(examId));
 
         // Load students for this exam
         loadStudents();
+
+        // Present All Switch logic
+        SwitchMaterial switchPresentAll = findViewById(R.id.switchPresentAll);
+        if (switchPresentAll != null) {
+            switchPresentAll.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                if (isChecked) {
+                    markAllPresentForCurrentClass();
+                    Toast.makeText(this, "All matched students marked as present.", Toast.LENGTH_SHORT).show();
+                }
+                // Optionally, add logic to mark all as absent if turned off
+            });
+        }
     }
 
     // <-- Replace the old loadStudents() with this
@@ -133,6 +146,8 @@ public class ExamMonitorActivity extends AppCompatActivity {
                         android.util.Log.d("ExamMonitor", "Total matched students: " + students.size());
                         adapter = new StudentExamAdapter(students, examId);
                         recyclerView.setAdapter(adapter);
+                        // Store reference for present-all function
+                        currentStudents = students;
                     }
 
                     @Override
@@ -147,6 +162,21 @@ public class ExamMonitorActivity extends AppCompatActivity {
                 android.util.Log.e("ExamMonitor", "Students load error: " + error.getMessage());
             }
         });
+    }
+
+    // Add this new function:
+    private void markAllPresentForCurrentClass() {
+        DatabaseReference examStudentsRef = FirebaseDatabase.getInstance()
+                .getReference("ExamStudents")
+                .child(examId);
+
+        for (StudentExamStatus studentStatus : currentStudents) {
+            String studentId = studentStatus.getStudentId();
+            // Set only "present" to true for each student in current class
+            examStudentsRef.child(studentId).child("present").setValue(true);
+        }
+        // Optionally, reload adapter/UI as needed
+        loadStudents();
     }
 
     private void resetStudentExam(String studentId) {
@@ -215,7 +245,4 @@ public class ExamMonitorActivity extends AppCompatActivity {
             Toast.makeText(this, "Failed to generate QR", Toast.LENGTH_SHORT).show();
         }
     }
-
-
 }
-

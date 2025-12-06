@@ -1,75 +1,120 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:padding="12dp">
+    app:cardCornerRadius="18dp"
+    app:cardElevation="10dp"
+    android:layout_margin="10dp"
+    android:background="@color/surface">
 
-    <LinearLayout
-        android:orientation="vertical"
+    <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="wrap_content"
+        android:padding="14dp">
 
-        <Spinner
-            android:id="@+id/spEditQType"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:prompt="@string/prompt_question_type" />
-
-        <EditText
-            android:id="@+id/etEditQuestionText"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="Question text"
-            android:inputType="textMultiLine"
-            android:minLines="2"
-            android:layout_marginTop="8dp"/>
-
-        <!-- MC Container -->
         <LinearLayout
-            android:id="@+id/layoutEditMC"
             android:orientation="vertical"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:visibility="gone"
-            android:layout_marginTop="8dp">
+            android:layout_height="wrap_content">
 
-            <EditText android:id="@+id/etEditOptionA" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Option A"/>
-            <EditText android:id="@+id/etEditOptionB" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Option B"/>
-            <EditText android:id="@+id/etEditOptionC" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Option C"/>
-            <EditText android:id="@+id/etEditOptionD" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Option D"/>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Edit Question"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="@color/dark_blue_700"
+                android:layout_marginBottom="2dp"/>
 
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Correct Answer" android:layout_marginTop="6dp"/>
-            <Spinner android:id="@+id/spEditMCAnswer" android:layout_width="wrap_content" android:layout_height="wrap_content"/>
-        </LinearLayout>
-
-        <!-- TF Container -->
-        <LinearLayout
-            android:id="@+id/layoutEditTF"
-            android:orientation="vertical"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:visibility="gone"
-            android:layout_marginTop="8dp">
-
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Correct Answer"/>
-            <Spinner android:id="@+id/spEditTFAnswer" android:layout_width="wrap_content" android:layout_height="wrap_content"/>
-        </LinearLayout>
-
-        <!-- Matching Container -->
-        <LinearLayout
-            android:id="@+id/layoutEditMatching"
-            android:orientation="vertical"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:visibility="gone"
-            android:layout_marginTop="8dp">
-
-            <EditText
-                android:id="@+id/etEditMatchAnswer"
+            <Spinner
+                android:id="@+id/spEditQType"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Correct answer (matching)"/>
-        </LinearLayout>
+                android:layout_marginBottom="4dp"
+                android:background="@drawable/bg_spinner"/>
 
-    </LinearLayout>
-</ScrollView>
+            <EditText
+                android:id="@+id/etEditQuestionText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Type your question"
+                android:inputType="textMultiLine"
+                android:minLines="3"
+                android:background="@drawable/bg_edittext"
+                android:padding="8dp"
+                android:textColorHint="@android:color/darker_gray"
+                android:textSize="15sp"
+                android:layout_marginTop="6dp"
+                android:layout_marginBottom="6dp"/>
+
+            <!-- MC Container -->
+            <LinearLayout
+                android:id="@+id/layoutEditMC"
+                android:orientation="vertical"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:visibility="gone"
+                android:layout_marginTop="8dp">
+
+                <EditText android:id="@+id/etEditOptionA" android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:hint="Option A" android:background="@drawable/bg_edittext" android:padding="6dp"
+                    android:textColorHint="@android:color/darker_gray"/>
+
+                <EditText android:id="@+id/etEditOptionB" android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:hint="Option B" android:background="@drawable/bg_edittext" android:padding="6dp"
+                    android:textColorHint="@android:color/darker_gray"/>
+
+                <EditText android:id="@+id/etEditOptionC" android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:hint="Option C" android:background="@drawable/bg_edittext" android:padding="6dp"
+                    android:textColorHint="@android:color/darker_gray"/>
+
+                <EditText android:id="@+id/etEditOptionD" android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:hint="Option D" android:background="@drawable/bg_edittext" android:padding="6dp"
+                    android:textColorHint="@android:color/darker_gray"/>
+
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="Correct Answer" android:layout_marginTop="6dp"
+                    android:textColor="@color/dark_blue_700" android:textStyle="bold"/>
+
+                <Spinner android:id="@+id/spEditMCAnswer" android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:background="@drawable/bg_spinner"/>
+            </LinearLayout>
+
+            <!-- TF Container -->
+            <LinearLayout
+                android:id="@+id/layoutEditTF"
+                android:orientation="vertical"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:visibility="gone"
+                android:layout_marginTop="8dp">
+
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="Correct Answer" android:textColor="@color/dark_blue_700" android:textStyle="bold"/>
+                <Spinner android:id="@+id/spEditTFAnswer" android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:background="@drawable/bg_spinner"/>
+            </LinearLayout>
+
+            <!-- Matching Container -->
+            <LinearLayout
+                android:id="@+id/layoutEditMatching"
+                android:orientation="vertical"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:visibility="gone"
+                android:layout_marginTop="8dp">
+
+                <EditText
+                    android:id="@+id/etEditMatchAnswer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="Correct answer (matching)"
+                    android:background="@drawable/bg_edittext"
+                    android:padding="6dp"
+                    android:textColorHint="@android:color/darker_gray"/>
+            </LinearLayout>
+
+        </LinearLayout>
+    </ScrollView>
+</androidx.cardview.widget.CardView>

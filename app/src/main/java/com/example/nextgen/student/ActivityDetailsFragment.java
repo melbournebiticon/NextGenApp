@@ -18,10 +18,20 @@ import java.util.Locale;
 
 public class ActivityDetailsFragment extends Fragment {
 
+    /**
+     * Factory method to create a new instance of this fragment
+     * passing all necessary details including maxScore.
+     */
     public static ActivityDetailsFragment newInstance(
-            String code, String name, String teacher, String desc,
-            String dueDate, String mainTerm, String subTerm) {
-
+            String code,
+            String name,
+            String teacher,
+            String desc,
+            String dueDate,
+            String mainTerm,
+            String subTerm,
+            String maxScore // ✅ Added maxScore
+    ) {
         ActivityDetailsFragment fragment = new ActivityDetailsFragment();
         Bundle args = new Bundle();
         args.putString("code", code);
@@ -31,6 +41,7 @@ public class ActivityDetailsFragment extends Fragment {
         args.putString("dueDate", dueDate);
         args.putString("mainTerm", mainTerm);
         args.putString("subTerm", subTerm);
+        args.putString("maxScore", maxScore); // ✅ Put maxScore in arguments
         fragment.setArguments(args);
         return fragment;
     }
@@ -40,52 +51,54 @@ public class ActivityDetailsFragment extends Fragment {
     public View onCreateView(@NonNull LayoutInflater inflater,
                              @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
-        // Ensure this matches the file name of the improved UI XML, e.g., R.layout.fragment_activity_details
+
         View view = inflater.inflate(R.layout.fragment_activity_details, container, false);
 
-        // Map the TextViews using your existing IDs
+        // Map TextViews from XML
         TextView tvTeacher = view.findViewById(R.id.tvTeacher);
         TextView tvDesc = view.findViewById(R.id.tvDesc);
         TextView tvDeadline = view.findViewById(R.id.tvDeadline);
         TextView tvTerm = view.findViewById(R.id.tvTerm);
+        TextView tvMaxScore = view.findViewById(R.id.tvMaxScore); // ✅ Max Score TextView
 
         Bundle args = getArguments();
         if (args != null) {
-            String code = args.getString("code", "N/A");
-            String name = args.getString("name", "N/A");
             String teacher = args.getString("teacher", "N/A");
             String desc = args.getString("desc", "N/A");
             String dueDate = args.getString("dueDate", "N/A");
             String mainTerm = args.getString("mainTerm", "N/A");
             String subTerm = args.getString("subTerm", "N/A");
+            String maxScore = args.getString("maxScore", "100"); // Default to 100
 
-
-
-            // 2. METADATA ROWS: Set the raw data for the icon-driven rows.
-            // The XML layout provides the "Instructor:" and icons.
+            // Set instructor
             tvTeacher.setText("Instructor: " + teacher);
 
-            // The XML layout provides the "Term:" label and icon.
+            // Set term
             tvTerm.setText(mainTerm + " - " + subTerm);
 
-            // 3. DEADLINE: Format and set. The XML layout provides the "Deadline:" icon.
+            // Set formatted deadline
             tvDeadline.setText(formatDeadline(dueDate));
 
-            // 4. DESCRIPTION
+            // Set description
             tvDesc.setText(desc);
+
+            // Set max score
+            if (tvMaxScore != null) {
+                tvMaxScore.setText(maxScore + " Points");
+            }
         }
 
         return view;
     }
 
     /**
-     * Formats the raw date string into "Month DD, YYYY (Day of Week) at H:MM AM/PM".
+     * Format a raw date string into a human-readable format:
      * Example: November 4, 2025 (Tuesday) at 11:59 PM
      */
     private String formatDeadline(String rawDate) {
         try {
             SimpleDateFormat inputFormat;
-            // Detect if the string includes time (HH:mm)
+            // Check if time exists
             if (rawDate.contains(":")) {
                 inputFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
             } else {
@@ -93,13 +106,15 @@ public class ActivityDetailsFragment extends Fragment {
             }
 
             Date date = inputFormat.parse(rawDate);
-            // Updated output format to match common presentation style
-            SimpleDateFormat outputFormat =
-                    new SimpleDateFormat("MMMM dd, yyyy (EEEE) 'at' h:mm a", Locale.getDefault());
-            return outputFormat.format(date);
+
+            SimpleDateFormat outputFormat = new SimpleDateFormat(
+                    "MMMM dd, yyyy (EEEE) 'at' h:mm a", Locale.getDefault()
+            );
+
+            return date != null ? outputFormat.format(date) : rawDate;
         } catch (Exception e) {
             e.printStackTrace();
-            return rawDate;
+            return rawDate; // Fallback to raw string if parsing fails
         }
     }
 }

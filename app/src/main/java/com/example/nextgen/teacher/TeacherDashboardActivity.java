@@ -12,24 +12,13 @@ import android.widget.TextView;
 import android.widget.Toast;
 import android.util.Log;
 
-
-import androidx.annotation.NonNull;
-import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.cardview.widget.CardView;
-import androidx.core.view.GravityCompat;
-import androidx.drawerlayout.widget.DrawerLayout;
-import android.widget.ImageView;
-import android.view.Menu;
-import android.view.MenuItem;
-import android.view.SubMenu;
-
 
 import com.example.nextgen.MainActivity;
 import com.example.nextgen.R;
 import com.example.nextgen.SessionManager;
-import com.google.android.material.navigation.NavigationView;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
@@ -38,12 +27,10 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 import com.google.firebase.auth.FirebaseUser;
 
+import android.widget.EditText;
+import android.widget.ImageView;
+import androidx.appcompat.app.AlertDialog;
 
-import android.view.View;                   // For inflating the dialog layout
-import android.widget.EditText;             // For EditText fields in dialog
-import android.widget.Toast;                // For showing Toast messages
-import androidx.appcompat.app.AlertDialog;  // For AlertDialog
-import androidx.annotation.NonNull;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
@@ -53,7 +40,6 @@ import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.util.Base64;
 
-import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -61,9 +47,7 @@ import android.graphics.PorterDuff;
 import android.graphics.PorterDuffXfermode;
 import android.graphics.Rect;
 import android.graphics.RectF;
-
-
-
+import androidx.annotation.NonNull;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -72,59 +56,32 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
-public class TeacherDashboardActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener {
+public class TeacherDashboardActivity extends AppCompatActivity {
 
-    // Profile info (Hidden Text Views)
+    // Profile info
     TextView tvTeacherId, tvFullName, tvEmail, tvBirthday, tvCourse, tvSubjects;
 
     SessionManager sessionManager;
     DatabaseReference teachersRef, examsRef;
 
-    DrawerLayout drawerLayout;
-    NavigationView navigationView;
     Toolbar toolbar;
-
-    // Header views for Side Navigation
-    TextView navHeaderUsername, navHeaderEmail;
-    ImageView navHeaderImage;
 
     // Dashboard summary
     TextView tvTeacherNameDisplay, tvTeacherIdDisplay, tvActiveExamsCount, tvRecentExamTitle, tvPendingSubmissionsCount;
 
     // Dashboard cards (Quick Actions)
-    CardView cardManageExam, cardManageExaminees, cardCreateActivity, cardViewProfile;
+    CardView cardManageExam, cardCreateActivity, cardManageQuiz, cardViewExaminee; // Added cardViewExaminee
 
-    // NEW: Variable para hawakan ang reference ng Profile icon
     private MenuItem profileMenuItem;
-
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_teacher_dashboard);
 
-        // Toolbar + Drawer setup
+        // Toolbar setup
         toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-
-        drawerLayout = findViewById(R.id.drawer_layout);
-        navigationView = findViewById(R.id.nav_view);
-
-        ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
-                this, drawerLayout, toolbar,
-                R.string.navigation_drawer_open,
-                R.string.navigation_drawer_close
-        );
-        drawerLayout.addDrawerListener(toggle);
-        toggle.syncState();
-
-        navigationView.setNavigationItemSelectedListener(this);
-
-        // Access header layout
-        View headerView = navigationView.getHeaderView(0);
-        navHeaderUsername = headerView.findViewById(R.id.nav_header_username);
-        navHeaderEmail = headerView.findViewById(R.id.nav_header_email);
-        navHeaderImage = headerView.findViewById(R.id.nav_header_image);
 
         // Firebase + Session
         sessionManager = new SessionManager(this);
@@ -147,52 +104,45 @@ public class TeacherDashboardActivity extends AppCompatActivity implements Navig
         tvPendingSubmissionsCount = findViewById(R.id.tvPendingSubmissionsCount);
         listenPendingSubmissions();
 
-
-
-
         // Cards
         cardManageExam = findViewById(R.id.cardManageExam);
         cardCreateActivity = findViewById(R.id.cardCreateActivity);
-        cardManageExaminees = findViewById(R.id.cardManageExaminees);
-        cardViewProfile = findViewById(R.id.cardViewProfile);
+        cardManageQuiz = findViewById(R.id.cardManageQuiz);
 
-        // Card actions
+        // View Examinee Card
+        cardViewExaminee = findViewById(R.id.cardViewExaminee);
+        cardViewExaminee.setOnClickListener(v -> viewExaminees());
+
         cardManageExam.setOnClickListener(v -> startActivity(new Intent(this, ManageExamActivity.class)));
-
         cardCreateActivity.setOnClickListener(v -> {
-            Intent intent = new Intent(this, CreateActivityActivity.class);
+            Intent intent = new Intent(this, TeacherActivitiesActivity.class);
             startActivity(intent);
         });
-
-        cardManageExaminees.setOnClickListener(v -> startActivity(new Intent(this, ViewStudentsActivity.class)));
-        cardViewProfile.setOnClickListener(v -> openProfile()); // Quick action card also opens profile
+        cardManageQuiz.setOnClickListener(v -> startActivity(new Intent(this, ManageQuizActivity.class)));
 
         // Get teacher ID from session
         String teacherId = sessionManager.getUserId();
         if (teacherId != null) {
             loadTeacherInfo(teacherId);
             loadExamData(teacherId);
-            loadActiveExamsCount(sessionManager.getUserId());
-            loadMyClassesMenu(teacherId);
-
+            loadActiveExamsCount(teacherId);
         } else {
             Toast.makeText(this, "Teacher ID not found in session!", Toast.LENGTH_SHORT).show();
         }
     }
 
+    // Function for viewing examinees
+    private void viewExaminees() {
+        Intent viewIntent = new Intent(this, ViewStudentsActivity.class);
+        startActivity(viewIntent);
+    }
 
-    // =================================================================
-    // START: TOOLBAR PROFILE/LOGOUT MENU HANDLING (FINAL FIXED VERSION)
-    // =================================================================
+    // ==========================
+    // TOOLBAR PROFILE/LOGOUT MENU HANDLING
+    // ==========================
 
-    /**
-     * Step 4: Handles the Toolbar Profile icon and Popup Menu.
-     * This version fixes the wrong ID reference and guarantees that
-     * the popup appears when the profile icon is tapped.
-     */
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the toolbar_action_menu.xml (contains only the profile icon)
         MenuInflater inflater = getMenuInflater();
         inflater.inflate(R.menu.toolbar_action_menu, menu);
         profileMenuItem = menu.findItem(R.id.action_profile);
@@ -201,8 +151,9 @@ public class TeacherDashboardActivity extends AppCompatActivity implements Navig
 
         return true;
     }
+
     private void loadToolbarProfileIcon() {
-        String teacherId = sessionManager.getUserId(); // ✅ Use session, not Intent
+        String teacherId = sessionManager.getUserId();
         if (teacherId == null || teacherId.isEmpty()) {
             profileMenuItem.setIcon(R.drawable.tc_profile);
             return;
@@ -219,7 +170,6 @@ public class TeacherDashboardActivity extends AppCompatActivity implements Navig
 
                 if (base64Image != null && !base64Image.isEmpty()) {
                     try {
-                        // Clean up possible Base64 prefix
                         String pureBase64 = base64Image.replaceAll("^data:image/.*;base64,", "").trim();
                         pureBase64 = pureBase64.replaceAll("\\s+", "");
                         byte[] decodedBytes = Base64.decode(pureBase64, Base64.DEFAULT);
@@ -249,22 +199,15 @@ public class TeacherDashboardActivity extends AppCompatActivity implements Navig
         });
     }
 
-
     @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
         int itemId = item.getItemId();
 
-        // ✅ Corrected: use R.id.action_profile (NOT R.id.id.action_profile)
         if (itemId == R.id.action_profile) {
-            // Try to locate the actual view for the icon
             View anchorView = findViewById(R.id.action_profile);
-
-            // If we can’t find it, use the toolbar itself as fallback
             if (anchorView == null) {
                 anchorView = toolbar;
             }
-
-            // Show the popup menu anchored to the icon (or toolbar)
             showProfilePopup(anchorView);
             return true;
         }
@@ -272,16 +215,10 @@ public class TeacherDashboardActivity extends AppCompatActivity implements Navig
         return super.onOptionsItemSelected(item);
     }
 
-    /**
-     * Displays the PopupMenu under the Profile icon with View Profile and Logout.
-     */
     private void showProfilePopup(View anchorView) {
         PopupMenu popup = new PopupMenu(this, anchorView);
-
-        // Inflate popup menu layout (profile_popup_menu.xml)
         popup.getMenuInflater().inflate(R.menu.profile_popup_menu, popup.getMenu());
 
-        // Handle popup menu item clicks
         popup.setOnMenuItemClickListener(menuItem -> {
             int itemId = menuItem.getItemId();
 
@@ -292,20 +229,14 @@ public class TeacherDashboardActivity extends AppCompatActivity implements Navig
                 logout();
                 return true;
             } else if (itemId == R.id.action_change_password) {
-                showChangePasswordDialog(); // call the dialog
+                showChangePasswordDialog();
                 return true;
             }
             return false;
         });
 
-
         popup.show();
     }
-
-    // =================================================================
-    // END: TOOLBAR PROFILE/LOGOUT MENU HANDLING (FINAL FIXED VERSION)
-    // =================================================================
-
 
     private void loadTeacherInfo(String teacherId) {
         teachersRef.child(teacherId).addListenerForSingleValueEvent(new ValueEventListener() {
@@ -317,40 +248,29 @@ public class TeacherDashboardActivity extends AppCompatActivity implements Navig
                     String email = snapshot.child("email").getValue(String.class);
                     String birthday = snapshot.child("birthday").getValue(String.class);
 
-                    // Base64 profile image
                     String base64Image = snapshot.child("profileImage").getValue(String.class);
+                    ImageView imgProfile = findViewById(R.id.imgProfilePicture);
                     if (base64Image != null && !base64Image.isEmpty()) {
                         try {
                             byte[] decodedBytes = Base64.decode(base64Image, Base64.NO_WRAP);
                             Bitmap bitmap = BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.length);
-
-                            // Make the bitmap circular
                             Bitmap circularBitmap = getCircularBitmap(bitmap);
-
-                            // Apply to both header and top card
-                            navHeaderImage.setImageBitmap(circularBitmap);
-                            ImageView imgProfile = findViewById(R.id.imgProfilePicture);
                             imgProfile.setImageBitmap(circularBitmap);
-
                         } catch (Exception e) {
                             e.printStackTrace();
-                            navHeaderImage.setImageResource(R.drawable.tc_profile);
+                            imgProfile.setImageResource(R.drawable.tc_profile);
                         }
                     } else {
-                        navHeaderImage.setImageResource(R.drawable.tc_profile);
+                        imgProfile.setImageResource(R.drawable.tc_profile);
                     }
 
-                    // Update text info
                     tvTeacherId.setText(id != null ? id : teacherId);
                     tvFullName.setText(fullName != null ? fullName : "No Name");
                     tvEmail.setText(email != null ? email : "No Email");
                     tvBirthday.setText(birthday != null ? birthday : "No Birthday");
 
-                    navHeaderUsername.setText(fullName != null ? fullName : "Teacher");
-                    navHeaderEmail.setText(email != null ? email : "No Email");
                     tvTeacherNameDisplay.setText("Welcome, " + (fullName != null ? fullName : "Teacher Name"));
                     tvTeacherIdDisplay.setText("ID: " + (id != null ? id : teacherId));
-
                 } else {
                     Toast.makeText(TeacherDashboardActivity.this, "Teacher info not found", Toast.LENGTH_SHORT).show();
                 }
@@ -362,8 +282,6 @@ public class TeacherDashboardActivity extends AppCompatActivity implements Navig
             }
         });
     }
-
-
 
     private void loadExamData(String teacherId) {
         DatabaseReference examsRef = FirebaseDatabase.getInstance()
@@ -433,44 +351,26 @@ public class TeacherDashboardActivity extends AppCompatActivity implements Navig
         startActivity(intent);
     }
 
-    // ===== SIDE NAVIGATION LOGIC =====
-    @Override
-    public boolean onNavigationItemSelected(@NonNull MenuItem item) {
-        int id = item.getItemId();
-
-        if (id == R.id.nav_manage_exam) {
-            startActivity(new Intent(this, ManageExamActivity.class));
-        } else if (id == R.id.nav_view_results) {
-            startActivity(new Intent(this, ViewStudentsActivity.class));
-        } else if (id == R.id.nav_view_profile) {
-            openProfile();
-        }
-
-        drawerLayout.closeDrawer(GravityCompat.START);
-        return true;
-    }
-
     private void logout() {
-        SharedPreferences prefs = getSharedPreferences("user_data", MODE_PRIVATE);
-        prefs.edit().remove("logged_user").apply();
+        new AlertDialog.Builder(this)
+                .setTitle("Logout")
+                .setMessage("Are you sure you want to logout?")
+                .setCancelable(false)
+                .setPositiveButton("Yes", (dialog, which) -> {
+                    SharedPreferences prefs = getSharedPreferences("user_data", MODE_PRIVATE);
+                    prefs.edit().remove("logged_user").apply();
+                    FirebaseAuth.getInstance().signOut();
+                    sessionManager.clearSession();
 
-        FirebaseAuth.getInstance().signOut();
-        sessionManager.clearSession();
-
-        Intent intent = new Intent(this, MainActivity.class);
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        startActivity(intent);
-        finish();
+                    Intent intent = new Intent(this, MainActivity.class);
+                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                    startActivity(intent);
+                    finish();
+                })
+                .setNegativeButton("No", (dialog, which) -> dialog.dismiss())
+                .show();
     }
 
-    @Override
-    public void onBackPressed() {
-        if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
-            drawerLayout.closeDrawer(GravityCompat.START);
-        } else {
-            super.onBackPressed();
-        }
-    }
     private void showChangePasswordDialog() {
         View view = getLayoutInflater().inflate(R.layout.dialog_change_password, null);
 
@@ -508,16 +408,13 @@ public class TeacherDashboardActivity extends AppCompatActivity implements Navig
                     return;
                 }
 
-                // Re-authenticate
                 com.google.firebase.auth.AuthCredential credential =
                         com.google.firebase.auth.EmailAuthProvider.getCredential(user.getEmail(), oldPass);
 
                 user.reauthenticate(credential)
                         .addOnSuccessListener(aVoid -> {
-                            // Update Firebase Auth password
                             user.updatePassword(newPass)
                                     .addOnSuccessListener(aVoid1 -> {
-                                        // ALSO update Realtime Database password field as hash
                                         String teacherId = tvTeacherId.getText().toString();
                                         String hashedNewPass = hashPassword(newPass);
 
@@ -533,7 +430,6 @@ public class TeacherDashboardActivity extends AppCompatActivity implements Navig
                                                                 "Auth updated but failed in DB: " + e.getMessage(), Toast.LENGTH_SHORT).show()
                                                 );
                                     })
-
                                     .addOnFailureListener(e ->
                                             Toast.makeText(TeacherDashboardActivity.this,
                                                     "Failed to update password in Auth: " + e.getMessage(), Toast.LENGTH_SHORT).show()
@@ -593,7 +489,6 @@ public class TeacherDashboardActivity extends AppCompatActivity implements Navig
                     }
                 }
 
-
                 if (tvActiveExamsCount != null)
                     tvActiveExamsCount.setText(String.valueOf(activeCount));
             }
@@ -637,8 +532,6 @@ public class TeacherDashboardActivity extends AppCompatActivity implements Navig
         });
     }
 
-
-
     private Bitmap getCircularBitmap(Bitmap bitmap) {
         int size = Math.min(bitmap.getWidth(), bitmap.getHeight());
         Bitmap output = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
@@ -659,82 +552,4 @@ public class TeacherDashboardActivity extends AppCompatActivity implements Navig
 
         return output;
     }
-    private void loadMyClassesMenu(String teacherId) {
-        DatabaseReference teacherRef = FirebaseDatabase.getInstance().getReference("Teachers").child(teacherId);
-        DatabaseReference subjectsRef = FirebaseDatabase.getInstance().getReference("Subjects");
-
-        teacherRef.addListenerForSingleValueEvent(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot teacherSnapshot) {
-                if (!teacherSnapshot.exists()) return;
-
-                List<String> subjectIds = new ArrayList<>();
-                for (DataSnapshot snap : teacherSnapshot.child("assignedSubjects").getChildren()) {
-                    String subjectId = snap.getValue(String.class);
-                    if (subjectId != null) subjectIds.add(subjectId);
-                }
-
-                // Clear old My Classes submenu
-                Menu menu = navigationView.getMenu();
-                MenuItem myClassesItem = menu.findItem(R.id.nav_my_classes);
-                final SubMenu subMenu; // must be final for inner use
-                if (myClassesItem.getSubMenu() != null) {
-                    subMenu = myClassesItem.getSubMenu();
-                    subMenu.clear();
-                } else {
-                    subMenu = menu.addSubMenu("My Classes");
-                }
-
-                // For each subject assigned to this teacher
-                for (String subjectId : subjectIds) {
-                    final String finalSubjectId = subjectId; // must be final for listener
-
-                    subjectsRef.child(finalSubjectId).addListenerForSingleValueEvent(new ValueEventListener() {
-                        @Override
-                        public void onDataChange(@NonNull DataSnapshot subjectSnap) {
-                            if (!subjectSnap.exists()) return;
-
-                            String code = subjectSnap.child("code").getValue(String.class);
-                            String name = subjectSnap.child("name").getValue(String.class);
-                            String courseName = subjectSnap.child("courseName").getValue(String.class);
-                            String specialization = subjectSnap.child("specializationName").getValue(String.class);
-                            String year = subjectSnap.child("yearName").getValue(String.class);
-                            String section = subjectSnap.child("sectionName").getValue(String.class);
-
-                            String displayText = (code != null ? code : "Unknown Code") + " - " +
-                                    (name != null ? name : "Unknown Name");
-                            String courseDisplay = (courseName != null ? courseName : "Unknown Course") + " - " +
-                                    (specialization != null ? specialization : "N/A") + " - " +
-                                    (year != null ? year : "N/A") + " - " +
-                                    (section != null ? section : "N/A");
-
-                            // ✅ Create clickable submenu item
-                            MenuItem item = subMenu.add(displayText);
-                            item.setOnMenuItemClickListener(menuItem -> {
-                                Intent intent = new Intent(TeacherDashboardActivity.this, TeacherActivitiesActivity.class);
-                                intent.putExtra("subjectId", finalSubjectId);
-                                intent.putExtra("subjectCode", code);
-                                intent.putExtra("subjectName", name);
-                                intent.putExtra("courseDisplay", courseDisplay);
-                                startActivity(intent);
-                                drawerLayout.closeDrawer(GravityCompat.START);
-                                return true;
-                            });
-                        }
-
-                        @Override
-                        public void onCancelled(@NonNull DatabaseError error) { }
-                    });
-                }
-            }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) { }
-        });
-    }
-
 }
-
-
-
-

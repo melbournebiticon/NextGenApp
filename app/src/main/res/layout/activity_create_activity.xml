@@ -13,7 +13,6 @@
         android:paddingHorizontal="16dp"
         android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar">
 
-        <!-- Centered Title -->
         <TextView
             android:id="@+id/tvToolbarTitle"
             android:layout_width="wrap_content"
@@ -57,6 +56,7 @@
                     android:textColor="#424242"
                     android:layout_marginBottom="12dp"/>
 
+                <!-- Activity Title -->
                 <com.google.android.material.textfield.TextInputLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -72,6 +72,7 @@
                         android:maxLines="1"/>
                 </com.google.android.material.textfield.TextInputLayout>
 
+                <!-- Activity Description -->
                 <com.google.android.material.textfield.TextInputLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -88,6 +89,26 @@
                         android:inputType="textMultiLine|textCapSentences"
                         android:maxLines="5"/>
                 </com.google.android.material.textfield.TextInputLayout>
+
+                <!-- Max Score -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Max Score"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:textColor="#424242"
+                    android:layout_marginTop="4dp"
+                    android:layout_marginBottom="8dp"/>
+
+                <Spinner
+                    android:id="@+id/spMaxScore"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:background="@android:drawable/editbox_dropdown_light_frame"
+                    android:spinnerMode="dropdown"
+                    android:padding="12dp"
+                    android:layout_marginBottom="12dp"/>
 
                 <!-- Due Date Section -->
                 <TextView
@@ -255,6 +276,7 @@
                 style="@style/Widget.MaterialComponents.Button"
                 android:layout_marginTop="8dp"
                 android:layout_marginBottom="16dp"/>
+
         </LinearLayout>
     </ScrollView>
 </RelativeLayout>

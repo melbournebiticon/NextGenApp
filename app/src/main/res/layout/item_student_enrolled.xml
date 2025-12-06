@@ -5,6 +5,7 @@
     android:orientation="vertical"
     android:padding="12dp">
 
+    <!-- Student Name -->
     <TextView
         android:id="@+id/tvStudentName"
         android:layout_width="wrap_content"
@@ -13,6 +14,7 @@
         android:textSize="16sp"
         android:textStyle="bold" />
 
+    <!-- Student ID -->
     <TextView
         android:id="@+id/tvStudentId"
         android:layout_width="wrap_content"
@@ -21,6 +23,7 @@
         android:textSize="14sp"
         android:layout_marginTop="2dp" />
 
+    <!-- Submission info -->
     <TextView
         android:id="@+id/tvSubmission"
         android:layout_width="wrap_content"
@@ -30,13 +33,34 @@
         android:layout_marginTop="4dp"
         android:textColor="#FF5722" />
 
-    <Button
-        android:id="@+id/btnViewWork"
+    <!-- Buttons Layout -->
+    <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="View Work"
-        android:layout_marginTop="4dp"
-        android:backgroundTint="@color/teal_700"
-        android:textColor="@android:color/white"/>
+        android:orientation="horizontal"
+        android:layout_marginTop="6dp"
+        android:gravity="start"
+        android:spacing="8dp">
+
+        <!-- View Work Button -->
+        <Button
+            android:id="@+id/btnViewWork"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="View Work"
+            android:backgroundTint="@color/teal_700"
+            android:textColor="@android:color/white" />
+
+        <!-- Resubmit Button -->
+        <Button
+            android:id="@+id/btnResubmit"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Request Resubmit"
+            android:layout_marginStart="8dp"
+            android:backgroundTint="#FB8C00"
+            android:textColor="@android:color/white" />
+
+    </LinearLayout>
 
 </LinearLayout>

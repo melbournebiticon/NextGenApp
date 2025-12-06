@@ -1,21 +1,24 @@
 package com.example.nextgen.teacher;
 
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.Toast;
+
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+
 import com.example.nextgen.R;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
+
 import java.util.ArrayList;
 import java.util.List;
-import android.util.Log;
-
+import java.util.Map;
 
 public class SubjectSectionActivity extends AppCompatActivity {
 
@@ -24,34 +27,30 @@ public class SubjectSectionActivity extends AppCompatActivity {
     private List<StudentModel> studentList;
     private DatabaseReference studentsRef;
     private DatabaseReference submissionsRef;
-    private String activityId; // add at top
-
-    private SubmissionModel submission;
-
-    public void setSubmission(SubmissionModel submission) { this.submission = submission; }
-    public SubmissionModel getSubmission() { return submission; }
-
-
-
+    private String activityId;
+    private String maxScore; // Maximum score for this activity
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_subject_section);
 
+        // Get activity info
         activityId = getIntent().getStringExtra("activityId");
-
+        maxScore = getIntent().getStringExtra("maxScore");
+        if (maxScore == null || maxScore.isEmpty()) maxScore = "100";
 
         recyclerView = findViewById(R.id.recyclerViewStudents);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         studentList = new ArrayList<>();
-        sectionAdapter = new SectionAdapter(studentList);
+
+        sectionAdapter = new SectionAdapter(studentList, maxScore);
         recyclerView.setAdapter(sectionAdapter);
 
         studentsRef = FirebaseDatabase.getInstance().getReference("Students");
         submissionsRef = FirebaseDatabase.getInstance().getReference("Submissions");
 
-        // Get course info from intent (passed from TeacherActivities or Subject)
+        // Get class info
         String courseName = getIntent().getStringExtra("courseName");
         String specialization = getIntent().getStringExtra("specializationName");
         String year = getIntent().getStringExtra("yearName");
@@ -65,7 +64,7 @@ public class SubjectSectionActivity extends AppCompatActivity {
     }
 
     private void loadStudentsByClass(String courseName, String specialization, String year, String section) {
-        studentsRef.addListenerForSingleValueEvent(new ValueEventListener() {
+        studentsRef.addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 studentList.clear();
@@ -77,18 +76,13 @@ public class SubjectSectionActivity extends AppCompatActivity {
                             year.equals(student.getYearName()) &&
                             section.equals(student.getSectionName())) {
                         studentList.add(student);
-                        Log.d("SUB_LOG", "Loaded student: " + student.getFullName() + " (" + student.getStudentId() + ")");
                     }
                 }
+                sectionAdapter.notifyDataSetChanged();
 
-                if (studentList.isEmpty()) {
-                    Toast.makeText(SubjectSectionActivity.this, "No students found in this class", Toast.LENGTH_SHORT).show();
-                }
                 if (activityId != null) {
                     loadSubmissions(activityId);
                 }
-
-                sectionAdapter.notifyDataSetChanged();
             }
 
             @Override
@@ -100,27 +94,45 @@ public class SubjectSectionActivity extends AppCompatActivity {
 
     private void loadSubmissions(String activityId) {
         submissionsRef.orderByChild("activityId").equalTo(activityId)
-                .addListenerForSingleValueEvent(new ValueEventListener() {
+                .addValueEventListener(new ValueEventListener() {
                     @Override
                     public void onDataChange(@NonNull DataSnapshot snapshot) {
-                        List<SubmissionModel> submissionList = new ArrayList<>();
                         for (DataSnapshot snap : snapshot.getChildren()) {
-                            SubmissionModel submission = snap.getValue(SubmissionModel.class);
-                            if (submission != null) {
-                                submission.setId(snap.getKey());
-                                submissionList.add(submission);
-                                Log.d("SUB_LOG", "Loaded submission: " + submission.getFileName() +
-                                        " by student: " + submission.getStudentId() +
-                                        " for activity: " + submission.getActivityId());
+
+                            // Read snapshot as Map to avoid Firebase conversion crash
+                            Map<String, Object> data = (Map<String, Object>) snap.getValue();
+                            if (data == null) continue;
+
+                            SubmissionModel submission = new SubmissionModel();
+                            submission.setSubmissionId(snap.getKey());
+                            submission.setActivityId((String) data.get("activityId"));
+                            submission.setStudentId((String) data.get("studentId"));
+                            submission.setFileName((String) data.get("fileName"));
+                            submission.setFileData((String) data.get("fileData"));
+
+                            // Firebase-safe score conversion
+                            submission.setScore((String) data.get("score"));
+
+                            // Safe maxScore
+                            Object maxScoreObj = data.get("maxScore");
+                            submission.setMaxScore(maxScoreObj == null ? maxScore : String.valueOf(maxScoreObj));
+
+                            // Boolean fields
+                            Object resubmit = data.get("resubmitRequested");
+                            submission.setResubmitRequested(resubmit instanceof Boolean && (Boolean) resubmit);
+
+                            Object viewed = data.get("viewed");
+                            submission.setViewed(viewed instanceof Boolean && (Boolean) viewed);
+
+                            // Link to student
+                            for (StudentModel student : studentList) {
+                                if (student.getUid().equals(submission.getStudentId())) {
+                                    student.setSubmission(submission);
+                                    break;
+                                }
                             }
                         }
-
-                        if (submissionList.isEmpty()) {
-                            Toast.makeText(SubjectSectionActivity.this, "No submissions yet", Toast.LENGTH_SHORT).show();
-                            Log.d("SUB_LOG", "No submissions found for activityId: " + activityId);
-                        } else {
-                            displaySubmissions(submissionList);
-                        }
+                        sectionAdapter.notifyDataSetChanged();
                     }
 
                     @Override
@@ -130,19 +142,22 @@ public class SubjectSectionActivity extends AppCompatActivity {
                 });
     }
 
-    private void displaySubmissions(List<SubmissionModel> submissions) {
+    // Immediate local update
+    public void updateStudentSubmission(String studentUid, SubmissionModel newSubmission) {
+        // Pass Object instead of String to avoid Firebase conversion issues
+        Object scoreObj = newSubmission.getScore();
+        newSubmission.setScore((String) scoreObj);
+
+        if (newSubmission.getMaxScore() == null || newSubmission.getMaxScore().isEmpty()) {
+            newSubmission.setMaxScore(maxScore);
+        }
+
         for (StudentModel student : studentList) {
-            for (SubmissionModel s : submissions) {
-                // Compare Firebase UID instead of studentId
-                if (s.getStudentId().equals(student.getUid())) {
-                    student.setSubmission(s);
-                    break;
-                }
+            if (student.getUid().equals(studentUid)) {
+                student.setSubmission(newSubmission);
+                sectionAdapter.notifyDataSetChanged();
+                break;
             }
         }
-        sectionAdapter.notifyDataSetChanged();
     }
-
-
-
 }

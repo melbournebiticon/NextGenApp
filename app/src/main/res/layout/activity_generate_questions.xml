@@ -1,48 +1,94 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="vertical"
-    android:background="@android:color/white"
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@android:color/white"
+    tools:context=".teacher.GenerateQuestionsActivity">
 
+    <!-- Top Bar with Back Button -->
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/topBar"
+        android:layout_width="0dp"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/dark_blue_700"
+        app:title="Question Generator"
+        app:titleTextColor="@android:color/white"
+        app:navigationIcon="@drawable/ic_arrow_back"
+        app:titleCentered="true"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"/>
+
+    <!-- Content ScrollView below top bar -->
     <ScrollView
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:padding="16dp">
+        android:id="@+id/mainScroll"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:padding="16dp"
+        app:layout_constraintTop_toBottomOf="@id/topBar"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/questionsCard">
 
         <LinearLayout
             android:orientation="vertical"
             android:layout_width="match_parent"
             android:layout_height="wrap_content">
 
-            <!-- Exam Info -->
-            <TextView
-                android:id="@+id/tvExamInfo"
+            <!-- Improved Exam Info Card -->
+            <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Exam Information"
-                android:textSize="18sp"
-                android:textStyle="bold"
-                android:paddingBottom="8dp"
-                android:textColor="@android:color/black"/>
+                android:layout_marginBottom="18dp"
+                app:cardElevation="3dp"
+                app:cardBackgroundColor="@color/dark_blue_700"
+                app:cardCornerRadius="12dp">
 
-            <!-- Import Questions Button (UNDER Exam Info) -->
-            <Button
-                android:id="@+id/btnImportQuestions"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Import Questions"
-                android:layout_marginBottom="12dp"
-                android:backgroundTint="@color/dark_blue_700"
-                android:textColor="@android:color/white"/>
+                <LinearLayout
+                    android:orientation="vertical"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="14dp">
+
+                    <TextView
+                        android:id="@+id/tvExamInfo"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Exam: Algorithms Midterm"
+                        android:textSize="17sp"
+                        android:textStyle="bold"
+                        android:textColor="@android:color/white"
+                        android:paddingBottom="4dp"/>
+
+                    <TextView
+                        android:id="@+id/tvExamId"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Exam ID: MID2025-ALG"
+                        android:textSize="13sp"
+                        android:textColor="@color/white"
+                        android:paddingBottom="2dp"/>
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
 
             <!-- Question Type Selector -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Select Question Type"
+                android:textSize="16sp"
+                android:textColor="@color/dark_blue_700"
+                android:textStyle="bold"
+                android:layout_marginBottom="4dp"/>
+
             <Spinner
                 android:id="@+id/spQuestionType"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"/>
+                android:layout_marginBottom="8dp"/>
 
             <!-- === Multiple Choice Section === -->
             <LinearLayout
@@ -51,14 +97,19 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:visibility="gone"
-                android:paddingTop="8dp">
+                android:paddingTop="8dp"
+                android:background="@color/surface"
+                android:padding="8dp"
+                android:elevation="1dp"
+                android:layout_marginBottom="12dp">
 
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="Multiple Choice Questions"
                     android:textStyle="bold"
-                    android:textSize="16sp"
+                    android:textSize="15sp"
+                    android:textColor="@color/dark_blue_700"
                     android:paddingBottom="4dp"/>
 
                 <LinearLayout
@@ -71,14 +122,15 @@
                         android:layout_width="0dp"
                         android:layout_weight="1"
                         android:layout_height="wrap_content"
-                        android:hint="Number of MC Questions"
-                        android:inputType="number"/>
+                        android:hint="Count"
+                        android:inputType="number"
+                        android:background="@drawable/bg_edittext"/>
 
                     <CheckBox
                         android:id="@+id/cbMC"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Generate"/>
+                        android:text="Auto Gen"/>
                 </LinearLayout>
 
                 <LinearLayout
@@ -95,14 +147,19 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:visibility="gone"
-                android:paddingTop="8dp">
+                android:paddingTop="8dp"
+                android:background="@color/surface"
+                android:padding="8dp"
+                android:elevation="1dp"
+                android:layout_marginBottom="12dp">
 
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="True/False Questions"
                     android:textStyle="bold"
-                    android:textSize="16sp"
+                    android:textSize="15sp"
+                    android:textColor="@color/dark_blue_700"
                     android:paddingBottom="4dp"/>
 
                 <LinearLayout
@@ -115,14 +172,15 @@
                         android:layout_width="0dp"
                         android:layout_weight="1"
                         android:layout_height="wrap_content"
-                        android:hint="Number of True/False Questions"
-                        android:inputType="number"/>
+                        android:hint="Count"
+                        android:inputType="number"
+                        android:background="@drawable/bg_edittext"/>
 
                     <CheckBox
                         android:id="@+id/cbTF"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Generate"/>
+                        android:text="Auto Gen"/>
                 </LinearLayout>
 
                 <LinearLayout
@@ -139,14 +197,19 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:visibility="gone"
-                android:paddingTop="8dp">
+                android:paddingTop="8dp"
+                android:background="@color/surface"
+                android:padding="8dp"
+                android:elevation="1dp"
+                android:layout_marginBottom="12dp">
 
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="Matching Type Questions"
                     android:textStyle="bold"
-                    android:textSize="16sp"
+                    android:textSize="15sp"
+                    android:textColor="@color/dark_blue_700"
                     android:paddingBottom="4dp"/>
 
                 <LinearLayout
@@ -159,14 +222,15 @@
                         android:layout_width="0dp"
                         android:layout_weight="1"
                         android:layout_height="wrap_content"
-                        android:hint="Number of Matching Questions"
-                        android:inputType="number"/>
+                        android:hint="Count"
+                        android:inputType="number"
+                        android:background="@drawable/bg_edittext"/>
 
                     <CheckBox
                         android:id="@+id/cbMatching"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Generate"/>
+                        android:text="Auto Gen"/>
                 </LinearLayout>
 
                 <LinearLayout
@@ -177,22 +241,62 @@
             </LinearLayout>
 
             <!-- Save Questions Button -->
-            <Button
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnSaveQuestion"
+                style="@style/Widget.MaterialComponents.Button"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="Save Questions"
-                android:layout_marginTop="12dp"
+                android:textAllCaps="false"
+                android:textStyle="bold"
+                android:icon="@drawable/ic_save"
+                app:iconPadding="8dp"
+                android:iconTint="@android:color/white"
                 android:backgroundTint="@color/teal_700"
-                android:textColor="@android:color/white"/>
+                android:textColor="@android:color/white"
+                android:layout_marginVertical="8dp"
+                app:cornerRadius="12dp"/>
         </LinearLayout>
     </ScrollView>
 
-    <!-- RecyclerView to show saved questions -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rvQuestions"
-        android:layout_width="match_parent"
+    <!-- RecyclerView for Questions, with improved shadow/elevation and preview listitem -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/questionsCard"
+        android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_weight="1"
-        android:padding="16dp"/>
-</LinearLayout>
+        android:layout_margin="6dp"
+        app:cardCornerRadius="12dp"
+        app:cardBackgroundColor="@android:color/white"
+        app:cardElevation="4dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/mainScroll"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvQuestions"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:padding="8dp"
+            tools:listitem="@layout/item_question"/>
+    </androidx.cardview.widget.CardView>
+
+    <!-- Floating Action Button for import questions -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fabImportQuestions"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:contentDescription="Import Questions"
+        app:backgroundTint="@color/dark_blue_700"
+        app:srcCompat="@drawable/ic_add"
+        app:tint="@android:color/white"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_margin="16dp"/>
+
+    <!-- Design-time dialog preview -->
+    <include
+        layout="@layout/dialog_edit_question"
+        android:visibility="gone"
+        tools:visible="true"/>
+</androidx.constraintlayout.widget.ConstraintLayout>

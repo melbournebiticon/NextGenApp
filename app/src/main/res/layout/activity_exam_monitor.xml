@@ -22,28 +22,80 @@
         android:layout_height="wrap_content"
         android:layout_marginBottom="24dp"
         app:cardCornerRadius="10dp"
-        app:cardElevation="6dp" app:cardBackgroundColor="@color/dark_blue_700"
-        android:stateListAnimator="@null"> <Button
-        android:id="@+id/btnShowQR"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="SHOW EXAM QR CODE" android:textColor="@color/white"
-        android:background="?android:attr/selectableItemBackground"
-        android:padding="16dp" android:textStyle="bold"
-        android:textSize="18sp"
-        android:layout_margin="0dp"/>
-
+        app:cardElevation="6dp"
+        app:cardBackgroundColor="@color/dark_blue_700"
+        android:stateListAnimator="@null">
+        <Button
+            android:id="@+id/btnShowQR"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="SHOW EXAM QR CODE"
+            android:textColor="@color/white"
+            android:background="?android:attr/selectableItemBackground"
+            android:padding="16dp"
+            android:textStyle="bold"
+            android:textSize="18sp"
+            android:layout_margin="0dp"/>
     </androidx.cardview.widget.CardView>
 
-    <TextView
-        android:layout_width="wrap_content"
+    <!-- Modern switch UI at the very right side -->
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Connected Students"
-        android:textSize="18sp" android:textStyle="bold"
-        android:textColor="@color/dark_blue_700"
-        android:layout_marginBottom="12dp"/> <androidx.recyclerview.widget.RecyclerView
-    android:id="@+id/recyclerStudents"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"/>
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:layout_marginBottom="12dp">
 
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="Connected Students"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="@color/dark_blue_700"
+            android:layout_weight="1"
+            android:gravity="start"/>
+
+        <!-- Group for "Present All" text and Switch -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Present All"
+                android:textColor="@color/dark_blue_700"
+                android:textSize="15sp"
+                android:textStyle="bold|italic"
+                android:layout_marginEnd="6dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp"/>
+
+            <com.google.android.material.switchmaterial.SwitchMaterial
+                android:id="@+id/switchPresentAll"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:thumbTint="@color/dark_blue_700"
+                app:trackTint="@color/dark_blue_500"
+                app:useMaterialThemeColors="true"
+                android:focusable="true"
+                android:contentDescription="Toggle presence for all students"
+                android:paddingStart="2dp"
+                android:paddingEnd="2dp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerStudents"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingBottom="28dp"
+        android:clipToPadding="false"
+        android:clipChildren="false"
+        tools:listitem="@layout/item_view_exam_teacher"/>
 </LinearLayout>

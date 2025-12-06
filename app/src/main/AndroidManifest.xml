@@ -67,21 +67,43 @@
         <activity android:name=".teacher.ManageExamActivity" />
         <activity android:name=".teacher.ProfileActivity" />
         <activity android:name=".teacher.Question" />
-        <activity android:name=".teacher.ExamMonitorActivity"/>
-        <activity android:name=".teacher.CreateActivityActivity"/>
-        <activity android:name=".teacher.SubjectSectionActivity"/>
-        <activity android:name=".teacher.TeacherActivitiesActivity"/>
+        <activity android:name=".teacher.ExamMonitorActivity" />
+        <activity android:name=".teacher.CreateActivityActivity" />
+        <activity android:name=".teacher.SubjectSectionActivity" />
+        <activity android:name=".teacher.TeacherActivitiesActivity" />
+        <activity android:name=".teacher.ManageQuizActivity" />
+        <activity android:name=".teacher.GenerateQuizActivity" />
+        <activity android:name=".teacher.QuizMonitorActivity" />
 
+        <!-- Student -->
+        <activity
+            android:name=".student.QuizListActivity"
+            android:exported="true" />
+
+        <!-- STUDENT TAKE QUIZ (deep link allowed) -->
+        <activity
+            android:name=".student.TakeQuizActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="nextgen" android:host="quiz" />
+            </intent-filter>
+        </activity>
 
         <activity android:name=".student.StudentDashboardActivity" />
         <activity android:name=".student.StudentProfileActivity" />
         <activity android:name=".student.ResultActivity" />
-        <activity android:name=".student.StudentProfileActivity" />
-        <activity android:name=".student.TakeExamActivity" />
         <activity android:name=".student.StudentQRScannerActivity" />
+        <activity android:name=".student.TakeExamActivity" />
         <activity android:name=".student.StudentActivitiesActivity" />
         <activity android:name=".student.ActivityDetailsActivity" />
 
+        <!-- ✅ Correct scanner for QUIZ -->
+        <activity
+            android:name=".student.StudentQuizScannerActivity"
+            android:exported="true" />
 
     </application>
 

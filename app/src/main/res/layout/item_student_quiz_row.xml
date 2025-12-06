@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/cardStudentRow"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="12dp"
+    android:layout_marginEnd="12dp"
+    android:layout_marginTop="8dp"
+    android:layout_marginBottom="8dp"
+    app:cardCornerRadius="16dp"
+    app:cardElevation="6dp"
+    app:cardBackgroundColor="@android:color/white">
+
+    <LinearLayout
+        android:orientation="vertical"
+        android:padding="20dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <LinearLayout
+            android:orientation="horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="16dp">
+
+            <View
+                android:id="@+id/studentAvatar"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="@drawable/examinee_default"
+                android:layout_marginEnd="12dp"/>
+
+            <LinearLayout
+                android:orientation="vertical"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1">
+
+                <TextView
+                    android:id="@+id/tvStudentName"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="2dp"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="Student Name"
+                    android:textColor="#1E3A8A"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvStudentMeta"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="ID: 2021-0001"
+                    android:textSize="12sp"
+                    android:textColor="#64748B"
+                    android:ellipsize="end"
+                    android:maxLines="1"/>
+
+            </LinearLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnMarkPresent"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Absent"
+                android:backgroundTint="#EF4444"
+                android:textColor="#FFFFFF"
+                android:paddingStart="20dp"
+                android:paddingEnd="20dp"
+                style="@style/Widget.MaterialComponents.Button"
+                android:minHeight="0dp" />
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#F1F5F9"
+            android:layout_marginBottom="16dp"/>
+
+        <LinearLayout
+            android:orientation="horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Course:"
+                android:textSize="14sp"
+                android:textColor="#64748B"
+                android:textStyle="normal"
+                android:layout_marginEnd="8dp"/>
+
+            <TextView
+                android:id="@+id/tvCourseInfo"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="BSIT - SD - 1 - A"
+                android:textSize="14sp"
+                android:textColor="#1E3A8A"
+                android:textStyle="bold"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:orientation="horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical">
+
+            <LinearLayout
+                android:orientation="horizontal"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center_vertical"
+                android:background="@drawable/counter_badge_bg"
+                android:padding="12dp"
+                android:layout_marginEnd="12dp">
+                <TextView
+                    android:id="@+id/tvQuestionsAnswered"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Answered: 0"
+                    android:textSize="14sp"
+                    android:textColor="#1E3A8A"
+                    android:textStyle="bold"/>
+            </LinearLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnResetStudent"
+                android:layout_width="wrap_content"
+                android:layout_height="44dp"
+                android:text="Reset"
+                android:textSize="13sp"
+                android:textColor="#FFFFFF"
+                android:textStyle="bold"
+                android:backgroundTint="#60A5FA"
+                android:paddingStart="24dp"
+                android:paddingEnd="24dp"
+                style="@style/Widget.MaterialComponents.Button"
+                android:minWidth="88dp"
+                app:cornerRadius="8dp"
+                android:textAllCaps="false"
+                app:elevation="3dp"/>
+        </LinearLayout>
+    </LinearLayout>
+</androidx.cardview.widget.CardView>

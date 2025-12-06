@@ -11,9 +11,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase;
 
 /**
  * Central Room database for the teacher module.
- * Handles Exam and Question tables with migration support.
+ * Handles Exam, Question, and Quiz tables with migration support.
  */
-@Database(entities = { Exam.class, Question.class }, version = 15, exportSchema = false)
+@Database(entities = { Exam.class, Question.class, Quiz.class }, version = 16, exportSchema = true)
 public abstract class AppDatabase extends RoomDatabase {
 
     private static final String DB_NAME = "app_database.db";
@@ -22,44 +22,47 @@ public abstract class AppDatabase extends RoomDatabase {
     // === DAO Access ===
     public abstract ExamDao examDao();
     public abstract QuestionDao questionDao();
+    public abstract QuizDao quizDao();
 
     // === Singleton Instance ===
-    public static AppDatabase getInstance(Context context) {
+    public static AppDatabase getInstance(final Context context) {
         if (INSTANCE == null) {
             synchronized (AppDatabase.class) {
                 if (INSTANCE == null) {
-
-                    // ✅ Migration from version 9 → 10
-                    Migration MIGRATION_9_10 = new Migration(9, 10) {
-                        @Override
-                        public void migrate(@NonNull SupportSQLiteDatabase database) {
-                            // 🔹 Add displayNumber column if it doesn’t exist yet
-                            database.execSQL(
-                                    "ALTER TABLE questions ADD COLUMN displayNumber INTEGER NOT NULL DEFAULT 0"
-                            );
-
-                            // 🔹 Optional future-proofing for Exam table
-                            database.execSQL(
-                                    "ALTER TABLE exams ADD COLUMN durationMinutes INTEGER NOT NULL DEFAULT 0"
-                            );
-                        }
-                    };
-
                     INSTANCE = Room.databaseBuilder(
                                     context.getApplicationContext(),
                                     AppDatabase.class,
                                     DB_NAME
                             )
-                            // 🚀 Automatically reset if no valid migration found
+                            // Migrations can be chained here
+                            .addMigrations(MIGRATION_15_16)
+                            // Use fallback only if you accept destructive reset
                             .fallbackToDestructiveMigration()
-                            // ⚠️ For dev/testing only (safe here)
-                            .allowMainThreadQueries()
-                            // ✅ Migration support
-                            .addMigrations(MIGRATION_9_10)
                             .build();
                 }
             }
         }
         return INSTANCE;
     }
+
+    // === Migration Example: v15 → v16 (Add Quiz Table) ===
+    private static final Migration MIGRATION_15_16 = new Migration(15, 16) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase database) {
+            // Create quiz_table if not exists
+            database.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `quiz_table` (" +
+                            "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                            "`firebaseKey` TEXT, " +
+                            "`quizName` TEXT, " +
+                            "`subject` TEXT, " +
+                            "`section` TEXT, " +
+                            "`durationMinutes` INTEGER NOT NULL DEFAULT 15, " +
+                            "`scheduledAt` INTEGER NOT NULL DEFAULT 0, " +
+                            "`isActive` INTEGER NOT NULL DEFAULT 0, " +
+                            "`teacherId` TEXT" +
+                            ")"
+            );
+        }
+    };
 }

@@ -38,7 +38,7 @@
                 android:tint="@color/dark_blue_700" />
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- RIGHT COLUMN (due date + chip) -->
+        <!-- RIGHT COLUMN (due date + status chip) -->
         <LinearLayout
             android:id="@+id/rightColumn"
             android:orientation="vertical"

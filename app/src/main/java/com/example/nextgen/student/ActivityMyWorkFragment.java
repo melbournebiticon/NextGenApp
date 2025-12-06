@@ -1,9 +1,9 @@
 package com.example.nextgen.student;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.Base64;
@@ -15,11 +15,12 @@ import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.VideoView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.fragment.app.Fragment;
 import androidx.cardview.widget.CardView;
+import androidx.fragment.app.Fragment;
 
 import com.example.nextgen.R;
 import com.google.firebase.auth.FirebaseAuth;
@@ -31,12 +32,7 @@ import com.google.firebase.database.ValueEventListener;
 
 import android.database.Cursor;
 import android.provider.OpenableColumns;
-import java.text.SimpleDateFormat;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.Locale;
-import android.widget.LinearLayout;
-
+import android.webkit.MimeTypeMap;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
@@ -45,44 +41,34 @@ import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
-import android.widget.VideoView;
-import java.io.File;
-import java.io.FileOutputStream;
-
-
 
 public class ActivityMyWorkFragment extends Fragment {
 
     private static final int FILE_PICK_REQUEST = 100;
     private Uri selectedFileUri;
-    private TextView tvStatus, tvFileName, tvScore, tvViewed;
+
+    private TextView tvStatus, tvFileName, tvScore, tvViewed, tvPreviewFileName, tvMaxScore;
     private Button btnSelectFile, btnSubmitFile;
     private ImageView imgPreview;
+    private VideoView videoPreview;
+    private CardView previewContainer;
 
     private DatabaseReference submissionsRef;
     private String studentId, activityId;
+    private String currentSubmissionId;
+    private boolean resubmitRequested = false;
+    private String maxScore = "0";
 
-    // 1️⃣ Declare at the top of your class
-
-    private TextView tvPreviewFileName;
-
-    private VideoView videoPreview;
-
-    private CardView previewContainer;
-
-
-    public static ActivityMyWorkFragment newInstance(String activityId, String dueDate) {
+    public static ActivityMyWorkFragment newInstance(String activityId, String maxScore) {
         ActivityMyWorkFragment fragment = new ActivityMyWorkFragment();
         Bundle args = new Bundle();
         args.putString("activityId", activityId);
-        args.putString("dueDate", dueDate); // 👈 match the key name
+        args.putString("maxScore", maxScore);
         fragment.setArguments(args);
         return fragment;
     }
 
-
-
-
+    @SuppressLint("MissingInflatedId")
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater,
@@ -101,31 +87,17 @@ public class ActivityMyWorkFragment extends Fragment {
         previewContainer = view.findViewById(R.id.previewContainer);
         tvPreviewFileName = view.findViewById(R.id.tvPreviewFileName);
         videoPreview = view.findViewById(R.id.videoPreview);
-
-
+        tvMaxScore = view.findViewById(R.id.tvMaxScore);
 
         submissionsRef = FirebaseDatabase.getInstance().getReference("Submissions");
         studentId = FirebaseAuth.getInstance().getCurrentUser().getUid();
 
-        // Get activityId from arguments
         if (getArguments() != null) {
             activityId = getArguments().getString("activityId");
-            String dueDate = getArguments().getString("dueDate"); // 👈 use dueDate, not deadline
-
-            Log.d("ActivityMyWorkFragment", "📦 Received activityId: " + activityId + ", dueDate: " + dueDate);
-
-            if (dueDate != null && isPastDeadline(dueDate)) {
-                tvStatus.setText("Deadline passed. Submission disabled.");
-                btnSelectFile.setVisibility(View.GONE);
-                btnSubmitFile.setVisibility(View.GONE);
-            } else {
-                checkExistingSubmission();
-            }
+            maxScore = getArguments().getString("maxScore", "0");
+            tvMaxScore.setText("Max Score: " + maxScore);
+            checkExistingSubmission();
         }
-
-
-
-
 
         btnSelectFile.setOnClickListener(v -> openFilePicker());
         btnSubmitFile.setOnClickListener(v -> {
@@ -142,101 +114,76 @@ public class ActivityMyWorkFragment extends Fragment {
     private void checkExistingSubmission() {
         if (activityId == null) return;
 
-        submissionsRef.addListenerForSingleValueEvent(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot snapshot) {
-                boolean found = false;
+        submissionsRef.orderByChild("studentId").equalTo(studentId)
+                .addValueEventListener(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(@NonNull DataSnapshot snapshot) {
+                        boolean found = false;
 
-                for (DataSnapshot subSnap : snapshot.getChildren()) {
-                    String subStudentId = subSnap.child("studentId").getValue(String.class);
-                    String subActivityId = subSnap.child("activityId").getValue(String.class);
+                        for (DataSnapshot subSnap : snapshot.getChildren()) {
+                            Object subActivityIdObj = subSnap.child("activityId").getValue();
+                            String subActivityId = subActivityIdObj != null ? subActivityIdObj.toString() : null;
 
-                    if (studentId.equals(subStudentId) && activityId.equals(subActivityId)) {
-                        String fileName = subSnap.child("fileName").getValue(String.class);
-                        String score = subSnap.child("score").getValue(String.class);
-                        Object viewedObj = subSnap.child("viewed").getValue();
-                        boolean viewed = false;
-                        if (viewedObj instanceof Boolean) viewed = (Boolean) viewedObj;
-                        else if (viewedObj instanceof String) viewed = Boolean.parseBoolean((String) viewedObj);
+                            if (activityId.equals(subActivityId)) {
+                                currentSubmissionId = subSnap.getKey();
+                                resubmitRequested = Boolean.TRUE.equals(subSnap.child("resubmitRequested").getValue(Boolean.class));
 
-                        // 1️⃣ Already submitted text outside the container
-                        tvStatus.setText("Already submitted:");
+                                Object fileNameObj = subSnap.child("fileName").getValue();
+                                String fileName = fileNameObj != null ? fileNameObj.toString() : null;
 
-                        // 2️⃣ Show preview container
-                        previewContainer.setVisibility(View.VISIBLE);
-
-                        // 3️⃣ File name
-                        tvPreviewFileName.setText(fileName != null ? fileName : "Unknown file");
-
-                        // 4️⃣ Viewed / score
-                        if (viewed && (score == null || score.equals("Pending"))) {
-                            tvViewed.setText("Viewed by instructor");
-                            tvScore.setText("Your score will appear here");
-                        } else if (score != null && !score.equals("Pending")) {
-                            tvScore.setText("Score: " + score);
-                            tvViewed.setText(viewed ? "Viewed by instructor" : "Not yet viewed");
-                        } else {
-                            tvScore.setText("Your score will appear here");
-                            tvViewed.setText(viewed ? "Viewed by instructor" : "Not yet viewed");
-                        }
-
-                        // 5️⃣ Image preview if jpg/png
-                        String fileData = subSnap.child("fileData").getValue(String.class);
-                        if (fileData != null && fileName != null) {
-                            if (fileName.endsWith(".jpg") || fileName.endsWith(".png")) {
-                                byte[] decoded = Base64.decode(fileData, Base64.DEFAULT);
-                                Bitmap bitmap = BitmapFactory.decodeByteArray(decoded, 0, decoded.length);
-                                imgPreview.setImageBitmap(bitmap);
-                                imgPreview.setVisibility(View.VISIBLE);
-                                videoPreview.setVisibility(View.GONE);
-                            } else if (fileName.endsWith(".mp4")) {
-                                // Save Base64 to temp file
-                                byte[] decoded = Base64.decode(fileData, Base64.DEFAULT);
-                                File tempVideo = new File(getContext().getCacheDir(), fileName);
-                                try (FileOutputStream fos = new FileOutputStream(tempVideo)) {
-                                    fos.write(decoded);
-                                } catch (Exception e) {
-                                    e.printStackTrace();
+                                // Safe conversion of score
+                                Object scoreObj = subSnap.child("score").getValue();
+                                String score = "Pending";
+                                if (scoreObj != null) {
+                                    if (scoreObj instanceof Number) {
+                                        score = String.valueOf(((Number) scoreObj).intValue());
+                                    } else {
+                                        score = scoreObj.toString();
+                                    }
                                 }
-                                videoPreview.setVideoPath(tempVideo.getAbsolutePath());
-                                videoPreview.setVisibility(View.VISIBLE);
-                                videoPreview.start();  // auto play
-                                imgPreview.setVisibility(View.GONE);
-                            } else {
-                                imgPreview.setVisibility(View.GONE);
-                                videoPreview.setVisibility(View.GONE);
+
+                                boolean viewed = Boolean.TRUE.equals(subSnap.child("viewed").getValue(Boolean.class));
+
+                                updateUIForSubmission(fileName, score, viewed);
+                                found = true;
+                                break;
                             }
                         }
 
-
-                        // 6️⃣ Hide buttons after submission
-                        btnSelectFile.setVisibility(View.GONE);
-                        btnSubmitFile.setVisibility(View.GONE);
-
-                        found = true;
-                        break;
+                        if (!found) resetUIForNoSubmission();
                     }
-                }
 
-                if (!found) {
-                    // No submission yet
-                    tvStatus.setText("No submission yet.");
-                    previewContainer.setVisibility(View.GONE);
-                    imgPreview.setVisibility(View.GONE);
-
-                    btnSelectFile.setVisibility(View.VISIBLE);
-                    btnSelectFile.setEnabled(true);
-                    btnSubmitFile.setVisibility(View.GONE);
-                }
-            }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) {
-                Toast.makeText(getContext(), "Failed to check submissions", Toast.LENGTH_SHORT).show();
-            }
-        });
+                    @Override
+                    public void onCancelled(@NonNull DatabaseError error) {
+                        Toast.makeText(getContext(), "Failed to check submissions", Toast.LENGTH_SHORT).show();
+                    }
+                });
     }
 
+    private void updateUIForSubmission(String fileName, String score, boolean viewed) {
+        tvStatus.setText(resubmitRequested ? "Resubmit requested by instructor:" : "Already submitted:");
+        previewContainer.setVisibility(View.VISIBLE);
+        tvPreviewFileName.setText(fileName != null ? fileName : "Unknown file");
+        tvScore.setText(!"Pending".equalsIgnoreCase(score) ?
+                "Score: " + score + "/" + maxScore :
+                "Your score will appear here (Max: " + maxScore + ")");
+        tvViewed.setText(viewed ? "Viewed by instructor" : "Not yet viewed");
+        btnSelectFile.setVisibility(resubmitRequested ? View.VISIBLE : View.GONE);
+        btnSubmitFile.setVisibility(resubmitRequested ? View.VISIBLE : View.GONE);
+        previewFile(selectedFileUri, fileName);
+    }
+
+    private void resetUIForNoSubmission() {
+        tvStatus.setText("No submission yet.");
+        previewContainer.setVisibility(View.GONE);
+        btnSelectFile.setVisibility(View.VISIBLE);
+        btnSubmitFile.setVisibility(View.GONE);
+        tvViewed.setText("");
+        resubmitRequested = false;
+        currentSubmissionId = null;
+        imgPreview.setVisibility(View.GONE);
+        videoPreview.setVisibility(View.GONE);
+    }
 
     private void openFilePicker() {
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
@@ -249,49 +196,78 @@ public class ActivityMyWorkFragment extends Fragment {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == FILE_PICK_REQUEST && resultCode == Activity.RESULT_OK && data != null) {
             selectedFileUri = data.getData();
-            tvFileName.setText(getFileName(selectedFileUri));
+            String fileName = getFileName(selectedFileUri);
+            tvFileName.setText(fileName);
             tvStatus.setText("File selected, ready to upload");
             btnSubmitFile.setVisibility(View.VISIBLE);
             btnSubmitFile.setEnabled(true);
+
+            previewFile(selectedFileUri, fileName);
+        }
+    }
+
+    private void previewFile(Uri uri, String fileName) {
+        if (uri == null) return;
+
+        String extension = "";
+        String mimeType = getContext().getContentResolver().getType(uri);
+        if (mimeType != null) {
+            extension = MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType);
+        }
+
+        if (extension == null) extension = "";
+
+        imgPreview.setVisibility(View.GONE);
+        videoPreview.setVisibility(View.GONE);
+
+        if (extension.equalsIgnoreCase("jpg") || extension.equalsIgnoreCase("jpeg") ||
+                extension.equalsIgnoreCase("png") || extension.equalsIgnoreCase("gif")) {
+            imgPreview.setVisibility(View.VISIBLE);
+            imgPreview.setImageURI(uri);
+        } else if (extension.equalsIgnoreCase("mp4") || extension.equalsIgnoreCase("3gp") ||
+                extension.equalsIgnoreCase("webm")) {
+            videoPreview.setVisibility(View.VISIBLE);
+            videoPreview.setVideoURI(uri);
+            videoPreview.start();
         }
     }
 
     private void uploadFileToRealtime(Uri fileUri) {
+        Context context = getContext();
+        if (context == null) return;
+
         btnSubmitFile.setEnabled(false);
         btnSelectFile.setEnabled(false);
-        tvStatus.setText("Uploading file...");
+        tvStatus.setText(resubmitRequested ? "Resubmitting..." : "Uploading file...");
 
         try {
-            InputStream inputStream = getContext().getContentResolver().openInputStream(fileUri);
+            InputStream inputStream = context.getContentResolver().openInputStream(fileUri);
             int fileSize = inputStream.available();
             inputStream.close();
 
             double fileSizeMB = fileSize / (1024.0 * 1024.0);
             if (fileSizeMB > 2.0) {
-                tvStatus.setText("File too large (" + String.format(Locale.getDefault(), "%.2f", fileSizeMB) + " MB). Max 2 MB.");
-                Toast.makeText(getContext(), "Please choose a smaller file (max 2 MB).", Toast.LENGTH_LONG).show();
+                Toast.makeText(context, "File too large (" + String.format(Locale.getDefault(), "%.2f", fileSizeMB) + " MB). Max 2 MB.", Toast.LENGTH_LONG).show();
                 btnSubmitFile.setEnabled(true);
                 btnSelectFile.setEnabled(true);
+                tvStatus.setText("File too large");
                 return;
             }
 
-            inputStream = getContext().getContentResolver().openInputStream(fileUri);
+            inputStream = context.getContentResolver().openInputStream(fileUri);
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
             byte[] buffer = new byte[4096];
             int bytesRead;
-
             while ((bytesRead = inputStream.read(buffer)) != -1) {
                 outputStream.write(buffer, 0, bytesRead);
             }
             inputStream.close();
 
-            byte[] fileBytes = outputStream.toByteArray();
-            String base64File = Base64.encodeToString(fileBytes, Base64.DEFAULT);
+            String base64File = Base64.encodeToString(outputStream.toByteArray(), Base64.DEFAULT);
             String fileName = getFileName(fileUri);
             String submittedAt = new SimpleDateFormat("yyyy-MM-dd hh:mm a", Locale.getDefault())
                     .format(Calendar.getInstance().getTime());
 
-            String submissionId = submissionsRef.push().getKey();
             Map<String, Object> submissionMap = new HashMap<>();
             submissionMap.put("studentId", studentId);
             submissionMap.put("activityId", activityId);
@@ -300,48 +276,45 @@ public class ActivityMyWorkFragment extends Fragment {
             submissionMap.put("submittedAt", submittedAt);
             submissionMap.put("score", "Pending");
             submissionMap.put("viewed", false);
+            submissionMap.put("resubmitRequested", false);
+            submissionMap.put("maxScore", maxScore);
 
+            String submissionId = resubmitRequested && currentSubmissionId != null ? currentSubmissionId : submissionsRef.push().getKey();
             if (submissionId != null) {
                 submissionsRef.child(submissionId).setValue(submissionMap)
                         .addOnSuccessListener(aVoid -> {
-                            if (isAdded() && getContext() != null) {  // ✅ Check fragment is still attached
-                                tvStatus.setText("Uploaded successfully!");
-                                btnSubmitFile.setEnabled(false);
-                                btnSubmitFile.setVisibility(View.GONE);
-                                btnSelectFile.setVisibility(View.GONE); // hide select too
-                                Toast.makeText(getContext(), "Submission successful!", Toast.LENGTH_SHORT).show();
-                                checkExistingSubmission(); // refresh UI
-                            }
+                            tvStatus.setText(resubmitRequested ? "Resubmitted successfully!" : "Uploaded successfully!");
+                            checkExistingSubmission();
+                            Toast.makeText(context, resubmitRequested ? "Resubmission successful!" : "Submission successful!", Toast.LENGTH_SHORT).show();
                         })
                         .addOnFailureListener(e -> {
-                            if (isAdded() && getContext() != null) {
-                                tvStatus.setText("Failed to upload file.");
-                                btnSubmitFile.setEnabled(true);
-                                btnSelectFile.setEnabled(true);
-                                Toast.makeText(getContext(), "Upload failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                            }
+                            tvStatus.setText("Failed to upload file.");
+                            btnSubmitFile.setEnabled(true);
+                            btnSelectFile.setEnabled(true);
+                            Toast.makeText(context, "Upload failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                         });
-
             }
 
         } catch (Exception e) {
             Log.e("RealtimeUpload", "Upload failed", e);
             tvStatus.setText("Upload failed: " + e.getMessage());
             btnSubmitFile.setEnabled(true);
+            btnSelectFile.setEnabled(true);
+            Toast.makeText(context, "Upload failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
 
     private String getFileName(Uri uri) {
         String result = null;
-        if (uri.getScheme().equals("content")) {
-            try (Cursor cursor = getContext().getContentResolver().query(uri, null, null, null, null)) {
+        Context context = getContext();
+        if ("content".equals(uri.getScheme()) && context != null) {
+            try (Cursor cursor = context.getContentResolver().query(uri, null, null, null, null)) {
                 if (cursor != null && cursor.moveToFirst()) {
                     int nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
                     if (nameIndex >= 0) result = cursor.getString(nameIndex);
                 }
             }
         }
-
         if (result == null) {
             String path = uri.getPath();
             if (path != null) {
@@ -353,20 +326,4 @@ public class ActivityMyWorkFragment extends Fragment {
         }
         return result;
     }
-    private boolean isPastDeadline(String dueDate) {
-        try {
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
-            Date dueDateTime = sdf.parse(dueDate);
-            return Calendar.getInstance().getTime().after(dueDateTime);
-        } catch (Exception e) {
-            e.printStackTrace();
-            Log.e("DeadlineCheck", "❌ Date parsing error: " + e.getMessage());
-            return false;
-        }
-    }
-
-
-
-
-
 }

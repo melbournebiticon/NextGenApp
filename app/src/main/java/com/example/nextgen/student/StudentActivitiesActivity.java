@@ -7,21 +7,20 @@ import android.view.ViewGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.Button;
+import android.widget.ImageView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-import android.widget.ImageView;
-
-
 import android.content.Context;
 import android.content.Intent;
 import android.util.Log;
 
 import com.example.nextgen.R;
 import com.example.nextgen.SessionManager;
+import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
@@ -29,18 +28,24 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class StudentActivitiesActivity extends AppCompatActivity {
 
     RecyclerView recyclerView;
     SessionManager sessionManager;
-    DatabaseReference activitiesRef;
+    DatabaseReference activitiesRef, submissionsRef;
     List<ActivityModel> activityList;
     ActivitiesAdapter adapter;
 
     TextView tvSubjectCode, tvSubjectName, tvTeacherName;
     Button btnPerformance;
+
+    // Map to preload submissions
+    Map<String, SubmissionModel> submissionMap = new HashMap<>();
+    String studentId;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -49,54 +54,48 @@ public class StudentActivitiesActivity extends AppCompatActivity {
 
         sessionManager = new SessionManager(this);
 
-        // 🟩 Header Views
+        // Header Views
         tvSubjectCode = findViewById(R.id.tvSubjectCode);
         tvSubjectName = findViewById(R.id.tvSubjectName);
         tvTeacherName = findViewById(R.id.tvTeacherName);
         btnPerformance = findViewById(R.id.btnPerformance);
 
-        // 🟩 Back button functionality
         ImageView btnBack = findViewById(R.id.btnBack);
-        btnBack.setOnClickListener(v -> {
-            finish(); // close current activity and go back
-        });
+        btnBack.setOnClickListener(v -> finish());
 
-
-        // 🟦 RecyclerView setup
+        // RecyclerView setup
         recyclerView = findViewById(R.id.recyclerStudentActivities);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
 
         activityList = new ArrayList<>();
-        adapter = new ActivitiesAdapter(this, activityList);
+        studentId = FirebaseAuth.getInstance().getCurrentUser().getUid();
+        adapter = new ActivitiesAdapter(this, activityList, submissionMap);
         recyclerView.setAdapter(adapter);
 
         activitiesRef = FirebaseDatabase.getInstance().getReference("Activities");
+        submissionsRef = FirebaseDatabase.getInstance().getReference("Submissions").child(studentId);
 
-        // 🟨 Get data from intent
+        // Get intent data
         String subjectId = getIntent().getStringExtra("subjectId");
         String courseDisplay = getIntent().getStringExtra("courseDisplay");
         String subjectCode = getIntent().getStringExtra("subjectCode");
         String subjectName = getIntent().getStringExtra("subjectName");
         String teacherName = getIntent().getStringExtra("teacherName");
 
-        // 🟪 Validate
         if (subjectId == null || courseDisplay == null) {
             Toast.makeText(this, "No subject selected.", Toast.LENGTH_SHORT).show();
             finish();
             return;
         }
 
-        // 🟩 Display header info
-        tvSubjectCode.setText((subjectCode != null ? subjectCode : "N/A"));
-        tvSubjectName.setText((subjectName != null ? subjectName : "N/A"));
-        tvTeacherName.setText((teacherName != null ? teacherName : "N/A"));
+        tvSubjectCode.setText(subjectCode != null ? subjectCode : "N/A");
+        tvSubjectName.setText(subjectName != null ? subjectName : "N/A");
+        tvTeacherName.setText(teacherName != null ? teacherName : "N/A");
 
-        // 🟦 Button action
         btnPerformance.setOnClickListener(v ->
                 Toast.makeText(this, "Performance screen coming soon!", Toast.LENGTH_SHORT).show()
         );
 
-        // 🟧 Load activities
         loadStudentActivities(subjectId, courseDisplay);
     }
 
@@ -109,9 +108,12 @@ public class StudentActivitiesActivity extends AppCompatActivity {
                         for (DataSnapshot snap : snapshot.getChildren()) {
                             ActivityModel activity = snap.getValue(ActivityModel.class);
                             if (activity != null && subjectId.equals(activity.getSubjectId())) {
-                                activity.setActivityId(snap.getKey()); // ✅ important
+                                String firebasePushKey = snap.getKey();
+                                activity.setActivityId(firebasePushKey);
                                 activityList.add(activity);
-                                Log.d("StudentActivities", "Loaded activity: " + activity.getTitle() + ", ID: " + activity.getActivityId());
+                                Log.d("StudentActivities", "Loaded activity: " + activity.getTitle() +
+                                        ", ID: " + activity.getActivityId() +
+                                        ", Max Score: " + activity.getMaxScore());
                             }
                         }
 
@@ -119,7 +121,8 @@ public class StudentActivitiesActivity extends AppCompatActivity {
                             Toast.makeText(StudentActivitiesActivity.this, "No activities for this subject.", Toast.LENGTH_SHORT).show();
                         }
 
-                        adapter.notifyDataSetChanged();
+                        // Preload submissions for the student
+                        preloadSubmissions();
                     }
 
                     @Override
@@ -129,14 +132,36 @@ public class StudentActivitiesActivity extends AppCompatActivity {
                 });
     }
 
+    private void preloadSubmissions() {
+        submissionMap.clear();
+        submissionsRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                for (DataSnapshot activitySnap : snapshot.getChildren()) {
+                    SubmissionModel submission = activitySnap.getValue(SubmissionModel.class);
+                    if (submission != null) {
+                        submissionMap.put(activitySnap.getKey(), submission);
+                    }
+                }
+                adapter.notifyDataSetChanged();
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+            }
+        });
+    }
+
     // ===== RecyclerView Adapter =====
     private static class ActivitiesAdapter extends RecyclerView.Adapter<ActivitiesAdapter.ViewHolder> {
         private final List<ActivityModel> list;
         private final Context context;
+        private final Map<String, SubmissionModel> submissionMap;
 
-        public ActivitiesAdapter(Context context, List<ActivityModel> list) {
+        public ActivitiesAdapter(Context context, List<ActivityModel> list, Map<String, SubmissionModel> submissionMap) {
             this.context = context;
             this.list = list;
+            this.submissionMap = submissionMap;
         }
 
         @NonNull
@@ -150,24 +175,41 @@ public class StudentActivitiesActivity extends AppCompatActivity {
         public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
             ActivityModel activity = list.get(position);
 
-            // Null checks for all TextViews and safe data handling
-            if (holder.tvTitle != null) {
-                holder.tvTitle.setText(activity.getTitle() != null ? activity.getTitle() : "N/A");
-            }
-            if (holder.tvDueDate != null) {
-                holder.tvDueDate.setText(activity.getDueDate() != null ? activity.getDueDate() : "N/A");
-            }
-            if (holder.tvDescription != null) {
-                holder.tvDescription.setText(activity.getDescription() != null ? activity.getDescription() : "N/A");
-            }
-            if (holder.tvTeacher != null) {
-                // Combine subject and teacher to match XML (e.g., "Mathematics • Prof. John Doe")
-                String subject = activity.getSubject() != null ? activity.getSubject() : "N/A";
-                String teacher = activity.getTeacherName() != null ? activity.getTeacherName() : "N/A";
-                holder.tvTeacher.setText(subject + " • " + teacher);
+            // Display basic data
+            holder.tvTitle.setText(activity.getTitle() != null ? activity.getTitle() : "N/A");
+            holder.tvDueDate.setText(activity.getDueDate() != null ? activity.getDueDate() : "N/A");
+            holder.tvDescription.setText(activity.getDescription() != null ? activity.getDescription() : "N/A");
+
+            String subject = activity.getSubject() != null ? activity.getSubject() : "N/A";
+            String teacher = activity.getTeacherName() != null ? activity.getTeacherName() : "N/A";
+            holder.tvTeacher.setText(subject + " • " + teacher);
+
+            // Reset chip to loading
+            setChip(holder, "Loading...", R.color.white, R.drawable.ic_clock);
+
+            int maxScoreInt = 0;
+            try {
+                if (activity.getMaxScore() != null) maxScoreInt = Integer.parseInt(activity.getMaxScore());
+            } catch (NumberFormatException e) { }
+
+            // Use preloaded submission map
+            SubmissionModel submission = submissionMap.get(activity.getActivityId());
+            if (submission == null) {
+                setChip(holder, "Pending", R.color.dark_blue_700, R.drawable.ic_clock);
+            } else if (Boolean.TRUE.equals(submission.getResubmitRequested())) {
+                setChip(holder, "Resubmit Requested", R.color.teal_700, R.drawable.ic_reset);
+            } else if (submission.getScore() == null || submission.getScore().trim().isEmpty()) {
+                setChip(holder, "Submitted", R.color.teal_700, R.drawable.ic_upload);
+            } else {
+                try {
+                    int score = Integer.parseInt(submission.getScore());
+                    setChip(holder, "Done (" + score + "/" + maxScoreInt + ")", R.color.teal_700, R.drawable.ic_check_circle);
+                } catch (Exception e) {
+                    setChip(holder, "Submitted", R.color.teal_700, R.drawable.ic_upload);
+                }
             }
 
-            // 🟩 Handle click to open details
+            // Open ActivityDetails on click
             holder.itemView.setOnClickListener(v -> {
                 Intent intent = new Intent(context, ActivityDetailsActivity.class);
                 intent.putExtra("activityId", activity.getActivityId());
@@ -177,10 +219,9 @@ public class StudentActivitiesActivity extends AppCompatActivity {
                 intent.putExtra("subjectName", activity.getSubject());
                 intent.putExtra("teacherName", activity.getTeacherName());
                 intent.putExtra("dueDate", activity.getDueDate());
-                // 🟨 Later: term, deadline, etc.
-                intent.putExtra("mainTerm", activity.getMainTerm()); // e.g., "1st Term"
-                intent.putExtra("subTerm", activity.getSubTerm());   // e.g., "Midterm"
-
+                intent.putExtra("mainTerm", activity.getMainTerm());
+                intent.putExtra("subTerm", activity.getSubTerm());
+                intent.putExtra("maxScore", activity.getMaxScore());
                 context.startActivity(intent);
             });
         }
@@ -190,17 +231,35 @@ public class StudentActivitiesActivity extends AppCompatActivity {
             return list.size();
         }
 
+        private void setChip(ViewHolder holder, String text, int colorRes, int iconRes) {
+            holder.chipStatus.setText(text);
+            holder.chipStatus.setChipBackgroundColorResource(colorRes);
+            holder.chipStatus.setChipIconResource(iconRes);
+        }
+
         static class ViewHolder extends RecyclerView.ViewHolder {
-            TextView tvTitle, tvDueDate, tvDescription, tvTeacher;  // Removed tvSubject
+            TextView tvTitle, tvDueDate, tvDescription, tvTeacher;
+            com.google.android.material.chip.Chip chipStatus;
 
             public ViewHolder(@NonNull View itemView) {
                 super(itemView);
                 tvTitle = itemView.findViewById(R.id.tvActivityTitle);
-                // tvSubject removed (not in XML)
                 tvDueDate = itemView.findViewById(R.id.tvActivityDueDate);
                 tvDescription = itemView.findViewById(R.id.tvActivityDescription);
                 tvTeacher = itemView.findViewById(R.id.tvActivityTeacher);
+                chipStatus = itemView.findViewById(R.id.chipStatus);
             }
         }
+    }
+
+    // ===== Submission Model =====
+    public static class SubmissionModel {
+        private String score;
+        private Boolean resubmitRequested;
+
+        public SubmissionModel() {}
+
+        public String getScore() { return score; }
+        public Boolean getResubmitRequested() { return resubmitRequested; }
     }
 }
