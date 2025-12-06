@@ -46,9 +46,10 @@ import java.util.Map;
  * Full file with teacher-side improvements:
  * - Attendance records saved at Attendance/{sectionId}/{teacherId}/{yyyy-MM-dd}/{studentKey}
  * - When persisting attendance, teacher full name (Teachers/{teacherId}.fullName or displayName)
- *   and the assigned subject display (Subjects/{subjectId}.name) are resolved and written into both
- *   the per-teacher Attendance node and the Students/{...} attendanceHistory copy.
- * - Student-facing copy fields: teacherFullName and assignedSubject (when available).
+ *   and the assigned subject display (Subjects/{subjectId}.name) are resolved and written into:
+ *     - Attendance (per-teacher)
+ *     - Students/{...}/attendanceHistory (student-facing copy)
+ *     - Teachers/{teacherId}/attendanceHistory (teacher-facing preview copy)  <-- NEW
  * - Keeps per-teacher AttendanceSummary updates and previous behavior.
  */
 public class StudentAttendanceActivity extends AppCompatActivity {
@@ -360,7 +361,8 @@ public class StudentAttendanceActivity extends AppCompatActivity {
 
     /**
      * Centralized write that uses provided teacherFullName and assignedSubjectName.
-     * Writes to Attendance per-teacher node and then writes Students/{...}/attendanceHistory and notification copies.
+     * Writes to Attendance per-teacher node and then writes Students/{...}/attendanceHistory,
+     * Teachers/{teacherId}/attendanceHistory (teacher preview) and notification copies.
      */
     private void writeAttendanceWithTeacherInfo(String writeSectionId,
                                                 String teacherId,
@@ -428,7 +430,20 @@ public class StudentAttendanceActivity extends AppCompatActivity {
             if (!isNullOrEmpty(assignedSubjectName)) studentCopy.put("assignedSubject", assignedSubjectName);
             studentCopy.put("timestamp", ServerValue.TIMESTAMP);
 
-            // Try direct path Students/{sid}
+            // Teacher-facing preview copy (so teacher can later "compute all" and view saved previews)
+            Map<String, Object> teacherCopy = new HashMap<>();
+            teacherCopy.put("studentId", sid);
+            teacherCopy.put("studentName", student.getFullName());
+            teacherCopy.put("status", newStatus);
+            teacherCopy.put("date", date);
+            teacherCopy.put("sectionDisplay", section.getDisplay());
+            teacherCopy.put("sectionId", section.getId());
+            if (usingFallback) teacherCopy.put("sectionFallbackKey", finalWriteSectionId);
+            teacherCopy.put("assignedSubject", assignedSubjectName != null ? assignedSubjectName : "");
+            teacherCopy.put("teacherFullName", teacherFullName);
+            teacherCopy.put("timestamp", ServerValue.TIMESTAMP);
+
+            // Try direct path Students/{sid} for student copy
             DatabaseReference possibleStudentNode = studentsRef.child(sid);
             possibleStudentNode.addListenerForSingleValueEvent(new ValueEventListener() {
                 @Override public void onDataChange(@NonNull DataSnapshot snap) {
@@ -466,6 +481,22 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                 }
                 @Override public void onCancelled(@NonNull DatabaseError error) {
                     Log.w(TAG, "Failed checking Students/" + sid + " existence: " + error.getMessage());
+                }
+            });
+
+            // Write teacher-facing preview copy under Teachers/{teacherId}/attendanceHistory/{date}/{studentId}
+            DatabaseReference teacherHistoryRef = FirebaseDatabase.getInstance()
+                    .getReference("Teachers")
+                    .child(finalTeacherId)
+                    .child("attendanceHistory")
+                    .child(date)
+                    .child(sid);
+
+            teacherHistoryRef.setValue(teacherCopy, (errT, rT) -> {
+                if (errT != null) {
+                    Log.w(TAG, "Failed to write teacher preview Teachers/" + finalTeacherId + "/attendanceHistory/" + date + "/" + sid + " : " + errT.getMessage());
+                } else {
+                    Log.d(TAG, "Teacher preview saved for " + sid + " under Teachers/" + finalTeacherId + "/attendanceHistory/" + date);
                 }
             });
         });
