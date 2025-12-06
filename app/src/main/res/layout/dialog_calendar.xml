@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/dialogCalendarRoot"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="12dp"
+    android:background="@android:color/white">
+
+    <!-- Calendar for picking a date -->
+    <CalendarView
+        android:id="@+id/dialogCalendarView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp" />
+
+    <!-- Selected date info -->
+    <TextView
+        android:id="@+id/dialogTvDateInfo"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Selected: "
+        android:textColor="#444"
+        android:paddingBottom="8dp"
+        android:textSize="14sp" />
+
+    <!-- List of students' records for the selected date -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/dialogRvDayRecords"
+        android:layout_width="match_parent"
+        android:layout_height="280dp"
+        android:clipToPadding="false"
+        android:scrollbars="vertical" />
+
+</LinearLayout>

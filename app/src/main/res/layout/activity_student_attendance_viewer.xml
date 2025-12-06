@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/root_student_attendance_viewer"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    tools:context=".student.StudentAttendanceViewerActivity">
+
+    <!-- Title / header -->
+    <TextView
+        android:id="@+id/tvViewerTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="My Attendance"
+        android:textAppearance="@style/TextAppearance.AppCompat.Large"
+        android:textStyle="bold"
+        android:paddingBottom="8dp" />
+
+    <!-- Calendar for selecting a date to preview -->
+    <CalendarView
+        android:id="@+id/calendarView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="12dp" />
+
+    <!-- Selected date status -->
+    <TextView
+        android:id="@+id/tvDateStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Select a date to preview attendance"
+        android:padding="8dp"
+        android:background="?android:attr/selectableItemBackground"
+        android:textAppearance="@style/TextAppearance.AppCompat.Medium"
+        android:layout_marginBottom="12dp" />
+
+    <!-- Actions row -->
+    <LinearLayout
+        android:id="@+id/actions_row"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/btnViewHistory"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:text="View History" />
+
+        <Button
+            android:id="@+id/btnRefresh"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Refresh"
+            android:layout_marginStart="8dp" />
+    </LinearLayout>
+
+    <!-- Optional inline history list -->
+    <TextView
+        android:id="@+id/tvRecentLabel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Recent attendance"
+        android:textStyle="bold"
+        android:paddingTop="12dp"
+        android:paddingBottom="6dp" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvHistory"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:paddingBottom="8dp" />
+
+</LinearLayout>

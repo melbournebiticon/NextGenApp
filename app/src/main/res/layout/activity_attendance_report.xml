@@ -116,6 +116,56 @@
         </com.example.nextgen.teacher.ObservableHorizontalScrollView>
     </androidx.cardview.widget.CardView>
 
+    <!-- Controls: Calendar toggle + Compute Class Average -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="8dp">
+
+        <Button
+            android:id="@+id/btnToggleCalendar"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_weight="1"
+            android:text="Show Calendar"
+            android:background="@drawable/rounded_outline"
+            android:textColor="#00796B"
+            android:textStyle="bold"
+            android:padding="8dp" />
+
+        <View
+            android:layout_width="12dp"
+            android:layout_height="1dp" />
+
+        <Button
+            android:id="@+id/btnComputeClassAverage"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:text="Compute Class Average"
+            android:background="@drawable/card_round"
+            android:textColor="@android:color/white"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <!-- Calendar (hidden by default) -->
+    <CalendarView
+        android:id="@+id/calendarView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        android:layout_marginBottom="8dp" />
+
+    <!-- Shows info about selected date when calendar is visible -->
+    <TextView
+        android:id="@+id/tvDateInfo"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text=""
+        android:textColor="#444"
+        android:paddingBottom="8dp" />
+
     <!-- RecyclerView -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/attendanceRecyclerView"

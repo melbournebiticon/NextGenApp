@@ -17,4 +17,18 @@
     <item name="rvRecords" type="id" />
     <item name="tvRecordDate" type="id" />
     <item name="tvRecordStatus" type="id" />
+    <item name="rvStudents" type="id" />
+    <item name="dialogTotalsRv" type="id" />
+    <item name="tvDayStudentName" type="id" />
+    <item name="tvDayStudentId" type="id" />
+    <item name="tvDayStatus" type="id" />
+    <item name="root_student_attendance_viewer" type="id" />
+    <item name="tvViewerTitle" type="id" />
+    <item name="tvDateStatus" type="id" />
+    <item name="actions_row" type="id" />
+    <item name="btnViewHistory" type="id" />
+    <item name="btnRefresh" type="id" />
+    <item name="tvRecentLabel" type="id" />
+    <item name="rvHistory" type="id" />
+    <item name="dialogHistoryRv" type="id" />
 </resources>

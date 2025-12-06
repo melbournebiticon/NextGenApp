@@ -67,6 +67,10 @@
         <activity android:name=".teacher.QuizMonitorActivity" android:exported="false"/>
         <activity android:name=".teacher.StudentAttendanceActivity" android:exported="false"/>
         <activity android:name=".teacher.AttendanceReportActivity" android:exported="false"/>
+        <activity
+            android:name=".teacher.StudentRecordActivity"
+            android:exported="false"/>
+
 
         <!-- Student -->
         <activity android:name=".student.QuizListActivity" android:exported="true"/>
@@ -86,7 +90,7 @@
         <activity android:name=".student.StudentActivitiesActivity" android:exported="false"/>
         <activity android:name=".student.ActivityDetailsActivity" android:exported="false"/>
         <activity android:name=".student.StudentQuizScannerActivity" android:exported="true"/>
-
+        <activity android:name=".student.StudentAttendanceViewerActivity" android:exported="false"/>
     </application>
 
 </manifest>

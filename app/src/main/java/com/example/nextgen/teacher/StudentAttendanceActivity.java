@@ -11,6 +11,7 @@ import android.widget.Spinner;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -42,8 +43,12 @@ import java.util.Map;
 /**
  * StudentAttendanceActivity
  *
- * NOTE: Minor change — enable "View Report" as soon as a section is selected (even if section.id
- * isn't resolved yet). When clicked we pass a fallback key if the real id is missing.
+ * Changes made:
+ * - Attendance records are saved per-teacher at Attendance/{sectionId}/{teacherId}/{yyyy-MM-dd}/{studentKey}
+ * - Summary is updated per-teacher at AttendanceSummary/{sectionId}/{teacherId}/{studentId}
+ * - Confirmation dialog before saving a student's status
+ * - When launching AttendanceReportActivity, the current teacher id is passed via Intent extra "teacherId"
+ *   so the report reads the same per-teacher nodes the activity writes to.
  */
 public class StudentAttendanceActivity extends AppCompatActivity {
 
@@ -101,66 +106,69 @@ public class StudentAttendanceActivity extends AppCompatActivity {
         recyclerView.setItemViewCacheSize(20);
         recyclerView.setAdapter(adapter);
 
-        // Persist changes immediately when adapter notifies.
+        // Persist changes immediately when adapter notifies, but show confirmation dialog first.
         adapter.setOnAttendanceChangedListener((student, position, previousStatus) -> {
             if (selectedSection == null) {
                 Toast.makeText(StudentAttendanceActivity.this, "Select a section first to save attendance.", Toast.LENGTH_SHORT).show();
+                // revert UI to previous
+                if (student != null && previousStatus != null) {
+                    student.setAttendanceStatus(previousStatus);
+                    adapter.notifyItemChanged(position);
+                }
                 return;
             }
             if (student == null) return;
 
             final String newStatus = student.getAttendanceStatus();
+            final String previous = previousStatus == null ? "" : previousStatus;
 
-            // 1) Update Students node attendanceStatus for quick reference (if possible)
-            String dbKey = student.getId(); // adapter sets this when loading students (ds.getKey())
-            if (!isNullOrEmpty(dbKey)) {
-                studentsRef.child(dbKey).child("attendanceStatus")
-                        .setValue(newStatus, (error, ref) -> {
-                            if (error != null) {
-                                Log.w(TAG, "Failed to update Students/" + dbKey + "/attendanceStatus: " + error.getMessage());
-                                // don't block further operations
-                            } else {
-                                Log.d(TAG, "Updated Students/" + dbKey + "/attendanceStatus -> " + newStatus);
-                            }
-                        });
-            } else {
-                // if dbKey not available, try to resolve by studentId and update all matches
-                final String studentNumber = student.getStudentId();
-                if (!isNullOrEmpty(studentNumber)) {
-                    Query q = studentsRef.orderByChild("studentId").equalTo(studentNumber);
-                    q.addListenerForSingleValueEvent(new ValueEventListener() {
-                        @Override
-                        public void onDataChange(@NonNull DataSnapshot snapshot) {
-                            if (!snapshot.exists()) {
-                                Log.w(TAG, "No Students node found for studentId=" + studentNumber);
-                                return;
-                            }
-                            for (DataSnapshot ds : snapshot.getChildren()) {
-                                String foundKey = ds.getKey();
-                                if (foundKey == null) continue;
-                                studentsRef.child(foundKey).child("attendanceStatus")
-                                        .setValue(newStatus, (error, ref) -> {
-                                            if (error != null) {
-                                                Log.w(TAG, "Failed to update Students/" + foundKey + "/attendanceStatus: " + error.getMessage());
-                                            } else {
-                                                Log.d(TAG, "Updated Students/" + foundKey + "/attendanceStatus -> " + newStatus);
-                                            }
-                                        });
+            // Confirm with teacher before saving
+            String message = "Mark " + student.getFullName() + " as " + newStatus + "?\n\nPrevious: " + (previous.isEmpty() ? "Not marked" : previous);
+            new AlertDialog.Builder(this)
+                    .setTitle("Confirm attendance")
+                    .setMessage(message)
+                    .setPositiveButton("Yes", (dialog, which) -> {
+                        // Proceed with save
+                        // 1) Update Students node attendanceStatus for quick reference (if possible)
+                        String dbKey = student.getId();
+                        if (!isNullOrEmpty(dbKey)) {
+                            studentsRef.child(dbKey).child("attendanceStatus")
+                                    .setValue(newStatus, (error, ref) -> {
+                                        if (error != null) {
+                                            Log.w(TAG, "Failed to update Students/" + dbKey + "/attendanceStatus: " + error.getMessage());
+                                        }
+                                    });
+                        } else {
+                            // fallback: update by studentId matches
+                            final String studentNumber = student.getStudentId();
+                            if (!isNullOrEmpty(studentNumber)) {
+                                Query q = studentsRef.orderByChild("studentId").equalTo(studentNumber);
+                                q.addListenerForSingleValueEvent(new ValueEventListener() {
+                                    @Override
+                                    public void onDataChange(@NonNull DataSnapshot snapshot) {
+                                        if (!snapshot.exists()) return;
+                                        for (DataSnapshot ds : snapshot.getChildren()) {
+                                            String foundKey = ds.getKey();
+                                            if (foundKey == null) continue;
+                                            studentsRef.child(foundKey).child("attendanceStatus")
+                                                    .setValue(newStatus);
+                                        }
+                                    }
+                                    @Override public void onCancelled(@NonNull com.google.firebase.database.DatabaseError error) { }
+                                });
                             }
                         }
 
-                        @Override
-                        public void onCancelled(@NonNull DatabaseError error) {
-                            Log.w(TAG, "Student lookup cancelled: " + error.getMessage());
-                        }
-                    });
-                } else {
-                    Log.w(TAG, "Cannot update Students node: both dbKey and studentId are missing.");
-                }
-            }
-
-            // 2) Persist the attendance entry under Attendance/<section>/<date>/<studentKey> and update summary
-            persistAttendanceChange(selectedSection, student, previousStatus);
+                        // 2) Persist the attendance entry and update summary (per-teacher)
+                        persistAttendanceChange(selectedSection, student, previous);
+                    })
+                    .setNegativeButton("Cancel", (dialog, which) -> {
+                        // revert UI to previousStatus
+                        student.setAttendanceStatus(previousStatus);
+                        adapter.notifyItemChanged(position);
+                    })
+                    .setCancelable(false)
+                    .show();
         });
 
         // Spinner adapter
@@ -176,7 +184,7 @@ public class StudentAttendanceActivity extends AppCompatActivity {
             resolveTeacherKeyAndLoadSections();
         }
 
-        // View Report button
+        // View Report button — pass teacherId so report reads per-teacher nodes
         if (viewReportBtn != null) {
             viewReportBtn.setOnClickListener(v -> {
                 if (selectedSection == null) {
@@ -191,11 +199,19 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                     Log.d(TAG, "Using fallback key for report: " + sectionKey);
                 }
 
-                Log.d(TAG, "ViewReport clicked: sectionKey=" + sectionKey + " display=" + selectedSection.getDisplay());
+                // Determine teacher key to pass (prefer SessionManager, else FirebaseAuth UID)
+                String teacherKeyForReport = sessionManager.getUserId();
+                if (isNullOrEmpty(teacherKeyForReport)) {
+                    FirebaseUser cur = FirebaseAuth.getInstance().getCurrentUser();
+                    if (cur != null && !isNullOrEmpty(cur.getUid())) teacherKeyForReport = cur.getUid();
+                }
+
+                Log.d(TAG, "ViewReport clicked: sectionKey=" + sectionKey + " display=" + selectedSection.getDisplay() + " teacherKey=" + teacherKeyForReport);
 
                 Intent i = new Intent(StudentAttendanceActivity.this, AttendanceReportActivity.class);
                 i.putExtra("sectionId", sectionKey);
                 i.putExtra("sectionDisplay", selectedSection.getDisplay());
+                if (!isNullOrEmpty(teacherKeyForReport)) i.putExtra("teacherId", teacherKeyForReport);
                 startActivity(i);
             });
             viewReportBtn.setEnabled(false); // Will be enabled on section selection
@@ -255,7 +271,7 @@ public class StudentAttendanceActivity extends AppCompatActivity {
     }
 
     /* -------------------------
-       Attendance persistence
+       Attendance persistence (per-teacher)
        ------------------------- */
 
     private void persistAttendanceChange(SectionItem section, StudentModel student, String previousStatus) {
@@ -271,6 +287,18 @@ public class StudentAttendanceActivity extends AppCompatActivity {
             Log.w(TAG, "persistAttendanceChange: using fallback section key: " + writeSectionId);
         }
 
+        // teacherId for per-teacher records (use SessionManager teacher key first)
+        String teacherId = sessionManager.getUserId();
+        if (isNullOrEmpty(teacherId)) {
+            FirebaseUser current = FirebaseAuth.getInstance().getCurrentUser();
+            if (current != null) teacherId = current.getUid();
+            else teacherId = "unknown-teacher";
+        }
+
+        String teacherName = "";
+        FirebaseUser current = FirebaseAuth.getInstance().getCurrentUser();
+        if (current != null && current.getDisplayName() != null) teacherName = current.getDisplayName();
+
         final String sid = !isNullOrEmpty(student.getStudentId()) ? student.getStudentId() : student.getId();
         if (isNullOrEmpty(sid)) {
             Log.w(TAG, "persistAttendanceChange: no student id");
@@ -280,8 +308,13 @@ public class StudentAttendanceActivity extends AppCompatActivity {
         final String newStatus = !isNullOrEmpty(student.getAttendanceStatus()) ? student.getAttendanceStatus() : "Absent";
         final String date = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
 
+        // Write path includes teacherId so each teacher has separate records
         DatabaseReference attendanceNode = FirebaseDatabase.getInstance()
-                .getReference("Attendance").child(writeSectionId).child(date).child(sid);
+                .getReference("Attendance")
+                .child(writeSectionId)
+                .child(teacherId)
+                .child(date)
+                .child(sid);
 
         Map<String, Object> data = new HashMap<>();
         data.put("studentId", sid);
@@ -295,16 +328,21 @@ public class StudentAttendanceActivity extends AppCompatActivity {
         data.put("specializationName", section.getSpecializationName());
         data.put("yearName", section.getYearName());
         data.put("date", date);
+        data.put("teacherId", teacherId);
+        data.put("teacherName", teacherName);
+        data.put("timestamp", ServerValue.TIMESTAMP);
 
         String finalWriteSectionId = writeSectionId;
+        String finalTeacherId = teacherId;
         attendanceNode.setValue(data, (error, ref) -> {
             if (error != null) {
                 Log.w(TAG, "Failed to write attendance for " + sid + ": " + error.getMessage());
                 Toast.makeText(StudentAttendanceActivity.this, "Failed to save attendance for " + student.getFullName(), Toast.LENGTH_SHORT).show();
                 return;
             }
-            Log.d(TAG, "Attendance written for " + sid + " status=" + newStatus + " under sectionNode=" + finalWriteSectionId);
-            updateSummaryTransaction(finalWriteSectionId, sid, previousStatus, newStatus);
+            Log.d(TAG, "Attendance written for " + sid + " status=" + newStatus + " under sectionNode=" + finalWriteSectionId + " teacher=" + finalTeacherId);
+            updateSummaryTransaction(finalWriteSectionId, finalTeacherId, sid, previousStatus, newStatus);
+            Toast.makeText(StudentAttendanceActivity.this, "Saved: " + student.getFullName() + " → " + newStatus, Toast.LENGTH_SHORT).show();
         });
     }
 
@@ -326,9 +364,16 @@ public class StudentAttendanceActivity extends AppCompatActivity {
         return v == null ? "" : v;
     }
 
-    private void updateSummaryTransaction(String sectionId, String studentId, String previousStatus, String newStatus) {
+    /**
+     * Update the per-teacher summary under AttendanceSummary/{sectionId}/{teacherId}/{studentId}
+     * Uses a transaction to increment/decrement the counts and recompute weighted score & percentage.
+     */
+    private void updateSummaryTransaction(String sectionId, String teacherId, String studentId, String previousStatus, String newStatus) {
         DatabaseReference summaryRef = FirebaseDatabase.getInstance()
-                .getReference("AttendanceSummary").child(sectionId).child(studentId);
+                .getReference("AttendanceSummary")
+                .child(sectionId)
+                .child(teacherId)
+                .child(studentId);
 
         summaryRef.runTransaction(new Transaction.Handler() {
             @NonNull
@@ -366,7 +411,9 @@ public class StudentAttendanceActivity extends AppCompatActivity {
 
                 int attendancePercentage = 0;
                 if (totalDays > 0) {
-                    attendancePercentage = (int) Math.round(((double) weightedScore) / (totalDays * 100.0) * 100.0);
+                    // weightedScore range is 0..totalDays*100
+                    double pct = ((double) weightedScore) / ((double) totalDays * 100.0) * 100.0;
+                    attendancePercentage = (int) Math.round(pct);
                     attendancePercentage = Math.max(0, Math.min(100, attendancePercentage));
                 }
 
@@ -383,6 +430,8 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                 newSummary.put("weightedScore", weightedScore);
                 newSummary.put("attendancePercentage", attendancePercentage);
                 newSummary.put("lastUpdated", ServerValue.TIMESTAMP);
+                // keep studentName if present in currentData
+                if (summary.containsKey("studentName")) newSummary.put("studentName", summary.get("studentName"));
 
                 currentData.setValue(newSummary);
                 return Transaction.success(currentData);
@@ -391,7 +440,7 @@ public class StudentAttendanceActivity extends AppCompatActivity {
             @Override
             public void onComplete(DatabaseError error, boolean committed, DataSnapshot snapshot) {
                 if (error != null) Log.w(TAG, "Summary transaction failed: " + error.getMessage());
-                else Log.d(TAG, "Summary updated for " + sectionId + "/" + studentId + " committed=" + committed);
+                else Log.d(TAG, "Summary updated for " + sectionId + "/" + teacherId + "/" + studentId + " committed=" + committed);
             }
         });
     }
@@ -419,7 +468,7 @@ public class StudentAttendanceActivity extends AppCompatActivity {
     }
 
     /* -------------------------
-       Section loading & spinner population
+       Section loading & spinner population (unchanged)
        ------------------------- */
 
     private void resolveTeacherKeyAndLoadSections() {
@@ -454,7 +503,7 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                                     }
                                     tryLookupByNameFallback();
                                 }
-                                @Override public void onCancelled(@NonNull DatabaseError error) { tryLookupByNameFallback(); }
+                                @Override public void onCancelled(@NonNull com.google.firebase.database.DatabaseError error) { tryLookupByNameFallback(); }
                                 private void tryLookupByNameFallback() {
                                     if (!isNullOrEmpty(authDisplay)) {
                                         Query byFullName = teachersRef.orderByChild("fullName").equalTo(authDisplay);
@@ -471,10 +520,10 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                                                         }
                                                         loadSectionsByTeacherIdFallback(authUid);
                                                     }
-                                                    @Override public void onCancelled(@NonNull DatabaseError error) { loadSectionsByTeacherIdFallback(authUid); }
+                                                    @Override public void onCancelled(@NonNull com.google.firebase.database.DatabaseError error) { loadSectionsByTeacherIdFallback(authUid); }
                                                 });
                                             }
-                                            @Override public void onCancelled(@NonNull DatabaseError error) { loadSectionsByTeacherIdFallback(authUid); }
+                                            @Override public void onCancelled(@NonNull com.google.firebase.database.DatabaseError error) { loadSectionsByTeacherIdFallback(authUid); }
                                         });
                                     } else { loadSectionsByTeacherIdFallback(authUid); }
                                 }
@@ -495,18 +544,18 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                                                 }
                                                 loadSectionsByTeacherIdFallback(authUid);
                                             }
-                                            @Override public void onCancelled(@NonNull DatabaseError error) { loadSectionsByTeacherIdFallback(authUid); }
+                                            @Override public void onCancelled(@NonNull com.google.firebase.database.DatabaseError error) { loadSectionsByTeacherIdFallback(authUid); }
                                         });
                                     }
-                                    @Override public void onCancelled(@NonNull DatabaseError error) { loadSectionsByTeacherIdFallback(authUid); }
+                                    @Override public void onCancelled(@NonNull com.google.firebase.database.DatabaseError error) { loadSectionsByTeacherIdFallback(authUid); }
                                 });
                             } else { loadSectionsByTeacherIdFallback(authUid); }
                         }
                     }
-                    @Override public void onCancelled(@NonNull DatabaseError error) { loadSectionsByTeacherIdFallback(authUid); }
+                    @Override public void onCancelled(@NonNull com.google.firebase.database.DatabaseError error) { loadSectionsByTeacherIdFallback(authUid); }
                 });
             }
-            @Override public void onCancelled(@NonNull DatabaseError error) { loadSectionsByTeacherIdFallback(authUid); }
+            @Override public void onCancelled(@NonNull com.google.firebase.database.DatabaseError error) { loadSectionsByTeacherIdFallback(authUid); }
         });
     }
 
@@ -591,7 +640,7 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                 loadSectionsByTeacherIdFallback(teacherKey);
             }
 
-            @Override public void onCancelled(@NonNull DatabaseError error) { loadSectionsByTeacherIdFallback(teacherKey); }
+            @Override public void onCancelled(@NonNull com.google.firebase.database.DatabaseError error) { loadSectionsByTeacherIdFallback(teacherKey); }
         });
     }
 
@@ -652,7 +701,7 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                 }
 
                 @Override
-                public void onCancelled(@NonNull DatabaseError error) {
+                public void onCancelled(@NonNull com.google.firebase.database.DatabaseError error) {
                     Log.w(TAG, "loadSectionsByIds cancelled: " + error.getMessage());
                     remaining[0]--;
                     if (remaining[0] == 0) {
@@ -687,7 +736,7 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                             remaining[0]--;
                             if (remaining[0] <= 0) callback.onResult(new ArrayList<>(found.values()));
                         }
-                        @Override public void onCancelled(@NonNull DatabaseError error) {
+                        @Override public void onCancelled(@NonNull com.google.firebase.database.DatabaseError error) {
                             remaining[0]--;
                             if (remaining[0] <= 0) callback.onResult(new ArrayList<>(found.values()));
                         }
@@ -719,7 +768,7 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                             remaining[0]--;
                             if (remaining[0] <= 0) callback.onResult(new ArrayList<>(found.values()));
                         }
-                        @Override public void onCancelled(@NonNull DatabaseError error) {
+                        @Override public void onCancelled(@NonNull com.google.firebase.database.DatabaseError error) {
                             remaining[0]--;
                             if (remaining[0] <= 0) callback.onResult(new ArrayList<>(found.values()));
                         }
@@ -745,7 +794,7 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                         }
                         applySectionsToSpinner(result);
                     }
-                    @Override public void onCancelled(@NonNull DatabaseError error) { applySectionsToSpinner(new ArrayList<>()); }
+                    @Override public void onCancelled(@NonNull com.google.firebase.database.DatabaseError error) { applySectionsToSpinner(new ArrayList<>()); }
                 });
     }
 
@@ -839,7 +888,7 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                         }
 
                         @Override
-                        public void onCancelled(@NonNull DatabaseError error) {
+                        public void onCancelled(@NonNull com.google.firebase.database.DatabaseError error) {
                             Log.w(TAG, "Failed resolving section ids: " + error.getMessage());
                         }
                     });
