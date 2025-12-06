@@ -90,6 +90,7 @@
         <activity android:name=".student.TakeExamActivity" />
         <activity android:name=".student.StudentActivitiesActivity" />
         <activity android:name=".student.ActivityDetailsActivity" />
+        <activity android:name=".student.QuizResultActivity" />
 
         <!-- ✅ Correct scanner for QUIZ -->
         <activity

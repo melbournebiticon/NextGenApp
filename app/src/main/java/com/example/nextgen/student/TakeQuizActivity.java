@@ -134,6 +134,13 @@ public class TakeQuizActivity extends AppCompatActivity {
     private long intentAvailableAt = 0L;
     private int intentDurationMinutes = 0;
 
+    // cached scheduledAt from preload to avoid main-thread DB reads (optional)
+    private long cachedScheduledAt = 0L;
+
+    private String intentSubjectName = null;
+    private String intentCourseCode = null;
+    private String intentTeacherName = null;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         // Prevent screenshots / screen-recording
@@ -175,6 +182,11 @@ public class TakeQuizActivity extends AppCompatActivity {
         intentAvailableAt = normalizeTimestamp(rawAvailableAt);
         try { intentDurationMinutes = getIntent().hasExtra("durationMinutes") ? getIntent().getIntExtra("durationMinutes", 0) : 0; } catch (Exception ignored) { intentDurationMinutes = 0; }
 
+        intentSubjectName = getIntent().getStringExtra("subjectName");
+        intentCourseCode = getIntent().getStringExtra("courseCode");
+        intentTeacherName = getIntent().getStringExtra("teacherName");
+        Log.d(TAG, "Intent meta: subject=" + intentSubjectName + " course=" + intentCourseCode + " teacher=" + intentTeacherName);
+
         // If duration provided via intent and not set yet, use it
         if (intentDurationMinutes > 0 && durationMinutes == 0) {
             durationMinutes = intentDurationMinutes;
@@ -205,6 +217,9 @@ public class TakeQuizActivity extends AppCompatActivity {
                 com.example.nextgen.offline.AppDatabase db = com.example.nextgen.offline.AppDatabase.getInstance(TakeQuizActivity.this);
                 com.example.nextgen.offline.ExamEntity examEntity = db.examDao().getExamById(finalQuizId);
                 if (examEntity != null) {
+                    // cache scheduledAt to avoid main-thread DB calls later
+                    cachedScheduledAt = examEntity.scheduledAt;
+
                     runOnUiThread(() -> {
                         if ((quizName == null || quizName.isEmpty()) && examEntity.examTitle != null) {
                             quizName = examEntity.examTitle;
@@ -501,15 +516,11 @@ public class TakeQuizActivity extends AppCompatActivity {
     }
 
     private long getComputedAvailableAt() {
-        // priority: intentAvailableAt > quiz node availableAt > scheduledAt (from cached DB)
+        // priority: intentAvailableAt > cachedScheduledAt (from cached DB) > quiz node availableAt
         if (intentAvailableAt > 0) return intentAvailableAt;
 
-        // try cached local DB
-        try {
-            com.example.nextgen.offline.AppDatabase db = com.example.nextgen.offline.AppDatabase.getInstance(this);
-            com.example.nextgen.offline.ExamEntity ex = db.examDao().getExamById(quizId);
-            if (ex != null && ex.scheduledAt > 0) return ex.scheduledAt;
-        } catch (Exception ignored) {}
+        // use cached value populated during preload (non-blocking)
+        if (cachedScheduledAt > 0) return cachedScheduledAt;
 
         // fallback: 0 (immediately available)
         return 0L;
@@ -965,7 +976,8 @@ public class TakeQuizActivity extends AppCompatActivity {
         currentQuestionType = type;
         currentTypeQuestions.clear();
         for (Question q : questionList) {
-            if (q.getQuestionType().equalsIgnoreCase(type)) currentTypeQuestions.add(q);
+            String qt = q.getQuestionType();
+            if (qt != null && qt.equalsIgnoreCase(type)) currentTypeQuestions.add(q);
         }
         typeQuestionNumber = 1;
         currentIndex = 0;
@@ -1047,6 +1059,11 @@ public class TakeQuizActivity extends AppCompatActivity {
             if (isNetworkAvailable()) saveScoreToFirebase(localStudentId, finalCalculatedScore, totalQuestions);
 
             Toast.makeText(TakeQuizActivity.this, "Submission saved locally; will sync when online.", Toast.LENGTH_LONG).show();
+            // --- ADD THIS BROADCAST ---
+            Intent intent = new Intent("com.example.nextgen.QUIZ_SUBMITTED");
+            intent.putExtra("quizId", quizId);
+            LocalBroadcastManager.getInstance(TakeQuizActivity.this).sendBroadcast(intent);
+
             redirectToResultActivity(finalCalculatedScore, totalQuestions);
             return;
         }
@@ -1076,6 +1093,11 @@ public class TakeQuizActivity extends AppCompatActivity {
                                 if (isNetworkAvailable()) saveScoreToFirebase(studentId, finalCalculatedScore, totalQuestions);
 
                                 Toast.makeText(TakeQuizActivity.this, "Submission saved and will sync when online.", Toast.LENGTH_LONG).show();
+                                // --- ADD THIS BROADCAST ---
+                                Intent intent = new Intent("com.example.nextgen.QUIZ_SUBMITTED");
+                                intent.putExtra("quizId", quizId);
+                                LocalBroadcastManager.getInstance(TakeQuizActivity.this).sendBroadcast(intent);
+
                                 redirectToResultActivity(finalCalculatedScore, totalQuestions);
                                 break;
                             }
@@ -1108,6 +1130,11 @@ public class TakeQuizActivity extends AppCompatActivity {
             );
             if (isNetworkAvailable()) saveScoreToFirebase(localStudentId, 0, maxScore);
             Toast.makeText(TakeQuizActivity.this, "Zero-score submission saved locally.", Toast.LENGTH_LONG).show();
+            // --- ADD THIS BROADCAST ---
+            Intent intent = new Intent("com.example.nextgen.QUIZ_SUBMITTED");
+            intent.putExtra("quizId", quizId);
+            LocalBroadcastManager.getInstance(TakeQuizActivity.this).sendBroadcast(intent);
+
             redirectToResultActivity(0, maxScore);
             return;
         }
@@ -1135,6 +1162,11 @@ public class TakeQuizActivity extends AppCompatActivity {
                                 );
                                 if (isNetworkAvailable()) saveScoreToFirebase(studentId, 0, maxScore);
                                 Toast.makeText(TakeQuizActivity.this, "Zero-score submission saved locally.", Toast.LENGTH_LONG).show();
+                                // --- ADD THIS BROADCAST ---
+                                Intent intent = new Intent("com.example.nextgen.QUIZ_SUBMITTED");
+                                intent.putExtra("quizId", quizId);
+                                LocalBroadcastManager.getInstance(TakeQuizActivity.this).sendBroadcast(intent);
+
                                 redirectToResultActivity(0, maxScore);
                                 break;
                             }
@@ -1170,11 +1202,28 @@ public class TakeQuizActivity extends AppCompatActivity {
         scoreEntryRef.updateChildren(updates).addOnCompleteListener(task -> {
             Log.d(TAG, "QuizScores write complete for " + quizId + " success=" + task.isSuccessful()
                     + (task.isSuccessful() ? "" : " err=" + (task.getException() != null ? task.getException().getMessage() : "null")));
+
             if (task.isSuccessful()) {
-                // Notify local UI immediately so QuizList shows "TAKEN" without waiting for realtime propagation
+
+                // 🔥 MARK QUIZ AS COMPLETED (THIS FIXES YOUR ISSUE)
+                DatabaseReference takenRef = FirebaseDatabase.getInstance()
+                        .getReference("QuizStudents")
+                        .child(quizId)
+                        .child(studentId);
+
+                Map<String, Object> takenMap = new HashMap<>();
+                takenMap.put("present", true);            // or "taken": true (depende sa ginagamit mo)
+                takenMap.put("finished", true);
+                takenMap.put("submitted", true);
+                takenMap.put("score", score);
+
+                takenRef.updateChildren(takenMap);
+
+                // Notify UI immediately
                 notifyLocalTaken(quizId);
             }
         });
+
     }
     private void notifyLocalTaken(String quizId) {
         try {
@@ -1244,19 +1293,51 @@ public class TakeQuizActivity extends AppCompatActivity {
                                             }
 
                                             Intent intent = new Intent(TakeQuizActivity.this, QuizResultActivity.class); // changed
+                                            // 🔥 Mark quiz completion
+                                            DatabaseReference completionRef = FirebaseDatabase.getInstance()
+                                                    .getReference("UsersAnswers")
+                                                    .child(studentId)
+                                                    .child(quizId);
+
+                                            Map<String, Object> comp = new HashMap<>();
+                                            comp.put("hasFinished", 1);
+                                            comp.put("hasSubmitted", 1);
+                                            comp.put("completed", true);
+                                            comp.put("resultScore", score);
+                                            comp.put("maxScore", maxScore);
+                                            comp.put("timestamp", System.currentTimeMillis());
+
+                                            completionRef.updateChildren(comp);
+
+                                            final String resolvedSubjectName = (intentSubjectName != null && !intentSubjectName.trim().isEmpty())
+                                                    ? intentSubjectName : (subjectName != null ? subjectName : "");
+                                            final String resolvedTeacherName = (intentTeacherName != null && !intentTeacherName.trim().isEmpty())
+                                                    ? intentTeacherName : (teacherName != null ? teacherName : "");
+                                            final String resolvedCourseCode = (intentCourseCode != null && !intentCourseCode.trim().isEmpty())
+                                                    ? intentCourseCode : (subjectCode != null ? subjectCode : "");
+
+// Put them into the result intent (always provide keys, even if empty)
+                                            intent.putExtra("subjectName", resolvedSubjectName);
+                                            intent.putExtra("teacherName", resolvedTeacherName);
+                                            intent.putExtra("courseCode", resolvedCourseCode);
+
+// existing extras
                                             intent.putExtra("studentName", fullName);
                                             intent.putExtra("studentId", studentId);
                                             intent.putExtra("profileImage", profileImage);
 
-                                            intent.putExtra("courseCode", subjectCode);
-                                            intent.putExtra("subjectName", subjectName);
-                                            intent.putExtra("teacherName", teacherName);
-
-                                            // use "quizTitle" key (was "examTitle")
                                             intent.putExtra("quizTitle", quizName);
                                             intent.putExtra("totalScore", score);
                                             intent.putExtra("maxScore", maxScore);
                                             intent.putExtra("deductions", totalDeductions);
+
+                                            intent.putExtra("quizId", quizId);
+
+// optional debug log to confirm values
+                                            Log.d(TAG, "Launching QuizResultActivity: quizId=" + quizId
+                                                    + " subject=" + resolvedSubjectName
+                                                    + " course=" + resolvedCourseCode
+                                                    + " teacher=" + resolvedTeacherName);
 
                                             startActivity(intent);
                                             finish();
@@ -1293,16 +1374,40 @@ public class TakeQuizActivity extends AppCompatActivity {
     }
 
     private void stopAudioMonitoring() {
-        audioHandler.removeCallbacksAndMessages(null);
-        if (mediaRecorder != null) {
-            try { mediaRecorder.stop(); } catch (Exception ignored) { }
-            mediaRecorder.release();
-            mediaRecorder = null;
-        }
-        if (classifier != null) {
-            classifier.close();
-            classifier = null;
-        }
+        // remove audio handler callbacks
+        try {
+            if (audioHandler != null) audioHandler.removeCallbacksAndMessages(null);
+        } catch (Exception ignored) {}
+
+        // stop and release AudioRecord if created
+        try {
+            if (audioRecord != null) {
+                try { audioRecord.stop(); } catch (Exception ignored) {}
+                try { audioRecord.release(); } catch (Exception ignored) {}
+            }
+        } catch (Exception ignored) {}
+        audioRecord = null;
+
+        // null tensorAudio
+        tensorAudio = null;
+
+        // close classifier if open
+        try {
+            if (classifier != null) {
+                classifier.close();
+            }
+        } catch (Exception ignored) {}
+        classifier = null;
+
+        // stop/release mediaRecorder if used
+        try {
+            if (mediaRecorder != null) {
+                try { mediaRecorder.stop(); } catch (Exception ignored) {}
+                try { mediaRecorder.release(); } catch (Exception ignored) {}
+            }
+        } catch (Exception ignored) {}
+        mediaRecorder = null;
+
         audioCheatingCount = 0;
     }
 
@@ -1484,5 +1589,12 @@ public class TakeQuizActivity extends AppCompatActivity {
         if (currentIndex < currentTypeQuestions.size() - 1) btnSubmit.setText("Next");
         else if (hasNextNonEmptySection()) btnSubmit.setText("Next Section");
         else btnSubmit.setText("Submit Quiz");
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (countDownTimer != null) countDownTimer.cancel();
+        stopAudioMonitoring();
+        super.onDestroy();
     }
 }

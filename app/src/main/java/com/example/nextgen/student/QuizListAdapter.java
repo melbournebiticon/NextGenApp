@@ -32,15 +32,15 @@ import java.util.concurrent.TimeUnit;
 import java.text.SimpleDateFormat;
 
 /**
- * QuizListAdapter - cleaned and fixed
+ * QuizListAdapter - updated: separate "attendance/present" vs "taken" methods.
  *
- * Extended:
- * - Shows explicit status (ABSENT, AVAILABLE, TAKEN, EXPIRED, SUBMITTED (Pending))
- * - Performs async local pending-check before launching quiz (uses Room like ExamAdapter)
- * - When online, attempts to set QuizStudents/{quizId}/{studentId}/ongoing=true before starting
+ * Important change:
+ * - setStudentPresent(...) now updates only the attendance/studentPresent flag (teacher scanned / optimistic).
+ *   It does NOT mark the quiz as TAKEN.
+ * - setQuizTaken(...) is a new method that marks the quiz as completed (present=true, available=false, status="TAKEN")
+ *   and removes optimistic flags. This should be called when a submission is confirmed (broadcast or DB listener).
  *
- * Note: This implementation uses tvTaken as the status label so no layout changes required.
- * If you prefer a Material Chip instead, update item_quiz_list.xml and I can switch to it.
+ * This prevents the adapter from showing TAKEN immediately when the student is merely marked present.
  */
 public class QuizListAdapter extends RecyclerView.Adapter<QuizListAdapter.VH> {
 
@@ -193,27 +193,23 @@ public class QuizListAdapter extends RecyclerView.Adapter<QuizListAdapter.VH> {
         // ===== STATUS / ATTENDANCE =====
         String status = safeTrim(q.getStatus()).toLowerCase();
         boolean isPending = status.contains("pending");
-
-        // ===== OPTIMISTIC FLAG =====
         boolean isOptimistic = optimisticPresent.contains(normalizeKey(q.getQuizId()));
 
-        // ===== Determine which visible state to show (mirrors ExamAdapter) =====
-        // Use holder.tvTaken as the status label (styled)
         holder.tvTaken.setVisibility(View.VISIBLE);
         holder.btnTakeQuiz.setVisibility(View.GONE);
         holder.btnTakeQuiz.setEnabled(false);
         holder.itemView.setClickable(true);
         holder.itemView.setOnClickListener(v -> { /* default no-op */ });
 
-        // Helper to set status label appearance
-        final Runnable setStatusLabel = () -> {
-            // default style
+        if (afterEnd) {
+            holder.tvTaken.setText("EXPIRED");
+            holder.tvTaken.setBackgroundColor(ContextCompat.getColor(holder.tvTaken.getContext(), R.color.error));
             holder.tvTaken.setTextColor(Color.WHITE);
-            holder.tvTaken.setBackgroundColor(ContextCompat.getColor(holder.tvTaken.getContext(), android.R.color.darker_gray));
-        };
-
-        // ABSENT
-        if (!attendancePresent) {
+            holder.btnTakeQuiz.setVisibility(View.GONE);
+            holder.itemView.setOnClickListener(v ->
+                    showToast(holder, "This quiz has expired.")
+            );
+        } else if (!attendancePresent) {
             holder.tvTaken.setText("ABSENT");
             holder.tvTaken.setBackgroundColor(ContextCompat.getColor(holder.tvTaken.getContext(), R.color.error));
             holder.tvTaken.setTextColor(Color.WHITE);
@@ -221,8 +217,6 @@ public class QuizListAdapter extends RecyclerView.Adapter<QuizListAdapter.VH> {
             holder.itemView.setOnClickListener(v ->
                     showToast(holder, "You are marked ABSENT for this quiz.")
             );
-
-            // SUBMITTED (Pending)
         } else if (isPending) {
             holder.tvTaken.setText("SUBMITTED (Pending)");
             holder.tvTaken.setBackgroundColor(ContextCompat.getColor(holder.tvTaken.getContext(), R.color.md_theme_primary));
@@ -231,9 +225,7 @@ public class QuizListAdapter extends RecyclerView.Adapter<QuizListAdapter.VH> {
             holder.itemView.setOnClickListener(v ->
                     showToast(holder, "You have already submitted this quiz (pending sync).")
             );
-
-            // AVAILABLE & not yet taken
-        } else if ((active && !alreadyTaken && attendancePresent && inWindowWithTolerance) || isOptimistic) {
+        } else if ((active && !alreadyTaken && attendancePresent && inWindowWithTolerance && !afterEnd) || (isOptimistic && !afterEnd)) {
             holder.tvTaken.setVisibility(View.GONE);
             holder.btnTakeQuiz.setVisibility(View.VISIBLE);
             holder.btnTakeQuiz.setEnabled((active && !alreadyTaken && attendancePresent && inWindowStrict) || isOptimistic);
@@ -245,13 +237,28 @@ public class QuizListAdapter extends RecyclerView.Adapter<QuizListAdapter.VH> {
                 holder.btnTakeQuiz.setText("Take Quiz");
             }
 
-            // click handling: async pending check then set ongoing / launch
             holder.btnTakeQuiz.setOnClickListener(v -> {
                 if (!holder.btnTakeQuiz.isEnabled()) return;
+
+                // 1) Fast in-memory guard
+                boolean modelTaken = false;
+                try {
+                    modelTaken = q.getPresent() != null && q.getPresent();
+                } catch (Exception ignored) { modelTaken = false; }
+                if (modelTaken || "TAKEN".equalsIgnoreCase(q.getStatus())) {
+                    showToast(holder, "You have already taken this quiz.");
+                    holder.btnTakeQuiz.setEnabled(false);
+                    // Ensure UI shows TAKEN state
+                    runOnUiThread(() -> setQuizTaken(q.getQuizId()));
+                    return;
+                }
+
+                // disable button while validating
                 holder.btnTakeQuiz.setEnabled(false);
-                // background check for local pending
+
+                // 2) Background checks (Room local pending + optional server check)
                 bgExecutor.execute(() -> {
-                    String ctxStudentId = com.example.nextgen.SessionManager.getStudentId(holder.btnTakeQuiz.getContext());
+                    final String ctxStudentId = com.example.nextgen.SessionManager.getStudentId(holder.btnTakeQuiz.getContext());
                     if (ctxStudentId == null || ctxStudentId.isEmpty()) {
                         runOnUiThread(() -> {
                             showToast(holder, "Student ID not found.");
@@ -260,7 +267,7 @@ public class QuizListAdapter extends RecyclerView.Adapter<QuizListAdapter.VH> {
                         return;
                     }
 
-                    // check Room pending submission
+                    // 2a) Local pending submission check (Room)
                     com.example.nextgen.offline.PendingSubmission pending = null;
                     try {
                         com.example.nextgen.offline.AppDatabase db = com.example.nextgen.offline.AppDatabase.getInstance(holder.btnTakeQuiz.getContext().getApplicationContext());
@@ -270,44 +277,70 @@ public class QuizListAdapter extends RecyclerView.Adapter<QuizListAdapter.VH> {
                     }
 
                     if (pending != null) {
+                        // Mark taken locally and inform user
                         runOnUiThread(() -> {
                             showToast(holder, "You already submitted this quiz (pending upload).");
+                            setQuizTaken(q.getQuizId());
                             holder.btnTakeQuiz.setEnabled(false);
                         });
                         return;
                     }
 
-                    // No local pending -> proceed (online attempt to mark ongoing, else offline launch)
-                    runOnUiThread(() -> {
-                        if (isNetworkAvailable(holder.btnTakeQuiz.getContext())) {
-                            DatabaseReference ref = FirebaseDatabase.getInstance()
-                                    .getReference("QuizStudents")
-                                    .child(q.getQuizId())
-                                    .child(ctxStudentId);
-                            ref.child("ongoing").setValue(true)
-                                    .addOnSuccessListener(aVoid -> {
-                                        showToast(holder, "Quiz started! Marked as ongoing.");
-                                        if (listener != null) listener.onQuizClick(q);
-                                        holder.btnTakeQuiz.setEnabled(true);
-                                    })
-                                    .addOnFailureListener(e -> {
-                                        showToast(holder, "Failed to update ongoing, starting offline.");
-                                        if (listener != null) listener.onQuizClick(q);
-                                        holder.btnTakeQuiz.setEnabled(true);
-                                    });
-                        } else {
-                            // offline: start quiz directly
+                    // 2b) Optional last-moment server check to avoid race (recommended)
+                    if (isNetworkAvailable(holder.btnTakeQuiz.getContext())) {
+                        DatabaseReference scoreRef = FirebaseDatabase.getInstance()
+                                .getReference("QuizScores")
+                                .child(ctxStudentId)
+                                .child(q.getQuizId());
+                        scoreRef.get().addOnCompleteListener(task -> {
+                            boolean exists = false;
+                            if (task.isSuccessful() && task.getResult() != null) {
+                                exists = task.getResult().exists();
+                            }
+
+                            if (exists) {
+                                // Server already has a score -> mark taken and block start
+                                runOnUiThread(() -> {
+                                    showToast(holder, "You have already completed this quiz.");
+                                    setQuizTaken(q.getQuizId());
+                                    holder.btnTakeQuiz.setEnabled(false);
+                                });
+                                return;
+                            }
+
+                            // Not taken on server -> proceed to set ongoing and start quiz
+                            runOnUiThread(() -> {
+                                DatabaseReference ref = FirebaseDatabase.getInstance()
+                                        .getReference("QuizStudents")
+                                        .child(q.getQuizId())
+                                        .child(ctxStudentId);
+
+                                ref.child("ongoing").setValue(true)
+                                        .addOnSuccessListener(aVoid -> {
+                                            // clearer startup text
+                                            showToast(holder, "Starting quiz...");
+                                            if (listener != null) listener.onQuizClick(q);
+                                            holder.btnTakeQuiz.setEnabled(true);
+                                        })
+                                        .addOnFailureListener(e -> {
+                                            showToast(holder, "Failed to update ongoing, starting offline.");
+                                            if (listener != null) listener.onQuizClick(q);
+                                            holder.btnTakeQuiz.setEnabled(true);
+                                        });
+                            });
+                        });
+                    } else {
+                        // offline: launch immediately
+                        runOnUiThread(() -> {
                             if (listener != null) listener.onQuizClick(q);
                             holder.btnTakeQuiz.setEnabled(true);
-                        }
-                    });
+                        });
+                    }
                 });
             });
 
             holder.itemView.setClickable(false);
             holder.itemView.setOnClickListener(null);
-
-            // TAKEN
         } else if (alreadyTaken) {
             holder.tvTaken.setText("TAKEN");
             holder.tvTaken.setBackgroundColor(ContextCompat.getColor(holder.tvTaken.getContext(), R.color.md_theme_primary));
@@ -316,26 +349,12 @@ public class QuizListAdapter extends RecyclerView.Adapter<QuizListAdapter.VH> {
             holder.itemView.setOnClickListener(v ->
                     showToast(holder, "You have already taken this quiz.")
             );
-
-            // EXPIRED / NO LONGER AVAILABLE
-        } else if (afterEnd) {
-            holder.tvTaken.setText("EXPIRED");
-            holder.tvTaken.setBackgroundColor(ContextCompat.getColor(holder.tvTaken.getContext(), R.color.error));
-            holder.tvTaken.setTextColor(Color.WHITE);
-            holder.btnTakeQuiz.setVisibility(View.GONE);
-            holder.itemView.setOnClickListener(v ->
-                    showToast(holder, "This quiz has expired.")
-            );
-
-            // SCHEDULED / default
         } else {
             holder.tvTaken.setText("SCHEDULED");
             holder.tvTaken.setBackgroundColor(ContextCompat.getColor(holder.tvTaken.getContext(), R.color.blue_500));
             holder.tvTaken.setTextColor(Color.WHITE);
             holder.btnTakeQuiz.setVisibility(View.GONE);
             final String scheduleCopy = scheduleText;
-
-// Later, when setting the scheduled click handler, use scheduleCopy:
             holder.itemView.setOnClickListener(v ->
                     showToast(holder, "Scheduled: " + scheduleCopy)
             );
@@ -391,42 +410,91 @@ public class QuizListAdapter extends RecyclerView.Adapter<QuizListAdapter.VH> {
         return s == null ? "" : s.trim().toLowerCase();
     }
 
+    /**
+     * Attendance-only update: marks studentPresent (teacher marked / scanned).
+     * This does NOT mark the quiz as TAKEN.
+     * Use setQuizTaken(...) to mark completion.
+     */
     public void setStudentPresent(@NonNull String quizId, boolean present) {
+        if (quizId == null) return;
+        String key = normalizeKey(quizId);
+
+        int pos = getPositionForQuizId(quizId);
+        if (pos >= 0) {
+            // Update existing item
+            synchronized (list) {
+                QuizModel qm = list.get(pos);
+                if (qm != null) {
+                    qm.setStudentPresent(present); // Only attendance, not quiz-taken status
+
+                    if (present) {
+                        optimisticPresent.add(key);
+                    } else {
+                        optimisticPresent.remove(key);
+                    }
+                }
+            }
+            try {
+                notifyItemChanged(pos);
+            } catch (Exception e) {
+                notifyDataSetChanged();
+            }
+        } else {
+            // DO NOT CREATE PLACEHOLDERS ANYMORE
+            if (present) {
+                optimisticPresent.add(key); // Keep optimistic attendance only
+            } else {
+                optimisticPresent.remove(key);
+            }
+
+            Log.d(TAG, "setStudentPresent: quiz not in list (ignored): " + quizId);
+        }
+    }
+
+
+    /**
+     * Mark the quiz as completed/taken. This sets present=true (taken), available=false, status="TAKEN".
+     * Call this when submission is confirmed (DB child or QUIZ_SUBMITTED broadcast).
+     */
+    public void setQuizTaken(@NonNull String quizId) {
         if (quizId == null) return;
         String key = normalizeKey(quizId);
         int pos = getPositionForQuizId(quizId);
         if (pos >= 0) {
             synchronized (list) {
                 QuizModel qm = list.get(pos);
-                if (qm != null) qm.setStudentPresent(present);
-                if (present) optimisticPresent.add(key); else optimisticPresent.remove(key);
+                if (qm != null) {
+                    qm.setStudentPresent(true);
+                    try { qm.setPresent(true); } catch (Exception ignored) {}
+                    try { qm.setAvailable(false); } catch (Exception ignored) {}
+                    try { qm.setStatus("TAKEN"); } catch (Exception ignored) {}
+                    synchronized (optimisticPresent) { optimisticPresent.remove(key); }
+                }
             }
             try { notifyItemChanged(pos); } catch (Exception e) { notifyDataSetChanged(); }
         } else {
-            if (present) {
-                // add placeholder at top so UI shows immediately
-                QuizModel placeholder = new QuizModel();
-                placeholder.setQuizId(quizId);
-                placeholder.setQuizName("Quiz");
-                placeholder.setStatus("QUIZ");
-                placeholder.setAvailable(true);
-                placeholder.setActive(true);
-                placeholder.setStudentPresent(true);
-                synchronized (list) {
-                    list.add(0, placeholder);
-                    optimisticPresent.add(key);
-                }
-                try { notifyItemInserted(0); } catch (Exception e) { notifyDataSetChanged(); }
-            } else {
-                synchronized (optimisticPresent) { optimisticPresent.remove(key); }
-                Log.d(TAG, "setStudentPresent: quizId not in list and present=false (no-op): " + quizId);
+            // insert a TAKEN placeholder
+            QuizModel placeholder = new QuizModel();
+            placeholder.setQuizId(quizId);
+            placeholder.setQuizName("Quiz");
+            placeholder.setStatus("TAKEN");
+            placeholder.setAvailable(false);
+            placeholder.setActive(false);
+            placeholder.setStudentPresent(true);
+            try { placeholder.setPresent(true); } catch (Exception ignored) {}
+
+            synchronized (list) {
+                list.add(0, placeholder);
+                optimisticPresent.remove(key);
             }
+            try { notifyItemInserted(0); } catch (Exception e) { notifyDataSetChanged(); }
         }
     }
 
     /**
      * Mark optimistic present only (keeps separate semantics)
      * If item not present, insert placeholder so button appears immediately.
+     * This should not mark the quiz as 'taken' (present==true) — only attendance for showing Take button.
      */
     public void markOptimisticPresent(@NonNull String quizId) {
         if (quizId == null) return;
@@ -440,6 +508,7 @@ public class QuizListAdapter extends RecyclerView.Adapter<QuizListAdapter.VH> {
             synchronized (list) {
                 QuizModel qm = list.get(pos);
                 if (qm != null) {
+                    // Do NOT set qm.setPresent(true) here. We want optimistic attendance only.
                     qm.setStudentPresent(true);
                     qm.setActive(true);          // ensure button shows
                 }
@@ -452,7 +521,8 @@ public class QuizListAdapter extends RecyclerView.Adapter<QuizListAdapter.VH> {
             placeholder.setStatus("QUIZ");
             placeholder.setAvailable(true);
             placeholder.setActive(true);          // ensure button shows
-            placeholder.setStudentPresent(true);  // force present
+            placeholder.setStudentPresent(true);  // force attendance so button shows
+            // leave present=false so it is NOT considered 'TAKEN' until DB confirms
 
             synchronized (list) {
                 list.add(0, placeholder);
@@ -463,7 +533,6 @@ public class QuizListAdapter extends RecyclerView.Adapter<QuizListAdapter.VH> {
 
     /**
      * Replace or add a quiz model and notify adapter appropriately.
-     * Useful if you want to update metadata (quizName, schedule) without rebuilding the entire list.
      */
     public void updateOrAddQuiz(@NonNull QuizModel quiz) {
         String id = quiz.getQuizId();
@@ -474,6 +543,10 @@ public class QuizListAdapter extends RecyclerView.Adapter<QuizListAdapter.VH> {
                 boolean opt = optimisticPresent.contains(normalizeKey(id));
                 list.set(pos, quiz);
                 if (opt) quiz.setStudentPresent(true);
+                if (quiz.getPresent() != null && quiz.getPresent()) {
+                    optimisticPresent.remove(normalizeKey(id));
+                    quiz.setStudentPresent(true);
+                }
                 try { notifyItemChanged(pos); } catch (Exception e) { notifyDataSetChanged(); }
             } else {
                 boolean opt = optimisticPresent.contains(normalizeKey(id));
@@ -484,9 +557,6 @@ public class QuizListAdapter extends RecyclerView.Adapter<QuizListAdapter.VH> {
         }
     }
 
-    /**
-     * Remove a quiz by id (if needed).
-     */
     public void removeQuizById(@Nullable String quizId) {
         if (quizId == null) return;
         int pos = getPositionForQuizId(quizId);
@@ -501,14 +571,8 @@ public class QuizListAdapter extends RecyclerView.Adapter<QuizListAdapter.VH> {
     @Override
     public int getItemCount() { return list.size(); }
 
-    /**
-     * Merge-aware update:
-     * - Keep optimistic placeholders (entries whose ids are in optimisticPresent) if they are not in the fresh list.
-     * - For incoming items that match optimistic keys, ensure studentPresent=true is applied.
-     */
     public void updateData(List<QuizModel> newList) {
         synchronized (list) {
-            // Build a normalized set of incoming IDs
             Set<String> incomingKeys = new HashSet<>();
             if (newList != null) {
                 for (QuizModel qm : newList) {
@@ -516,7 +580,6 @@ public class QuizListAdapter extends RecyclerView.Adapter<QuizListAdapter.VH> {
                 }
             }
 
-            // Collect placeholders from existing list that are optimistic and not present in newList
             List<QuizModel> placeholdersToKeep = new ArrayList<>();
             for (QuizModel old : list) {
                 if (old == null) continue;
@@ -526,23 +589,20 @@ public class QuizListAdapter extends RecyclerView.Adapter<QuizListAdapter.VH> {
                 }
             }
 
-            // Replace list with newList, but prepend placeholders
             list.clear();
             if (!placeholdersToKeep.isEmpty()) {
-                // keep the most recent optimistic first
                 for (int i = placeholdersToKeep.size() - 1; i >= 0; i--) {
                     list.add(placeholdersToKeep.get(i));
                 }
             }
             if (newList != null) list.addAll(newList);
 
-            // ALWAYS REAPPLY optimistic presence no matter what DB sends
             for (QuizModel qm : list) {
                 if (qm == null) continue;
                 String k = normalizeKey(qm.getQuizId());
                 if (optimisticPresent.contains(k)) {
                     qm.setStudentPresent(true);
-                    qm.setActive(true); // make sure take quiz shows immediately
+                    qm.setActive(true);
                 }
             }
         }
@@ -552,6 +612,14 @@ public class QuizListAdapter extends RecyclerView.Adapter<QuizListAdapter.VH> {
     public void setHighlightQuizId(@Nullable String quizId) {
         this.highlightQuizId = quizId;
         notifyDataSetChanged();
+    }
+
+    @Override
+    public void onDetachedFromRecyclerView(@NonNull RecyclerView recyclerView) {
+        super.onDetachedFromRecyclerView(recyclerView);
+        try {
+            bgExecutor.shutdownNow();
+        } catch (Exception ignored) {}
     }
 
     static class VH extends RecyclerView.ViewHolder {

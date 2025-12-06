@@ -285,6 +285,18 @@ public class StudentDashboardActivity extends AppCompatActivity
                                 StudentModel student = ds.getValue(StudentModel.class);
                                 if (student != null) {
                                     currentStudent = student;
+                                    // add this after `currentStudent = student;` inside the studentsRef.onDataChange loop
+                                    try {
+                                        SessionManager sm = new SessionManager(StudentDashboardActivity.this);
+                                        if (student.getStudentId() != null && !student.getStudentId().trim().isEmpty()) {
+                                            sm.saveStudentId(student.getStudentId());
+                                        }
+                                        // optional: persist the whole model so other screens can read it
+                                        try { sm.saveStudentModel(student); } catch (Exception ignored) {}
+                                        Log.d(TAG, "Saved studentId to SessionManager: " + student.getStudentId());
+                                    } catch (Exception e) {
+                                        Log.w(TAG, "Failed to save studentId to SessionManager: " + e.getMessage());
+                                    }
                                     populateStudentData(student);
                                     showStudentSubjects();
                                     startPeriodicExamFetch(student);

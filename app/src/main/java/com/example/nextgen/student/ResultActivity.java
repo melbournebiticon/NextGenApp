@@ -4,6 +4,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.util.Base64;
+import android.util.Log;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -17,6 +18,8 @@ import com.google.firebase.database.DatabaseReference;
 
 public class ResultActivity extends AppCompatActivity {
 
+    private static final String TAG = "ResultActivity";
+
     private TextView tvCourseCode, tvSubjectName, tvTeacherName;
     private TextView tvStudentName, tvStudentId;
     private TextView tvScoreRaw, tvScorePercent, tvEquivalentGrade;
@@ -25,6 +28,7 @@ public class ResultActivity extends AppCompatActivity {
     // --- Helper: Decode Base64 and set profile image ---
     private void setProfileImage(String base64Image) {
         try {
+            if (imgProfile == null) return;
             if (base64Image == null || base64Image.trim().isEmpty()) {
                 imgProfile.setImageResource(R.drawable.examinee_default);
                 return;
@@ -43,39 +47,98 @@ public class ResultActivity extends AppCompatActivity {
             }
 
         } catch (Exception e) {
-            e.printStackTrace();
-            imgProfile.setImageResource(R.drawable.examinee_default);
+            Log.w(TAG, "setProfileImage failed: " + e.getMessage(), e);
+            if (imgProfile != null) imgProfile.setImageResource(R.drawable.examinee_default);
         }
     }
 
-    // --- Load from Firebase and override image if valid ---
-    private void loadProfileFromFirebase(String studentId) {
+    /**
+     * Try to load student profile image by:
+     * 1) Querying Students where studentId == provided id
+     * 2) If no result, attempt direct child lookup Students/{studentId} (in case studentId is the node key)
+     *
+     * Logs errors and shows a toast on failure with the exception text (useful during debugging).
+     */
+    private void loadProfileFromFirebase(final String studentId) {
+        if (studentId == null || studentId.trim().isEmpty()) {
+            Log.w(TAG, "loadProfileFromFirebase called with null/empty studentId");
+            return;
+        }
 
-        DatabaseReference ref = FirebaseDatabase.getInstance()
-                .getReference("Students");
+        DatabaseReference ref = FirebaseDatabase.getInstance().getReference("Students");
 
+        Log.d(TAG, "Attempting query Students where studentId=" + studentId);
         ref.orderByChild("studentId")
                 .equalTo(studentId)
                 .limitToFirst(1)
                 .get()
-                .addOnSuccessListener(snapshot -> {
-
-                    if (snapshot.exists()) {
-
-                        for (DataSnapshot studentSnap : snapshot.getChildren()) {
-
-                            String dbImage = studentSnap.child("profileImage").getValue(String.class);
-
-                            if (dbImage != null && !dbImage.trim().isEmpty()) {
-                                setProfileImage(dbImage); // Override
-                            }
-                        }
+                .addOnCompleteListener(task -> {
+                    if (!task.isSuccessful()) {
+                        Exception ex = task.getException();
+                        Log.w(TAG, "Query by child 'studentId' failed: " + (ex != null ? ex.getMessage() : "unknown"));
+                        // Try fallback direct child lookup
+                        tryDirectChildLookup(ref, studentId, ex);
+                        return;
                     }
 
+                    DataSnapshot snapshot = task.getResult();
+                    if (snapshot != null && snapshot.exists()) {
+                        Log.d(TAG, "Query matched student node, reading profileImage");
+                        for (DataSnapshot studentSnap : snapshot.getChildren()) {
+                            try {
+                                String dbImage = studentSnap.child("profileImage").getValue(String.class);
+                                if (dbImage != null && !dbImage.trim().isEmpty()) {
+                                    setProfileImage(dbImage); // Override
+                                }
+                            } catch (Exception e) {
+                                Log.w(TAG, "Failed to read profileImage from snapshot: " + e.getMessage(), e);
+                            }
+                            break;
+                        }
+                    } else {
+                        Log.d(TAG, "Query returned no results for studentId. Trying direct child lookup Students/" + studentId);
+                        tryDirectChildLookup(ref, studentId, null);
+                    }
                 })
-                .addOnFailureListener(e ->
-                        Toast.makeText(this, "Error fetching profile: " + e.getMessage(), Toast.LENGTH_SHORT).show()
-                );
+                .addOnFailureListener(e -> {
+                    Log.w(TAG, "Query by child 'studentId' failed with exception: " + e.getMessage(), e);
+                    tryDirectChildLookup(ref, studentId, e);
+                });
+    }
+
+    private void tryDirectChildLookup(DatabaseReference ref, String studentId, Exception prior) {
+        // Try reading Students/{studentId} in case the DB keys are the student IDs
+        ref.child(studentId).get()
+                .addOnCompleteListener(task -> {
+                    if (!task.isSuccessful()) {
+                        Exception ex = task.getException();
+                        Log.e(TAG, "Direct child lookup Students/" + studentId + " failed: " + (ex != null ? ex.getMessage() : "unknown"), ex);
+                        String msg = "Error fetching profile: " + (ex != null ? ex.getMessage() : (prior != null ? prior.getMessage() : "unknown"));
+                        Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
+                        return;
+                    }
+
+                    DataSnapshot snap = task.getResult();
+                    if (snap != null && snap.exists()) {
+                        try {
+                            String dbImage = snap.child("profileImage").getValue(String.class);
+                            if (dbImage != null && !dbImage.trim().isEmpty()) {
+                                setProfileImage(dbImage);
+                            } else {
+                                Log.d(TAG, "No profileImage field in Students/" + studentId);
+                            }
+                        } catch (Exception e) {
+                            Log.w(TAG, "Failed to read profileImage from direct child: " + e.getMessage(), e);
+                        }
+                    } else {
+                        Log.d(TAG, "No student node at Students/" + studentId);
+                        // Not an error necessarily — there may simply be no image — so no toast here
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Direct child lookup failed: " + e.getMessage(), e);
+                    Toast.makeText(this, "Error fetching profile: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                });
     }
 
     @Override
@@ -125,7 +188,7 @@ public class ResultActivity extends AppCompatActivity {
         // ==============================
 
         // 1. Always apply DEFAULT image first
-        imgProfile.setImageResource(R.drawable.examinee_default);
+        if (imgProfile != null) imgProfile.setImageResource(R.drawable.examinee_default);
 
         // 2. Apply Intent image only if valid
         if (profileImageFromIntent != null && !profileImageFromIntent.trim().isEmpty()) {
@@ -135,6 +198,8 @@ public class ResultActivity extends AppCompatActivity {
         // 3. Firebase overrides if valid
         if (studentId != null && !studentId.isEmpty()) {
             loadProfileFromFirebase(studentId);
+        } else {
+            Log.w(TAG, "StudentId intent extra null or empty; will not attempt Firebase profile lookup");
         }
     }
 }

@@ -39,6 +39,11 @@ import java.util.Set;
 // add these imports near the top of QuizListActivity.java (with the other imports)
 import java.util.Map;
 import java.util.HashMap;
+
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.IntentFilter;
 /**
  * QuizListActivity
  *
@@ -96,7 +101,14 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        LocalBroadcastManager.getInstance(this).registerReceiver(
+                quizSubmittedReceiver,
+                new IntentFilter("com.example.nextgen.QUIZ_SUBMITTED")
+        );
+
         setContentView(R.layout.activity_quiz_list);
+        sessionManager = new SessionManager(this);
 
         rvQuizzes = findViewById(R.id.rvQuizzes);
         progress = findViewById(R.id.progressQuizzes);
@@ -107,11 +119,13 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
         adapter = new QuizListAdapter(quizList, this);
         rvQuizzes.setAdapter(adapter);
 
+        LocalBroadcastManager.getInstance(this).registerReceiver(presenceReceiver,
+                new IntentFilter("com.example.nextgen.PRESENCE_UPDATED"));
+
         if (btnScanQr != null) {
             btnScanQr.setOnClickListener(v -> launchInAppScanner());
         }
 
-        sessionManager = new SessionManager(this);
         student = sessionManager.getStudentModel();
         if (student == null) {
             student = new StudentModel();
@@ -191,6 +205,34 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
     // Replace your fetchStudentProfileByStudentIdAndStart implementation with this version
 // (or update the body where you read the student's DB node).
 
+
+    private final BroadcastReceiver presenceReceiver = new BroadcastReceiver() {
+        @Override public void onReceive(Context context, Intent intent) {
+            if (intent == null) return;
+            String quizId = intent.getStringExtra("quizId");
+            String studentId = intent.getStringExtra("studentId");
+            boolean present = intent.getBooleanExtra("present", true); // default true if omitted
+
+            // Defensive checks
+            if (quizId == null || quizId.trim().isEmpty()) return;
+            if (sessionManager == null) return; // safety
+            String myStudentId = sessionManager.getStudentId();
+
+            // Only act if broadcast targets this student (or if studentId omitted)
+            if (studentId == null || studentId.equals(myStudentId)) {
+                if (adapter != null) {
+                    if (present) {
+                        adapter.setStudentPresent(quizId, true);
+                    } else {
+                        adapter.setStudentPresent(quizId, false);
+                    }
+                }
+            }
+        }
+    };
+
+
+
     private void fetchStudentProfileByStudentIdAndStart(@NonNull String studentId) {
         try {
             Log.d(TAG_DEBUG, "Looking up student profile for studentId=" + studentId);
@@ -256,10 +298,21 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
     private void startChildNotifications() {
     }
 
+    // Inside QuizListActivity
+
     @Override
     protected void onResume() {
         super.onResume();
+
+        // ensure realtime listeners for scores are attached (so markQuizTakenLocally will run)
         attachScoresRealtimeListenerIfNeeded();
+
+        // Optional: force a single full refresh when returning from result to be extra-safe.
+        // This is a cheap single-value read and only runs when the activity becomes visible.
+        try {
+            // If you want a full refresh uncomment the next line:
+            // startRealtimeListener();
+        } catch (Exception ignored) {}
     }
 
     @Override
@@ -274,7 +327,8 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
         stopChildNotifications();
         detachScoresRealtimeListener();
         detachAllPresenceListeners();
-        // presence listener logic removed intentionally (no confirmation flow)
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(presenceReceiver);
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(quizSubmittedReceiver);
     }
 
     private void stopChildNotifications() {
@@ -386,8 +440,33 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                         if (root != null) {
                             Snackbar.make(root, "Marked present locally. Tap 'Take Quiz' to start.", Snackbar.LENGTH_LONG)
                                     .setAction("Open", v -> {
+                                        // Resolve latest position from adapter (adapter owns its own list)
                                         int idx = adapter.getPositionForQuizId(quizIdToUse);
-                                        if (idx >= 0) onQuizClick(quizList.get(idx));
+
+                                        // Best-effort: check adapter index and local quizList bounds before accessing
+                                        if (idx >= 0) {
+                                            synchronized (quizList) {
+                                                if (idx < quizList.size()) {
+                                                    onQuizClick(quizList.get(idx));
+                                                    return;
+                                                }
+                                            }
+                                        }
+
+                                        // If we couldn't get a valid item, try a safer fallback:
+                                        // 1) Try to find by id in quizList in a safe loop
+                                        synchronized (quizList) {
+                                            for (QuizModel qm : quizList) {
+                                                if (qm != null && quizIdToUse.equalsIgnoreCase(qm.getQuizId())) {
+                                                    onQuizClick(qm);
+                                                    return;
+                                                }
+                                            }
+                                        }
+
+                                        // 2) If still not found, refresh list and show a friendly message
+                                        Snackbar.make(findViewById(android.R.id.content), "Quiz not available yet. Refreshing list...", Snackbar.LENGTH_SHORT).show();
+                                        startRealtimeListener(); // cheap single-read refresh already implemented
                                     })
                                     .show();
                         }
@@ -771,8 +850,19 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
         scoresStudentId = null;
     }
 
+    // Replace your existing markQuizTakenLocally(...) with this version
     private void markQuizTakenLocally(String quizId) {
         if (quizId == null) return;
+
+        Log.d(TAG_DEBUG, "markQuizTakenLocally called for quizId=" + quizId);
+
+        // Let the adapter handle marking the item as taken (it will update its model & UI)
+        if (adapter != null) {
+            adapter.setQuizTaken(quizId);
+            return;
+        }
+
+        // Fallback (shouldn't happen since adapter should exist) — keep for resilience
         int pos = findIndexById(quizId);
         if (pos >= 0) {
             synchronized (quizList) {
@@ -827,15 +917,65 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
         return s.trim().toLowerCase();
     }
 
+    // Replace the existing onQuizClick(...) method in your QuizListActivity with this version.
+// This prevents launching TakeQuizActivity when the quiz is already taken/present.
+
+    // onQuizClick(...) replacement — put this into your QuizListActivity (replace existing method)
     @Override
     public void onQuizClick(QuizModel quiz) {
         if (quiz == null || quiz.getQuizId() == null) return;
+
+        // If the adapter or model marks this quiz as present/taken, block re-taking
+        boolean isPresent = false;
+        try { isPresent = Boolean.TRUE.equals(quiz.getPresent()); } catch (Exception ignored) {}
+
+        if (isPresent || "TAKEN".equalsIgnoreCase(quiz.getStatus())) {
+            // Optionally show a message to the student
+            Toast.makeText(this, "You have already taken this quiz.", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
         Intent intent = new Intent(this, TakeQuizActivity.class);
         intent.putExtra("quizId", quiz.getQuizId());
         intent.putExtra("quizName", quiz.getQuizName());
         intent.putExtra("availableAt", quiz.getAvailableAt() != null ? quiz.getAvailableAt() : 0L);
         intent.putExtra("durationMinutes", quiz.getDurationMinutes() != null ? quiz.getDurationMinutes() : 0);
+
+        // Pass subject/teacher metadata so TakeQuizActivity & QuizResultActivity don't need DB lookups.
+        // Prefer passing subjectId if your QuizModel stores it (most robust).
+        try {
+            java.lang.reflect.Method m = quiz.getClass().getMethod("getSubjectId");
+            Object sid = m.invoke(quiz);
+            if (sid instanceof String && !((String) sid).trim().isEmpty()) {
+                intent.putExtra("subjectId", (String) sid);
+            }
+        } catch (Exception ignored) {
+            // no subjectId method — ignore
+        }
+
+        // always pass subjectName and teacherName if present
+        if (quiz.getSubjectName() != null) intent.putExtra("subjectName", quiz.getSubjectName());
+        if (quiz.getTeacherName() != null) intent.putExtra("teacherName", quiz.getTeacherName());
+
+        // subjectCode: if you have a dedicated subjectCode/courseCode field pass it; otherwise pass courseName as fallback
+        String courseCodeOrName = null;
+        try {
+            java.lang.reflect.Method m = quiz.getClass().getMethod("getSubjectCode");
+            Object sc = m.invoke(quiz);
+            if (sc instanceof String) courseCodeOrName = (String) sc;
+        } catch (Exception ignored) {}
+        if (courseCodeOrName == null || courseCodeOrName.trim().isEmpty()) {
+            courseCodeOrName = quiz.getCourseName();
+        }
+        if (courseCodeOrName != null) intent.putExtra("courseCode", courseCodeOrName);
+
+        // Debug log to confirm what's being passed
+        Log.d("QuizListActivity", "Launching TakeQuizActivity: quizId=" + quiz.getQuizId()
+                + " subjectId=" + intent.getStringExtra("subjectId")
+                + " subjectName=" + intent.getStringExtra("subjectName")
+                + " courseCode=" + intent.getStringExtra("courseCode")
+                + " teacher=" + intent.getStringExtra("teacherName"));
+
         startActivity(intent);
     }
 
@@ -936,4 +1076,18 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
         examPresenceListeners.clear();
         examPresenceRefs.clear();
     }
+
+    // Replace your existing quizSubmittedReceiver with this block
+    private final BroadcastReceiver quizSubmittedReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            String quizId = intent.getStringExtra("quizId");
+            if (quizId != null && adapter != null) {
+                Log.d(TAG_DEBUG, "quizSubmittedReceiver: marking quiz taken: " + quizId);
+                // mark the quiz as completed/taken in the adapter (hides Take button)
+                adapter.setQuizTaken(quizId);
+            }
+        }
+    };
+
 }

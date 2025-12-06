@@ -37,6 +37,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.google.android.gms.tasks.Task;
+import com.google.android.gms.tasks.Tasks;
+
 /**
  * QuizMonitorActivity - teacher view for monitoring students for a quiz.
  *
@@ -343,40 +346,80 @@ public class QuizMonitorActivity extends AppCompatActivity {
      * Clears Scores and resets the status in QuizStudents node.
      */
     private void performReset(String studentId) {
-        // Reference to the score record
-        DatabaseReference scoreRef = FirebaseDatabase.getInstance()
+        if (studentId == null || studentId.trim().isEmpty() || quizId == null || quizId.trim().isEmpty()) {
+            Toast.makeText(this, "Invalid student or quiz id for reset.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // 1) References to all known score/answer nodes we want to clear
+        DatabaseReference quizScoresRef = FirebaseDatabase.getInstance()
+                .getReference("QuizScores")
+                .child(studentId)
+                .child(quizId);
+
+        DatabaseReference legacyScoresRef = FirebaseDatabase.getInstance()
                 .getReference("Scores")
                 .child(studentId)
                 .child(quizId);
 
-        // Reference to the quiz status node
+        DatabaseReference usersAnswersRef = FirebaseDatabase.getInstance()
+                .getReference("UsersAnswers")
+                .child(studentId)
+                .child(quizId);
+
+        // Also clear any per-quiz-per-student score stored under QuizStudents/{quizId}/{studentId}/score
+        DatabaseReference quizStudentScoreRef = FirebaseDatabase.getInstance()
+                .getReference("QuizStudents")
+                .child(quizId)
+                .child(studentId)
+                .child("score");
+
+        // And clear submitted/finished flags under QuizStudents (we'll set them false via update later)
         DatabaseReference quizStudentNodeRef = FirebaseDatabase.getInstance()
                 .getReference("QuizStudents")
                 .child(quizId)
                 .child(studentId);
 
-        // Map for updates to clear the status node
+        // Prepare status resets for the QuizStudents node (set to Absent/not allowed/not ongoing)
         Map<String, Object> updates = new HashMap<>();
-        updates.put("present", false); // Default to Absent after reset
+        updates.put("present", false);
         updates.put("ongoing", false);
         updates.put("questionsAnswered", 0);
-        updates.put("allowed", false); // ensure student cannot start immediately after reset
+        updates.put("allowed", false);
+        updates.put("submitted", false);
+        updates.put("finished", false);
 
-        // 1. Remove the Scores node
-        scoreRef.removeValue().addOnCompleteListener(scoreTask -> {
-            if (scoreTask.isSuccessful()) {
-                // 2. Reset the status in the QuizStudents node
+        // RemoveValue tasks
+        Task<Void> t1 = quizScoresRef.removeValue();
+        Task<Void> t2 = legacyScoresRef.removeValue();
+        Task<Void> t3 = usersAnswersRef.removeValue();
+        Task<Void> t4 = quizStudentScoreRef.removeValue();
+
+        // Wait for all removals to complete
+        Tasks.whenAll(t1, t2, t3, t4).addOnCompleteListener(allTask -> {
+            if (allTask.isSuccessful()) {
+                // Now update the QuizStudents node to clear flags and ensure student cannot start
                 quizStudentNodeRef.updateChildren(updates).addOnCompleteListener(statusTask -> {
                     if (statusTask.isSuccessful()) {
-                        Toast.makeText(QuizMonitorActivity.this, "Quiz reset and status cleared for student: " + studentId, Toast.LENGTH_LONG).show();
+                        Toast.makeText(QuizMonitorActivity.this, "Quiz reset and scores cleared for student: " + studentId, Toast.LENGTH_LONG).show();
                     } else {
-                        Toast.makeText(QuizMonitorActivity.this, "Quiz score reset successful, but failed to clear status.", Toast.LENGTH_LONG).show();
+                        Toast.makeText(QuizMonitorActivity.this, "Scores cleared but failed to clear status for " + studentId, Toast.LENGTH_LONG).show();
                         android.util.Log.e("Reset", "Failed to clear status: " + statusTask.getException());
                     }
                 });
             } else {
-                Toast.makeText(QuizMonitorActivity.this, "Failed to reset quiz for student: " + studentId, Toast.LENGTH_SHORT).show();
+                // At least one removal failed — attempt best-effort status update and report error
+                quizStudentNodeRef.updateChildren(updates).addOnCompleteListener(statusTask -> {
+                    Toast.makeText(QuizMonitorActivity.this, "Reset encountered errors; some score records may remain. Status flags updated.", Toast.LENGTH_LONG).show();
+                });
+                android.util.Log.e("Reset", "One or more deletions failed when resetting student " + studentId + " for quiz " + quizId);
             }
+        }).addOnFailureListener(e -> {
+            // Tasks.whenAll failed to schedule / immediate failure
+            android.util.Log.e("Reset", "Failed to remove score nodes: " + e);
+            // Try best-effort status update
+            quizStudentNodeRef.updateChildren(updates);
+            Toast.makeText(QuizMonitorActivity.this, "Reset failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
         });
     }
 

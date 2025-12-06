@@ -1,14 +1,17 @@
 package com.example.nextgen.student;
 
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.util.Base64;
+import android.view.MenuItem;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.example.nextgen.R;
 import com.google.firebase.database.DataSnapshot;
@@ -19,6 +22,8 @@ import com.google.firebase.database.FirebaseDatabase;
  * QuizResultActivity - same behavior as the provided ResultActivity but uses the "quizTitle" extra.
  * - Displays student/profile info and score summary.
  * - Attempts to use profile image from intent first, then overrides with DB-stored profileImage if available.
+ * - When Back or Up is pressed it notifies QuizListActivity via local broadcast and brings the list to front
+ *   to ensure the quiz is marked taken and student cannot retake it.
  */
 public class QuizResultActivity extends AppCompatActivity {
 
@@ -26,6 +31,9 @@ public class QuizResultActivity extends AppCompatActivity {
     private TextView tvStudentName, tvStudentId;
     private TextView tvScoreRaw, tvScorePercent, tvEquivalentGrade;
     private ImageView imgProfile;
+
+    // Quiz id passed from TakeQuizActivity (used to notify list)
+    private String quizId;
 
     // --- Helper: Decode Base64 and set profile image ---
     private void setProfileImage(String base64Image) {
@@ -54,33 +62,96 @@ public class QuizResultActivity extends AppCompatActivity {
     }
 
     // --- Load from Firebase and override image if valid ---
-    private void loadProfileFromFirebase(String studentId) {
+    // Replace the existing loadProfileFromFirebase(...) in QuizResultActivity with this implementation
 
-        DatabaseReference ref = FirebaseDatabase.getInstance()
-                .getReference("Students");
+    private void loadProfileFromFirebase(final String studentId) {
+        if (studentId == null || studentId.trim().isEmpty()) {
+            // Nothing to do
+            android.util.Log.w("QuizResultActivity", "loadProfileFromFirebase: studentId is null/empty");
+            return;
+        }
 
+        DatabaseReference ref = FirebaseDatabase.getInstance().getReference("Students");
+
+        android.util.Log.d("QuizResultActivity", "Attempting to load profile for studentId=" + studentId);
+
+        // Try query by child 'studentId' first (some projects store studentId as a child field)
         ref.orderByChild("studentId")
                 .equalTo(studentId)
                 .limitToFirst(1)
                 .get()
-                .addOnSuccessListener(snapshot -> {
-
-                    if (snapshot.exists()) {
-
-                        for (DataSnapshot studentSnap : snapshot.getChildren()) {
-
-                            String dbImage = studentSnap.child("profileImage").getValue(String.class);
-
-                            if (dbImage != null && !dbImage.trim().isEmpty()) {
-                                setProfileImage(dbImage); // Override
-                            }
-                        }
+                .addOnCompleteListener(task -> {
+                    if (!task.isSuccessful()) {
+                        Exception ex = task.getException();
+                        android.util.Log.w("QuizResultActivity", "Query by child 'studentId' failed: " + (ex != null ? ex.getMessage() : "unknown"));
+                        // Fallback to direct child lookup
+                        tryDirectChildLookup(ref, studentId, ex);
+                        return;
                     }
 
+                    DataSnapshot snapshot = task.getResult();
+                    if (snapshot != null && snapshot.exists()) {
+                        // Use the first matched node
+                        for (DataSnapshot studentSnap : snapshot.getChildren()) {
+                            try {
+                                String dbImage = studentSnap.child("profileImage").getValue(String.class);
+                                if (dbImage != null && !dbImage.trim().isEmpty()) {
+                                    setProfileImage(dbImage);
+                                    android.util.Log.d("QuizResultActivity", "Loaded profileImage from Students query for " + studentId);
+                                } else {
+                                    android.util.Log.d("QuizResultActivity", "No profileImage field in matched Students node for " + studentId);
+                                }
+                            } catch (Exception e) {
+                                android.util.Log.w("QuizResultActivity", "Error reading profileImage from snapshot: " + e.getMessage(), e);
+                            }
+                            break;
+                        }
+                    } else {
+                        // No match found — try direct child lookup in case Students/{studentId} is the key
+                        android.util.Log.d("QuizResultActivity", "Query returned no results; trying direct child Students/" + studentId);
+                        tryDirectChildLookup(ref, studentId, null);
+                    }
                 })
-                .addOnFailureListener(e ->
-                        Toast.makeText(this, "Error fetching profile: " + e.getMessage(), Toast.LENGTH_SHORT).show()
-                );
+                .addOnFailureListener(e -> {
+                    android.util.Log.w("QuizResultActivity", "Query by child 'studentId' failed with exception: " + e.getMessage(), e);
+                    tryDirectChildLookup(ref, studentId, e);
+                });
+    }
+
+    private void tryDirectChildLookup(DatabaseReference ref, String studentId, Exception prior) {
+        ref.child(studentId).get()
+                .addOnCompleteListener(task -> {
+                    if (!task.isSuccessful()) {
+                        Exception ex = task.getException();
+                        android.util.Log.e("QuizResultActivity", "Direct child lookup Students/" + studentId + " failed: " + (ex != null ? ex.getMessage() : "unknown"), ex);
+                        // show a toast with useful info for debugging (optional)
+                        String msg = "Error fetching profile: " + (ex != null ? ex.getMessage() : (prior != null ? prior.getMessage() : "unknown"));
+                        Toast.makeText(QuizResultActivity.this, msg, Toast.LENGTH_LONG).show();
+                        return;
+                    }
+
+                    DataSnapshot snap = task.getResult();
+                    if (snap != null && snap.exists()) {
+                        try {
+                            String dbImage = snap.child("profileImage").getValue(String.class);
+                            if (dbImage != null && !dbImage.trim().isEmpty()) {
+                                setProfileImage(dbImage);
+                                android.util.Log.d("QuizResultActivity", "Loaded profileImage from Students/" + studentId);
+                            } else {
+                                android.util.Log.d("QuizResultActivity", "No profileImage at Students/" + studentId);
+                            }
+                        } catch (Exception e) {
+                            android.util.Log.w("QuizResultActivity", "Failed to read profileImage from direct child: " + e.getMessage(), e);
+                        }
+                    } else {
+                        android.util.Log.d("QuizResultActivity", "No student node at Students/" + studentId);
+                        // Not necessarily an error — student may not exist in DB — don't toast here unless you want to.
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    android.util.Log.e("QuizResultActivity", "Direct child lookup failed: " + e.getMessage(), e);
+                    Toast.makeText(QuizResultActivity.this, "Error fetching profile: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                });
     }
 
     @Override
@@ -116,8 +187,10 @@ public class QuizResultActivity extends AppCompatActivity {
         // Quiz title (was examTitle in older flow)
         String quizTitle = getIntent().getStringExtra("quizTitle");
 
+        // Read quizId extra (so we can notify list on back)
+        quizId = getIntent().getStringExtra("quizId");
+
         // --- SET UI TEXT ---
-        // If you want the course code area to show quizTitle instead, adjust accordingly.
         tvCourseCode.setText(courseCode != null ? courseCode : "N/A");
         tvSubjectName.setText(subjectName != null ? subjectName : (quizTitle != null ? quizTitle : "N/A"));
         tvTeacherName.setText(teacherName != null ? teacherName : "N/A");
@@ -131,9 +204,6 @@ public class QuizResultActivity extends AppCompatActivity {
         tvScorePercent.setText(String.format("%.2f%%", percent));
 
         tvEquivalentGrade.setText(percent >= 75 ? "Passed" : "Failed");
-
-        // Optionally show deductions in the percent or elsewhere (not part of original UI).
-        // For compatibility we won't alter the existing textviews beyond what's shown above.
 
         // ==============================
         //   PROFILE IMAGE FIX (FINAL)
@@ -156,5 +226,48 @@ public class QuizResultActivity extends AppCompatActivity {
         if (quizTitle != null && !quizTitle.isEmpty()) {
             Toast.makeText(this, "Quiz: " + quizTitle, Toast.LENGTH_SHORT).show();
         }
+    }
+
+    /**
+     * When user presses Android Back button, notify the list (so it marks quiz taken) and return to list.
+     */
+    @Override
+    public void onBackPressed() {
+        notifyListQuizTakenAndFinish();
+    }
+
+    /**
+     * Handle Up (toolbar) navigation same as Back
+     */
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        if (item.getItemId() == android.R.id.home) {
+            notifyListQuizTakenAndFinish();
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
+    /**
+     * Sends local broadcast so QuizListActivity updates and brings the list to the front.
+     * This helps ensure the student cannot retake the just-submitted quiz.
+     */
+    private void notifyListQuizTakenAndFinish() {
+        try {
+            if (quizId != null && !quizId.isEmpty()) {
+                Intent b = new Intent("com.example.nextgen.QUIZ_SUBMITTED");
+                b.putExtra("quizId", quizId);
+                LocalBroadcastManager.getInstance(this).sendBroadcast(b);
+            }
+        } catch (Exception ignored) {}
+
+        // Bring QuizListActivity to front (reuse existing instance if present)
+        try {
+            Intent i = new Intent(this, QuizListActivity.class);
+            i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            startActivity(i);
+        } catch (Exception ignored) {}
+
+        finish();
     }
 }
