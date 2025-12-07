@@ -10,8 +10,8 @@ import androidx.room.migration.Migration;
 import androidx.sqlite.db.SupportSQLiteDatabase;
 
 /**
- * AppDatabase updated to include PendingPresence and its migration 4 -> 5.
- * Bumped version to 5.
+ * AppDatabase updated to include QuizEntity (cached_quizzes) and migration 5 -> 6.
+ * Bumped version to 6.
  */
 @Database(
         entities = {
@@ -19,9 +19,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase;
                 QuestionEntity.class,
                 StudentAnswerEntity.class,
                 PendingSubmission.class,
-                PendingPresence.class
+                PendingPresence.class,
+                QuizEntity.class            // <-- added cached_quizzes entity
         },
-        version = 5,
+        version = 6,                    // bumped from 5 -> 6
         exportSchema = true
 )
 public abstract class AppDatabase extends RoomDatabase {
@@ -32,7 +33,8 @@ public abstract class AppDatabase extends RoomDatabase {
     public abstract QuestionDao questionDao();
     public abstract StudentAnswerDao answerDao();
     public abstract PendingSubmissionDao pendingSubmissionDao();
-    public abstract PendingPresenceDao pendingPresenceDao(); // <-- NEW
+    public abstract PendingPresenceDao pendingPresenceDao(); // <-- existing
+    public abstract com.example.nextgen.offline.QuizDao quizDao(); // <-- new DAO for cached_quizzes
 
     // Migration 3 -> 4: add new nullable TEXT metadata columns and deductions INTEGER default 0
     public static final Migration MIGRATION_3_4 = new Migration(3, 4) {
@@ -49,7 +51,7 @@ public abstract class AppDatabase extends RoomDatabase {
         }
     };
 
-    // Migration 4 -> 5: create pending_presences table
+    // Migration 4 -> 5: create pending_presences table (already present in your file)
     public static final Migration MIGRATION_4_5 = new Migration(4, 5) {
         @Override
         public void migrate(@NonNull SupportSQLiteDatabase database) {
@@ -64,6 +66,30 @@ public abstract class AppDatabase extends RoomDatabase {
         }
     };
 
+    // Migration 5 -> 6: create cached_quizzes table for QuizEntity
+    public static final Migration MIGRATION_5_6 = new Migration(5, 6) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase database) {
+            database.execSQL("CREATE TABLE IF NOT EXISTS `cached_quizzes` (" +
+                    "`quizId` TEXT NOT NULL, " +
+                    "`quizName` TEXT, " +
+                    "`teacherName` TEXT, " +
+                    "`subjectName` TEXT, " +
+                    "`courseName` TEXT, " +
+                    "`sectionName` TEXT, " +
+                    "`specializationName` TEXT, " +
+                    "`yearName` TEXT, " +
+                    "`scheduledAt` INTEGER, " +
+                    "`durationMinutes` INTEGER, " +
+                    "`availableAt` INTEGER, " +
+                    "`active` INTEGER, " +
+                    "`present` INTEGER, " +
+                    "`cachedAt` INTEGER, " +
+                    "PRIMARY KEY(`quizId`))");
+            database.execSQL("CREATE INDEX IF NOT EXISTS `index_cached_quizzes_cachedAt` ON `cached_quizzes` (`cachedAt`)");
+        }
+    };
+
     public static synchronized AppDatabase getInstance(Context ctx) {
         if (INSTANCE == null) {
             INSTANCE = Room.databaseBuilder(
@@ -71,8 +97,9 @@ public abstract class AppDatabase extends RoomDatabase {
                             AppDatabase.class,
                             "offline_exam_db"
                     )
-                    .addMigrations(MIGRATION_3_4, MIGRATION_4_5)
-                    // .fallbackToDestructiveMigration() // only for development if you accept data loss
+                    .addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                    // If during development you prefer to avoid writing migrations, you can temporarily uncomment:
+                    // .fallbackToDestructiveMigration()
                     .build();
         }
         return INSTANCE;
