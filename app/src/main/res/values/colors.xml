@@ -87,5 +87,16 @@
         <color name="divider">#E7E7E7</color>
         <color name="ripple">#1A6750A4</color>
 
+    <color name="green_500">#4CAF50</color>    <!-- Present -->
+    <color name="red_500">#F44336</color>      <!-- Absent -->
+    <color name="orange_500">#FF9800</color>   <!-- Late -->
+    <color name="att_present_light">#A5D6A7</color>
+    <color name="att_present">#388E3C</color>
+    <color name="att_absent_light">#FFCDD2</color>
+    <color name="att_absent">#D32F2F</color>
+    <color name="att_excused_light">#BBDEFB</color>
+    <color name="att_excused">#1976D2</color>
+    <color name="att_late_light">#FFE0B2</color>
+    <color name="att_late">#F57C00</color>
     <color name="green">#4CAF50</color>
 </resources>

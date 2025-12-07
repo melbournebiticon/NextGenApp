@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Row layout: uses ObservableHorizontalScrollView so header and rows can be synchronized -->
+<com.finale.nextgen.teacher.ObservableHorizontalScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/row_hsv"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:fillViewport="true"
+    android:paddingTop="4dp"
+    android:paddingBottom="4dp">
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="8dp"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/row_no"
+            android:layout_width="60dp"
+            android:layout_height="wrap_content"
+            android:text="1"
+            android:gravity="center"
+            android:textColor="#212121"
+            android:textSize="14sp"
+            android:padding="4dp" />
+
+        <TextView
+            android:id="@+id/row_student"
+            android:layout_width="220dp"
+            android:layout_height="wrap_content"
+            android:text="Student Name (ID)"
+            android:textColor="#212121"
+            android:textSize="14sp"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:maxLines="2"
+            android:ellipsize="end" />
+
+        <TextView
+            android:id="@+id/row_present"
+            android:layout_width="70dp"
+            android:layout_height="wrap_content"
+            android:text="0"
+            android:gravity="center"
+            android:textColor="#212121"
+            android:textSize="14sp"
+            android:padding="4dp" />
+
+        <TextView
+            android:id="@+id/row_late"
+            android:layout_width="70dp"
+            android:layout_height="wrap_content"
+            android:text="0"
+            android:gravity="center"
+            android:textColor="#212121"
+            android:textSize="14sp"
+            android:padding="4dp" />
+
+        <TextView
+            android:id="@+id/row_excused"
+            android:layout_width="70dp"
+            android:layout_height="wrap_content"
+            android:text="0"
+            android:gravity="center"
+            android:textColor="#212121"
+            android:textSize="14sp"
+            android:padding="4dp" />
+
+        <TextView
+            android:id="@+id/row_absent"
+            android:layout_width="70dp"
+            android:layout_height="wrap_content"
+            android:text="0"
+            android:gravity="center"
+            android:textColor="#212121"
+            android:textSize="14sp"
+            android:padding="4dp" />
+
+        <TextView
+            android:id="@+id/row_percentage"
+            android:layout_width="80dp"
+            android:layout_height="wrap_content"
+            android:text="0%"
+            android:gravity="center"
+            android:textColor="#212121"
+            android:textSize="14sp"
+            android:padding="4dp" />
+
+    </LinearLayout>
+</com.finale.nextgen.teacher.ObservableHorizontalScrollView>

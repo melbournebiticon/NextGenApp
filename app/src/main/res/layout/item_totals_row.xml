@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/item_totals_row_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="14dp"
+    android:elevation="2dp"
+    android:clipToPadding="false"
+    android:layout_margin="8dp"
+    android:backgroundTintMode="src_over"
+    android:foreground="?attr/selectableItemBackground"
+    android:background="@drawable/bg_totals_card">
+
+    <TextView
+        android:id="@+id/tvTotalsName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Student Name (ID)"
+        android:textStyle="bold"
+        android:textSize="16sp"
+        android:textColor="#1A1A1A"
+        android:paddingBottom="4dp" />
+
+    <TextView
+        android:id="@+id/tvTotalsCounts"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="P:0   L:0   E:0   A:0   Days:0   0%"
+        android:textSize="14sp"
+        android:textColor="#555555"
+        android:letterSpacing="0.02"
+        android:lineSpacingExtra="2dp" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginTop="12dp"
+        android:background="#E0E0E0" />
+</LinearLayout>

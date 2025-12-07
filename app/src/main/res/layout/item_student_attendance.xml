@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/studentItemLayout"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="12dp"
+    android:background="@drawable/item_background"
+    android:layout_marginBottom="8dp">
+
+    <!-- Student Name -->
+    <TextView
+        android:id="@+id/studentNameTxt"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Student Name"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:paddingBottom="2dp" />
+
+    <!-- Student ID -->
+    <TextView
+        android:id="@+id/studentIdTxt"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="STD-0007"
+        android:textSize="14sp"
+        android:textColor="#666666"
+        android:paddingBottom="2dp" />
+
+    <!-- Section -->
+    <TextView
+        android:id="@+id/sectionTxt"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="BSIT - BA - 1 - A"
+        android:textSize="14sp"
+        android:textColor="#666666"
+        android:paddingBottom="8dp" />
+
+    <!-- Attendance Buttons -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:weightSum="4"
+        android:gravity="center_vertical"
+        tools:ignore="ExtraText">
+
+        <Button
+            android:id="@+id/presentBtn"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Present"
+            android:backgroundTint="#4CAF50"
+            android:textColor="@android:color/white"
+            android:textAllCaps="false" />
+
+        <Button
+            android:id="@+id/absentBtn"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Absent"
+            android:backgroundTint="#F44336"
+            android:textColor="@android:color/white"
+            android:textAllCaps="false"
+            android:layout_marginStart="4dp" />
+
+        <Button
+            android:id="@+id/excusedBtn"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Excused"
+            android:backgroundTint="#2196F3"
+            android:textColor="@android:color/white"
+            android:textAllCaps="false"
+            android:layout_marginStart="4dp" />
+
+        <Button
+            android:id="@+id/lateBtn"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Late"
+            android:backgroundTint="#FF9800"
+            android:textColor="@android:color/white"
+            android:textAllCaps="false"
+            android:layout_marginStart="4dp" />
+    </LinearLayout>
+
+</LinearLayout>

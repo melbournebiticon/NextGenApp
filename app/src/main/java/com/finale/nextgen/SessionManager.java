@@ -28,6 +28,8 @@ public class SessionManager {
     private SharedPreferences pref;
     private SharedPreferences.Editor editor;
 
+    private static final String KEY_SELECTED_SUBJECT_ID = "selected_subject_id";
+
     public SessionManager(Context context) {
         pref = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
         editor = pref.edit();

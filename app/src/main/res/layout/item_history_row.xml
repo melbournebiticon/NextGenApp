@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/card_history_row"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="6dp"
+    android:layout_marginBottom="6dp"
+    android:layout_marginStart="8dp"
+    android:layout_marginEnd="8dp"
+    app:cardElevation="6dp"
+    app:cardCornerRadius="12dp"
+    app:cardUseCompatPadding="true"
+    android:foreground="?attr/selectableItemBackground"
+    app:cardBackgroundColor="@color/statCardBackground"
+    android:clickable="true"
+    android:focusable="true">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="12dp">
+
+        <!-- Date (left) -->
+        <TextView
+            android:id="@+id/tvHistoryDate"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="2025-12-06"
+            android:textAppearance="@style/TextAppearance.AppCompat.Medium"
+            android:textColor="@color/primaryText"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:contentDescription="@string/history_date_cd"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/tvHistoryStatus"
+            app:layout_constraintHorizontal_bias="0"
+            android:layout_marginEnd="8dp" />
+
+        <!-- Status chip-like badge (right) -->
+        <TextView
+            android:id="@+id/tvHistoryStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp"
+            android:text="Present"
+            android:textColor="@color/teal_700"
+            android:textAppearance="@style/TextAppearance.AppCompat.Body2"
+            android:background="@drawable/rounded_background_subtle"
+            android:layout_marginStart="8dp"
+            android:layout_marginTop="0dp"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:contentDescription="@string/history_status_cd"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="@id/tvHistoryDate" />
+
+        <!-- Student name (new) -->
+        <TextView
+            android:id="@+id/tvHistoryStudentName"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textAppearance="@style/TextAppearance.AppCompat.Body1"
+            android:textStyle="bold"
+            android:textColor="@color/primaryText"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:layout_marginTop="6dp"
+            android:contentDescription="@string/history_student_name_cd"
+            app:layout_constraintStart_toStartOf="@id/tvHistoryDate"
+            app:layout_constraintTop_toBottomOf="@id/tvHistoryDate"
+            app:layout_constraintEnd_toStartOf="@id/tvHistoryStatus" />
+
+        <!-- Meta (section / teacher) -->
+        <TextView
+            android:id="@+id/tvHistoryMeta"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textAppearance="@style/TextAppearance.AppCompat.Body2"
+            android:textColor="@color/secondaryText"
+            android:layout_marginTop="6dp"
+            android:maxLines="2"
+            android:ellipsize="end"
+            android:contentDescription="@string/history_meta_cd"
+            app:layout_constraintStart_toStartOf="@id/tvHistoryStudentName"
+            app:layout_constraintTop_toBottomOf="@id/tvHistoryStudentName"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</com.google.android.material.card.MaterialCardView>

@@ -178,25 +178,22 @@ public class TakeQuizAdapter extends RecyclerView.Adapter<TakeQuizAdapter.Questi
                 break;
         }
 
-        // Use the buttonText passed from activity
-        if (holder.btnNextOrSubmit != null) {
-            holder.btnNextOrSubmit.setText(buttonText);
-            holder.btnNextOrSubmit.setOnClickListener(v -> {
-                int actualPos = holder.getBindingAdapterPosition();
-                if (actualPos != RecyclerView.NO_POSITION && actionListener != null) {
-                    Question currQ = questions.get(actualPos); // resolved variable conflict
-                    String answer = currQ != null ? currQ.getStudentAnswer() : null;
-                    if (answer == null || answer.trim().isEmpty()) {
-                        if (context != null) {
-                            android.widget.Toast.makeText(context, "You haven't answered this question yet. Please answer before moving on.", android.widget.Toast.LENGTH_SHORT).show();
-                        }
-                    } else {
-                        actionListener.onNextOrSubmit(actualPos, buttonText);
+        holder.btnNextOrSubmit.setOnClickListener(v -> {
+            int actualPos = holder.getBindingAdapterPosition();
+            if (actualPos != RecyclerView.NO_POSITION && actionListener != null) {
+                Question currQ = questions.get(actualPos); // resolved variable conflict
+                String answer = currQ != null ? currQ.getStudentAnswer() : null;
+                if (answer == null || answer.trim().isEmpty()) {
+                    if (context != null) {
+                        android.widget.Toast.makeText(context, "You haven't answered this question yet. Please answer before moving on.", android.widget.Toast.LENGTH_SHORT).show();
                     }
+                } else {
+                    actionListener.onNextOrSubmit(actualPos, buttonText);
                 }
-            });
-        }
+            }
+        });
     }
+
 
     @Override
     public int getItemCount() {

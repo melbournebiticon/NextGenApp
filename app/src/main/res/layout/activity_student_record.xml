@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/studentRecordLayout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="@android:color/white">
+
+    <!-- SECTION TITLE (primary top title) -->
+    <TextView
+        android:id="@+id/tvSectionTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Section Title Here"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:textColor="#212121"
+        android:paddingBottom="8dp" />
+
+    <!-- Selected student displayed as a plain title look (clickable to open the spinner dropdown) -->
+    <TextView
+        android:id="@+id/tvStudentTitle"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:gravity="center_vertical"
+        android:text="Student Name (STD-0001)"
+        android:textSize="16sp"
+        android:textColor="#333333"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:background="?attr/selectableItemBackground"
+        android:drawableEnd="@android:drawable/arrow_down_float"
+        android:drawablePadding="8dp"
+        android:contentDescription="Selected student. Tap to change."
+        android:onClick="onStudentTitleClick" />
+
+    <!-- Hidden spinner used as the dropdown source.
+         The TextView above should call spinnerStudents.performClick() to show the dropdown.
+         Kept INVISIBLE so layout looks like the screenshot. -->
+    <Spinner
+        android:id="@+id/spinnerStudents"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="invisible"
+        android:spinnerMode="dropdown" />
+
+    <!-- Students list: show all students in the section (added so rvStudents exists for code that expects it) -->
+    <TextView
+        android:id="@+id/tvStudentsLabel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Students in section"
+        android:textStyle="bold"
+        android:paddingTop="8dp"
+        android:paddingBottom="4dp" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvStudents"
+        android:layout_width="match_parent"
+        android:layout_height="140dp"
+        android:clipToPadding="false"
+        android:paddingBottom="8dp"
+        android:scrollbars="vertical" />
+
+    <!-- Small divider -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#EEEEEE"
+        android:layout_marginTop="12dp"
+        android:layout_marginBottom="12dp" />
+
+    <!-- Calendar -->
+    <CalendarView
+        android:id="@+id/calendarView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="12dp" />
+
+    <!-- Selected date summary (small text) -->
+    <TextView
+        android:id="@+id/tvSelectedDateStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Select a date"
+        android:textColor="#555555"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"
+        android:importantForAccessibility="yes" />
+
+    <!-- Compute button (rounded dark) -->
+    <Button
+        android:id="@+id/btnComputeAverage"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/card_round"
+        android:text="Compute Average (all recorded days)"
+        android:textColor="@android:color/white"
+        android:textStyle="bold" />
+
+    <!-- Computed result summary -->
+    <TextView
+        android:id="@+id/tvAverage"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="—"
+        android:textColor="#333333"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp" />
+
+    <ProgressBar
+        android:id="@+id/progressRecords"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        android:layout_gravity="center_horizontal" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#EEEEEE"
+        android:layout_marginTop="12dp"
+        android:layout_marginBottom="12dp" />
+
+    <!-- Records list: each item shows date (bold) and status (subtitle) -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvRecords"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:paddingBottom="8dp"
+        android:scrollbars="vertical" />
+
+</LinearLayout>

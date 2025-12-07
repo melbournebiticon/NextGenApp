@@ -215,27 +215,31 @@
                 <GridLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:columnCount="2"  android:alignmentMode="alignMargins"
+                    android:columnCount="3"
+                    android:rowCount="2"
+                    android:alignmentMode="alignMargins"
                     android:rowOrderPreserved="false"
-                    android:layout_marginBottom="20dp"
+                    android:layout_marginBottom="24dp"
                     android:useDefaultMargins="true"
-                    android:paddingStart="4dp"  android:paddingEnd="4dp"
+                    android:paddingStart="4dp"
+                    android:paddingEnd="4dp"
                     android:gravity="center">
 
+                    <!-- Row 1: Create Exam, Manage Quiz, Create Activity -->
                     <LinearLayout
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_columnWeight="1"
-                        android:layout_margin="8dp" android:gravity="center"
+                        android:gravity="center"
                         android:orientation="vertical">
 
                         <androidx.cardview.widget.CardView
                             android:id="@+id/cardManageExam"
                             android:layout_width="70dp"
                             android:layout_height="70dp"
-                            app:cardBackgroundColor="#E3F2FD" app:cardCornerRadius="35dp"
+                            app:cardBackgroundColor="#E3F2FD"
+                            app:cardCornerRadius="35dp"
                             app:cardElevation="6dp">
-
                             <ImageView
                                 android:layout_width="35dp"
                                 android:layout_height="35dp"
@@ -259,16 +263,83 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_columnWeight="1"
-                        android:layout_margin="8dp" android:gravity="center"
+                        android:gravity="center"
                         android:orientation="vertical">
 
                         <androidx.cardview.widget.CardView
-                            android:id="@+id/cardViewExaminee" android:layout_width="70dp"
+                            android:id="@+id/cardManageQuiz"
+                            android:layout_width="70dp"
                             android:layout_height="70dp"
                             app:cardBackgroundColor="#E3F2FD"
                             app:cardCornerRadius="35dp"
                             app:cardElevation="6dp">
+                            <ImageView
+                                android:layout_width="35dp"
+                                android:layout_height="35dp"
+                                android:layout_gravity="center"
+                                android:contentDescription="Manage Quiz Icon"
+                                android:src="@drawable/ic_quiz"
+                                android:tint="#0D47A1" />
+                        </androidx.cardview.widget.CardView>
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="7dp"
+                            android:gravity="center"
+                            android:text="Manage Quiz"
+                            android:textColor="#0D47A1"
+                            android:textSize="13sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
 
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_columnWeight="1"
+                        android:gravity="center"
+                        android:orientation="vertical">
+
+                        <androidx.cardview.widget.CardView
+                            android:id="@+id/cardCreateActivity"
+                            android:layout_width="70dp"
+                            android:layout_height="70dp"
+                            app:cardBackgroundColor="#E3F2FD"
+                            app:cardCornerRadius="35dp"
+                            app:cardElevation="6dp">
+                            <ImageView
+                                android:layout_width="35dp"
+                                android:layout_height="35dp"
+                                android:layout_gravity="center"
+                                android:contentDescription="Create Activity Icon"
+                                android:src="@drawable/ic_add"
+                                android:tint="#0D47A1" />
+                        </androidx.cardview.widget.CardView>
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="7dp"
+                            android:gravity="center"
+                            android:text="Create Activity"
+                            android:textColor="#0D47A1"
+                            android:textSize="13sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+
+                    <!-- Row 2: View Examinee, Attendance, (Blank for spacing) -->
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_columnWeight="1"
+                        android:gravity="center"
+                        android:orientation="vertical">
+
+                        <androidx.cardview.widget.CardView
+                            android:id="@+id/cardViewExaminee"
+                            android:layout_width="70dp"
+                            android:layout_height="70dp"
+                            app:cardBackgroundColor="#E3F2FD"
+                            app:cardCornerRadius="35dp"
+                            app:cardElevation="6dp">
                             <ImageView
                                 android:layout_width="35dp"
                                 android:layout_height="35dp"
@@ -292,70 +363,45 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_columnWeight="1"
-                        android:layout_margin="8dp" android:gravity="center"
+                        android:gravity="center"
                         android:orientation="vertical">
 
                         <androidx.cardview.widget.CardView
-                            android:id="@+id/cardCreateActivity"
-                            android:layout_width="70dp"
-                            android:layout_height="70dp"
-                            app:cardBackgroundColor="#E3F2FD"
-                            app:cardCornerRadius="35dp"
-                            app:cardElevation="6dp">
-
+                            android:id="@+id/cardStudentAttendance"
+                            android:layout_width="72dp"
+                            android:layout_height="72dp"
+                            app:cardBackgroundColor="#FFFFFF"
+                            app:cardCornerRadius="36dp"
+                            app:cardElevation="4dp">
                             <ImageView
-                                android:layout_width="35dp"
-                                android:layout_height="35dp"
+                                android:layout_width="36dp"
+                                android:layout_height="36dp"
                                 android:layout_gravity="center"
-                                android:contentDescription="Create Activity Icon"
-                                android:src="@drawable/ic_add"
-                                android:tint="#0D47A1" />
+                                android:contentDescription="Attendance Icon"
+                                android:src="@drawable/ic_check_circle"
+                                app:tint="#0D47A1" />
                         </androidx.cardview.widget.CardView>
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="7dp"
+                            android:layout_marginTop="8dp"
                             android:gravity="center"
-                            android:text="Create Activity"
+                            android:text="Attendance"
                             android:textColor="#0D47A1"
-                            android:textSize="13sp"
+                            android:textSize="12sp"
                             android:textStyle="bold" />
                     </LinearLayout>
 
+                    <!-- Spacer for professionalism, leave the third slot empty -->
                     <LinearLayout
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_columnWeight="1"
-                        android:layout_margin="8dp" android:gravity="center"
+                        android:gravity="center"
                         android:orientation="vertical">
-
-                        <androidx.cardview.widget.CardView
-                            android:id="@+id/cardManageQuiz"
-                            android:layout_width="70dp"
-                            android:layout_height="70dp"
-                            app:cardBackgroundColor="#E3F2FD"
-                            app:cardCornerRadius="35dp"
-                            app:cardElevation="6dp">
-
-                            <ImageView
-                                android:layout_width="35dp"
-                                android:layout_height="35dp"
-                                android:layout_gravity="center"
-                                android:contentDescription="Manage Quiz Icon"
-                                android:src="@drawable/ic_quiz"
-                                android:tint="#0D47A1" />
-                        </androidx.cardview.widget.CardView>
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="7dp"
-                            android:gravity="center"
-                            android:text="Manage Quiz"
-                            android:textColor="#0D47A1"
-                            android:textSize="13sp"
-                            android:textStyle="bold" />
                     </LinearLayout>
                 </GridLayout>
+
                 <!-- ===== RECENT ACTIVITY ===== -->
                 <TextView
                     android:layout_width="wrap_content"
@@ -443,9 +489,8 @@
                         android:text="Subjects" />
                 </LinearLayout>
 
-        </LinearLayout>
-    </ScrollView>
+            </LinearLayout>
+        </ScrollView>
 
-
-</androidx.coordinatorlayout.widget.CoordinatorLayout>
-    </androidx.drawerlayout.widget.DrawerLayout>
+    </androidx.coordinatorlayout.widget.CoordinatorLayout>
+</androidx.drawerlayout.widget.DrawerLayout>

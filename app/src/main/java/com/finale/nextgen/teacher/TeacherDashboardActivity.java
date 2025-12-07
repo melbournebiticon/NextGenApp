@@ -11,10 +11,13 @@ import android.widget.PopupMenu;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.util.Log;
+import android.view.Gravity;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.cardview.widget.CardView;
+import android.widget.ImageView;
 
 import com.finale.nextgen.MainActivity;
 import com.finale.nextgen.R;
@@ -27,19 +30,15 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 import com.google.firebase.auth.FirebaseUser;
 
-import android.widget.EditText;
-import android.widget.ImageView;
 import androidx.appcompat.app.AlertDialog;
-
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.util.Base64;
-
+import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -47,8 +46,6 @@ import android.graphics.PorterDuff;
 import android.graphics.PorterDuffXfermode;
 import android.graphics.Rect;
 import android.graphics.RectF;
-import androidx.annotation.NonNull;
-
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -58,37 +55,35 @@ import java.util.Locale;
 
 public class TeacherDashboardActivity extends AppCompatActivity {
 
-    // Profile info
+    // Profile info (Hidden Text Views)
     TextView tvTeacherId, tvFullName, tvEmail, tvBirthday, tvCourse, tvSubjects;
 
     SessionManager sessionManager;
     DatabaseReference teachersRef, examsRef;
 
     Toolbar toolbar;
+    private MenuItem profileMenuItem;
 
     // Dashboard summary
     TextView tvTeacherNameDisplay, tvTeacherIdDisplay, tvActiveExamsCount, tvRecentExamTitle, tvPendingSubmissionsCount;
 
     // Dashboard cards (Quick Actions)
-    CardView cardManageExam, cardCreateActivity, cardManageQuiz, cardViewExaminee; // Added cardViewExaminee
-
-    private MenuItem profileMenuItem;
+    CardView cardManageExam, cardManageQuiz, cardManageExaminees, cardCreateActivity, cardStudentAttendance;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_teacher_dashboard);
 
-        // Toolbar setup
         toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-        // Firebase + Session
+        // Firebase + Session setup
         sessionManager = new SessionManager(this);
         teachersRef = FirebaseDatabase.getInstance().getReference("Teachers");
         examsRef = FirebaseDatabase.getInstance().getReference("Exams");
 
-        // Initialize views
+        // View initializations
         tvTeacherId = findViewById(R.id.tvTeacherId);
         tvFullName = findViewById(R.id.tvFullName);
         tvEmail = findViewById(R.id.tvEmail);
@@ -96,78 +91,72 @@ public class TeacherDashboardActivity extends AppCompatActivity {
         tvCourse = findViewById(R.id.tvCourse);
         tvSubjects = findViewById(R.id.tvSubjects);
 
-        // Dashboard summary
         tvTeacherNameDisplay = findViewById(R.id.tvTeacherNameDisplay);
         tvTeacherIdDisplay = findViewById(R.id.tvTeacherIdDisplay);
         tvRecentExamTitle = findViewById(R.id.tvRecentExamTitle);
         tvActiveExamsCount = findViewById(R.id.tvActiveExamsCount);
         tvPendingSubmissionsCount = findViewById(R.id.tvPendingSubmissionsCount);
-        listenPendingSubmissions();
 
-        // Cards
+        // Cards (match XML IDs)
         cardManageExam = findViewById(R.id.cardManageExam);
-        cardCreateActivity = findViewById(R.id.cardCreateActivity);
         cardManageQuiz = findViewById(R.id.cardManageQuiz);
+        cardCreateActivity = findViewById(R.id.cardCreateActivity);
+        cardManageExaminees = findViewById(R.id.cardViewExaminee);
+        cardStudentAttendance = findViewById(R.id.cardStudentAttendance);
 
-        // View Examinee Card
-        cardViewExaminee = findViewById(R.id.cardViewExaminee);
-        cardViewExaminee.setOnClickListener(v -> viewExaminees());
+        // Safe set click listeners
+        if(cardManageExam != null) {
+            cardManageExam.setOnClickListener(v -> startActivity(new Intent(this, ManageExamActivity.class)));
+        }
+        if(cardManageQuiz != null) {
+            cardManageQuiz.setOnClickListener(v -> startActivity(new Intent(this, ManageQuizActivity.class)));
+        }
+        if(cardCreateActivity != null) {
+            cardCreateActivity.setOnClickListener(v -> startActivity(new Intent(this, CreateActivityActivity.class)));
+        }
+        if(cardManageExaminees != null) {
+            cardManageExaminees.setOnClickListener(v -> startActivity(new Intent(this, ViewStudentsActivity.class)));
+        }
+        if(cardStudentAttendance != null) {
+            cardStudentAttendance.setOnClickListener(v -> startActivity(new Intent(this, StudentAttendanceActivity.class)));
+        }
 
-        cardManageExam.setOnClickListener(v -> startActivity(new Intent(this, ManageExamActivity.class)));
-        cardCreateActivity.setOnClickListener(v -> {
-            Intent intent = new Intent(this, TeacherActivitiesActivity.class);
-            startActivity(intent);
-        });
-        cardManageQuiz.setOnClickListener(v -> startActivity(new Intent(this, ManageQuizActivity.class)));
+        listenPendingSubmissions();
 
         // Get teacher ID from session
         String teacherId = sessionManager.getUserId();
         if (teacherId != null) {
             loadTeacherInfo(teacherId);
             loadExamData(teacherId);
-            loadActiveExamsCount(teacherId);
+            loadActiveExamsCount(sessionManager.getUserId());
+
         } else {
             Toast.makeText(this, "Teacher ID not found in session!", Toast.LENGTH_SHORT).show();
         }
     }
 
-    // Function for viewing examinees
-    private void viewExaminees() {
-        Intent viewIntent = new Intent(this, ViewStudentsActivity.class);
-        startActivity(viewIntent);
-    }
-
-    // ==========================
-    // TOOLBAR PROFILE/LOGOUT MENU HANDLING
-    // ==========================
-
+    // Toolbar menu for profile actions
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         MenuInflater inflater = getMenuInflater();
-        inflater.inflate(R.menu.toolbar_action_menu, menu);
+        inflater.inflate(R.menu.toolbar_action_menu, menu); // see XML section below
         profileMenuItem = menu.findItem(R.id.action_profile);
-
         loadToolbarProfileIcon();
-
         return true;
     }
 
+    // Dynamically load/draw the user's profile photo in toolbar
     private void loadToolbarProfileIcon() {
         String teacherId = sessionManager.getUserId();
         if (teacherId == null || teacherId.isEmpty()) {
             profileMenuItem.setIcon(R.drawable.tc_profile);
             return;
         }
-
-        DatabaseReference teacherRef = FirebaseDatabase.getInstance()
-                .getReference("Teachers")
-                .child(teacherId);
-
+        DatabaseReference teacherRef = FirebaseDatabase.getInstance().getReference("Teachers").child(teacherId);
         teacherRef.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 String base64Image = snapshot.child("profileImage").getValue(String.class);
-
                 if (base64Image != null && !base64Image.isEmpty()) {
                     try {
                         String pureBase64 = base64Image.replaceAll("^data:image/.*;base64,", "").trim();
@@ -179,7 +168,6 @@ public class TeacherDashboardActivity extends AppCompatActivity {
                             Bitmap circularBitmap = getCircularBitmap(bitmap);
                             Drawable drawable = new BitmapDrawable(getResources(), circularBitmap);
                             profileMenuItem.setIcon(drawable);
-
                         } else {
                             profileMenuItem.setIcon(R.drawable.tc_profile);
                         }
@@ -191,7 +179,6 @@ public class TeacherDashboardActivity extends AppCompatActivity {
                     profileMenuItem.setIcon(R.drawable.tc_profile);
                 }
             }
-
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
                 profileMenuItem.setIcon(R.drawable.tc_profile);
@@ -199,29 +186,23 @@ public class TeacherDashboardActivity extends AppCompatActivity {
         });
     }
 
+    // Handle toolbar profile icon actions
     @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
         int itemId = item.getItemId();
-
         if (itemId == R.id.action_profile) {
-            View anchorView = findViewById(R.id.action_profile);
-            if (anchorView == null) {
-                anchorView = toolbar;
-            }
-            showProfilePopup(anchorView);
+            showProfilePopup(toolbar);
             return true;
         }
-
         return super.onOptionsItemSelected(item);
     }
 
     private void showProfilePopup(View anchorView) {
-        PopupMenu popup = new PopupMenu(this, anchorView);
+        // Use Gravity.END or anchor to toolbar with gravity
+        PopupMenu popup = new PopupMenu(this, toolbar, Gravity.END);
         popup.getMenuInflater().inflate(R.menu.profile_popup_menu, popup.getMenu());
-
         popup.setOnMenuItemClickListener(menuItem -> {
             int itemId = menuItem.getItemId();
-
             if (itemId == R.id.action_view_profile) {
                 openProfile();
                 return true;
@@ -234,7 +215,6 @@ public class TeacherDashboardActivity extends AppCompatActivity {
             }
             return false;
         });
-
         popup.show();
     }
 
@@ -248,34 +228,35 @@ public class TeacherDashboardActivity extends AppCompatActivity {
                     String email = snapshot.child("email").getValue(String.class);
                     String birthday = snapshot.child("birthday").getValue(String.class);
 
+                    // Base64 profile image
                     String base64Image = snapshot.child("profileImage").getValue(String.class);
                     ImageView imgProfile = findViewById(R.id.imgProfilePicture);
                     if (base64Image != null && !base64Image.isEmpty()) {
                         try {
                             byte[] decodedBytes = Base64.decode(base64Image, Base64.NO_WRAP);
                             Bitmap bitmap = BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.length);
+
                             Bitmap circularBitmap = getCircularBitmap(bitmap);
-                            imgProfile.setImageBitmap(circularBitmap);
+                            if (imgProfile != null) imgProfile.setImageBitmap(circularBitmap);
+
                         } catch (Exception e) {
                             e.printStackTrace();
-                            imgProfile.setImageResource(R.drawable.tc_profile);
+                            if (imgProfile != null) imgProfile.setImageResource(R.drawable.tc_profile);
                         }
                     } else {
-                        imgProfile.setImageResource(R.drawable.tc_profile);
+                        if (imgProfile != null) imgProfile.setImageResource(R.drawable.tc_profile);
                     }
 
                     tvTeacherId.setText(id != null ? id : teacherId);
                     tvFullName.setText(fullName != null ? fullName : "No Name");
                     tvEmail.setText(email != null ? email : "No Email");
                     tvBirthday.setText(birthday != null ? birthday : "No Birthday");
-
                     tvTeacherNameDisplay.setText("Welcome, " + (fullName != null ? fullName : "Teacher Name"));
                     tvTeacherIdDisplay.setText("ID: " + (id != null ? id : teacherId));
                 } else {
                     Toast.makeText(TeacherDashboardActivity.this, "Teacher info not found", Toast.LENGTH_SHORT).show();
                 }
             }
-
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
                 Toast.makeText(TeacherDashboardActivity.this, "Error: " + error.getMessage(), Toast.LENGTH_SHORT).show();
@@ -284,14 +265,11 @@ public class TeacherDashboardActivity extends AppCompatActivity {
     }
 
     private void loadExamData(String teacherId) {
-        DatabaseReference examsRef = FirebaseDatabase.getInstance()
-                .getReference("Exams");
-
+        DatabaseReference examsRef = FirebaseDatabase.getInstance().getReference("Exams");
         examsRef.addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 List<DataSnapshot> teacherExams = new ArrayList<>();
-
                 if (snapshot.hasChild(teacherId)) {
                     for (DataSnapshot examSnap : snapshot.child(teacherId).getChildren()) {
                         teacherExams.add(examSnap);
@@ -304,7 +282,6 @@ public class TeacherDashboardActivity extends AppCompatActivity {
                         }
                     }
                 }
-
                 if (!teacherExams.isEmpty()) {
                     SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
                     teacherExams.sort((a, b) -> {
@@ -331,7 +308,6 @@ public class TeacherDashboardActivity extends AppCompatActivity {
                     tvRecentExamTitle.setText("No exams created yet");
                 }
             }
-
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
                 Toast.makeText(TeacherDashboardActivity.this,
@@ -361,7 +337,6 @@ public class TeacherDashboardActivity extends AppCompatActivity {
                     prefs.edit().remove("logged_user").apply();
                     FirebaseAuth.getInstance().signOut();
                     sessionManager.clearSession();
-
                     Intent intent = new Intent(this, MainActivity.class);
                     intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
                     startActivity(intent);
@@ -374,9 +349,9 @@ public class TeacherDashboardActivity extends AppCompatActivity {
     private void showChangePasswordDialog() {
         View view = getLayoutInflater().inflate(R.layout.dialog_change_password, null);
 
-        EditText etOldPassword = view.findViewById(R.id.etOldPassword);
-        EditText etNewPassword = view.findViewById(R.id.etNewPassword);
-        EditText etConfirmPassword = view.findViewById(R.id.etConfirmPassword);
+        android.widget.EditText etOldPassword = view.findViewById(R.id.etOldPassword);
+        android.widget.EditText etNewPassword = view.findViewById(R.id.etNewPassword);
+        android.widget.EditText etConfirmPassword = view.findViewById(R.id.etConfirmPassword);
 
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Change Password")
@@ -441,7 +416,6 @@ public class TeacherDashboardActivity extends AppCompatActivity {
                         );
             });
         });
-
         dialog.show();
     }
 
@@ -464,35 +438,22 @@ public class TeacherDashboardActivity extends AppCompatActivity {
 
     private void loadActiveExamsCount(String teacherId) {
         DatabaseReference examsRef = FirebaseDatabase.getInstance().getReference("Exams").child(teacherId);
-
         examsRef.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 int activeCount = 0;
-
                 for (DataSnapshot child : snapshot.getChildren()) {
                     Boolean isActive = child.child("active").getValue(Boolean.class);
                     Long scheduledAt = child.child("scheduledAt").getValue(Long.class);
                     Integer durationMinutes = child.child("durationMinutes").getValue(Integer.class);
-
                     long examEndTime = scheduledAt + (durationMinutes * 60 * 1000);
-
-                    Log.d("ActiveExamDebug", "ExamID: " + child.getKey()
-                            + ", active: " + isActive
-                            + ", scheduledAt: " + scheduledAt
-                            + ", durationMinutes: " + durationMinutes
-                            + ", examEndTime: " + examEndTime
-                            + ", now: " + System.currentTimeMillis());
-
                     if (isActive != null && isActive && System.currentTimeMillis() <= examEndTime) {
                         activeCount++;
                     }
                 }
-
                 if (tvActiveExamsCount != null)
                     tvActiveExamsCount.setText(String.valueOf(activeCount));
             }
-
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
                 Toast.makeText(TeacherDashboardActivity.this, "Error: " + error.getMessage(), Toast.LENGTH_SHORT).show();
@@ -501,28 +462,22 @@ public class TeacherDashboardActivity extends AppCompatActivity {
     }
 
     private void listenPendingSubmissions() {
-        DatabaseReference submissionsRef = FirebaseDatabase.getInstance()
-                .getReference("Submissions");
-
+        DatabaseReference submissionsRef = FirebaseDatabase.getInstance().getReference("Submissions");
         submissionsRef.addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 int pendingCount = 0;
-
                 for (DataSnapshot examSnap : snapshot.getChildren()) {
                     for (DataSnapshot studentSnap : examSnap.getChildren()) {
                         Boolean isSubmitted = studentSnap.child("isSubmitted").getValue(Boolean.class);
                         Boolean isGraded = studentSnap.child("isGraded").getValue(Boolean.class);
-
                         if (isSubmitted != null && isSubmitted && (isGraded == null || !isGraded)) {
                             pendingCount++;
                         }
                     }
                 }
-
                 tvPendingSubmissionsCount.setText(String.valueOf(pendingCount));
             }
-
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
                 Toast.makeText(TeacherDashboardActivity.this,
@@ -535,21 +490,17 @@ public class TeacherDashboardActivity extends AppCompatActivity {
     private Bitmap getCircularBitmap(Bitmap bitmap) {
         int size = Math.min(bitmap.getWidth(), bitmap.getHeight());
         Bitmap output = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
-
         Canvas canvas = new Canvas(output);
         final Paint paint = new Paint();
         final Rect rect = new Rect(0, 0, size, size);
         final RectF rectF = new RectF(rect);
-
         float radius = size / 2f;
         paint.setAntiAlias(true);
         canvas.drawARGB(0, 0, 0, 0);
         paint.setColor(Color.BLACK);
         canvas.drawOval(rectF, paint);
-
         paint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC_IN));
         canvas.drawBitmap(bitmap, null, rect, paint);
-
         return output;
     }
 }

@@ -33,6 +33,21 @@
     <string name="course">Course</string>
     <string name="section">Section</string>
 
+    <string name="mark_attendance_title">Mark Attendance</string>
+    <string name="select_section_prompt">Select a section</string>
+    <string name="section_spinner_desc">Choose a class section</string>
+    <string name="empty_no_sections_or_students">No sections assigned or no students found.</string>
+    <string name="submit_attendance">Submit Attendance</string>
+    <string name="loading_message">Loading…</string>
+    <string name="viewreport">View Report</string>
+    <string name="history_meta_cd" />
+    <string name="history_status_cd" />
+    <string name="history_date_cd" />
+    <string name="day_records_list_cd" />
+    <string name="selected_date_cd" />
+    <string name="calendar_view_cd" />
+    <string name="history_student_name_cd" />
+
 
     <string name="toolbar">Main Toolbar</string>
     <string name="search_icon">Search icon</string>

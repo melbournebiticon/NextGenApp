@@ -74,6 +74,8 @@
         <activity android:name=".teacher.ManageQuizActivity" />
         <activity android:name=".teacher.GenerateQuizActivity" />
         <activity android:name=".teacher.QuizMonitorActivity" />
+        <activity android:name=".teacher.StudentAttendanceActivity" android:exported="false"/>
+        <activity android:name=".teacher.AttendanceReportActivity" android:exported="false"/>
 
         <!-- Student -->
         <activity
@@ -99,6 +101,9 @@
         <activity android:name=".student.TakeExamActivity" />
         <activity android:name=".student.StudentActivitiesActivity" />
         <activity android:name=".student.ActivityDetailsActivity" />
+        <activity android:name=".student.QuizResultActivity" />
+        <activity android:name=".student.StudentAttendanceViewerActivity" android:exported="false"/>
+
 
         <!-- ✅ Correct scanner for QUIZ -->
         <activity

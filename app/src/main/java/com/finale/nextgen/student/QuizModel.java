@@ -39,6 +39,7 @@ public class QuizModel implements Serializable {
     private Boolean present;
     private Boolean studentPresent;
     private String status;
+    private String subjectId;
 
     public QuizModel() {
         this.scheduledAt = 0L;
@@ -148,6 +149,13 @@ public class QuizModel implements Serializable {
             sb.append(sectionName);
         }
         return sb.toString();
+    }
+    public String getSubjectId() {
+        return subjectId;
+    }
+
+    public void setSubjectId(String subjectId) {
+        this.subjectId = subjectId;
     }
 
     public void markStudentPresent() { this.studentPresent = true; }

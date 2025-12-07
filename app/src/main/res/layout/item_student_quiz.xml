@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@android:color/transparent"
+    android:padding="16dp">
+
+    <androidx.cardview.widget.CardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:cardCornerRadius="18dp"
+        app:cardElevation="5dp"
+        app:cardBackgroundColor="@android:color/white"
+        android:layout_marginBottom="12dp"
+        android:background="@android:color/transparent">
+
+        <LinearLayout
+            android:id="@+id/contentLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@android:color/transparent"
+            android:paddingLeft="12dp"
+            android:paddingRight="12dp"
+            android:paddingTop="18dp"
+            android:paddingBottom="15dp">
+
+            <!-- Progress Bar Row -->
+            <TextView
+                android:id="@+id/tvProgress"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Question 1/10"
+                android:textColor="#415A77"
+                android:textSize="15sp"
+                android:fontFamily="sans-serif-medium"
+                android:paddingBottom="6dp"
+                android:paddingTop="1dp"
+                android:background="@android:color/transparent"/>
+
+            <!-- Question -->
+            <TextView
+                android:id="@+id/tvQuestion"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="1. Sample Question"
+                android:textColor="#222222"
+                android:textSize="17sp"
+                android:textStyle="bold"
+                android:fontFamily="sans-serif-medium"
+                android:background="@android:color/transparent"
+                android:paddingBottom="16dp" />
+
+            <!-- Multiple Choice Options -->
+            <RadioGroup
+                android:id="@+id/radioGroupMCQ"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <RadioButton
+                    android:id="@+id/rbOptionA"
+                    style="@style/McqRadioButtonStyle"
+                    android:text="Option A"/>
+
+                <RadioButton
+                    android:id="@+id/rbOptionB"
+                    style="@style/McqRadioButtonStyle"
+                    android:text="Option B"/>
+
+                <RadioButton
+                    android:id="@+id/rbOptionC"
+                    style="@style/McqRadioButtonStyle"
+                    android:text="Option C"/>
+
+                <RadioButton
+                    android:id="@+id/rbOptionD"
+                    style="@style/McqRadioButtonStyle"
+                    android:text="Option D"/>
+            </RadioGroup>
+
+            <!-- True / False -->
+            <RadioGroup
+                android:id="@+id/radioGroupTF"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="8dp"
+                android:visibility="gone">
+
+                <RadioButton
+                    android:id="@+id/rbTrue"
+                    style="@style/McqRadioButtonStyle"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:text="True"/>
+
+                <RadioButton
+                    android:id="@+id/rbFalse"
+                    style="@style/McqRadioButtonStyle"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:text="False"/>
+            </RadioGroup>
+
+            <!-- Short/Essay/Text -->
+            <EditText
+                android:id="@+id/etAnswer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Type your answer"
+                android:background="@android:color/transparent"
+                android:layout_marginTop="8dp"
+                android:padding="12dp"
+                android:textColor="#222"
+                android:textSize="16sp"
+                android:fontFamily="sans-serif"
+                android:visibility="gone"/>
+
+            <!-- Matching/Dropdown -->
+            <Spinner
+                android:id="@+id/spinnerAnswer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:background="@android:color/transparent"
+                android:spinnerMode="dropdown"
+                android:visibility="gone"/>
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnNextOrSubmit"
+        android:layout_width="wrap_content"
+        android:layout_height="45dp"
+        android:text="Next"
+        android:textStyle="bold"
+        android:textSize="16sp"
+        android:textColor="@android:color/white"
+        app:cornerRadius="18dp"
+        android:backgroundTint="@color/dark_blue_700"
+        android:elevation="4dp"
+        android:minWidth="110dp"
+        android:layout_gravity="end"
+        android:layout_marginTop="4dp"
+        android:paddingLeft="28dp"
+        android:paddingRight="28dp"
+        app:iconPadding="7dp"
+        app:icon="@drawable/ic_send"
+        app:iconTint="@android:color/white"/>
+</LinearLayout>
