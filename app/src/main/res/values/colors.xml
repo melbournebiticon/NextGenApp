@@ -13,6 +13,7 @@
         <color name="colorPrimary">#212121</color>
         <color name="colorPrimaryDark">#000000</color>
 
+    <color name="onSurfaceVariant">#6A6A6A</color>
 
     <color name="dark_blue_600">#1E3A8A</color>
 
@@ -82,7 +83,6 @@
         <color name="onBackground">#1C1B1F</color>
 
         <color name="onSurface">#1C1B1F</color>
-        <color name="onSurfaceVariant">#49454F</color>
 
         <color name="divider">#E7E7E7</color>
         <color name="ripple">#1A6750A4</color>
@@ -99,4 +99,10 @@
     <color name="att_late_light">#FFE0B2</color>
     <color name="att_late">#F57C00</color>
     <color name="green">#4CAF50</color>
+
+    <!-- Only ADD these. Do not remove anything from your current colors.xml! -->
+    <color name="blue_700">#1976D2</color>
+    <color name="red_700">#D32F2F</color>
+    <color name="orange_800">#EF6C00</color>
+    <color name="teal_50">#E3F2FD</color>
 </resources>

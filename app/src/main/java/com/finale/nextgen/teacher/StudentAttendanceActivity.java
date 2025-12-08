@@ -18,6 +18,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.finale.nextgen.R;
 import com.finale.nextgen.SessionManager;
+import com.google.android.material.appbar.MaterialToolbar;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DataSnapshot;
@@ -92,6 +93,12 @@ public class StudentAttendanceActivity extends AppCompatActivity {
 
         // Views
         recyclerView = findViewById(R.id.recyclerView);
+
+        MaterialToolbar toolbar = findViewById(R.id.studentToolbar);
+        if (toolbar != null) {
+            toolbar.setNavigationOnClickListener(v -> finish());
+        }
+
         viewReportBtn = findViewById(R.id.viewReportBtn);
         sectionSpinner = findViewById(R.id.sectionSpinner);
 

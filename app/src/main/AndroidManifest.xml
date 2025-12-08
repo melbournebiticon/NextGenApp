@@ -3,8 +3,15 @@
     xmlns:tools="http://schemas.android.com/tools"
     package="com.finale.nextgen">
 
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
+
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.CAMERA" />
+
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
 
     <application
         android:allowBackup="true"
@@ -16,8 +23,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.NextGen">
 
-
-    <provider
+        <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.provider"
             android:exported="false"
@@ -40,18 +46,10 @@
         <activity
             android:name=".LogoIntroActivity"
             android:theme="@style/DarkBlueTheme"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN"/>
-                <category android:name="android.intent.category.LAUNCHER"/>
-            </intent-filter>
-        </activity>
-
-        <activity android:name=".MainActivity" android:exported="true" />
+            android:exported="true" />
 
         <activity android:name=".admin.AdminActivity" />
         <activity android:name=".admin.AcademicsActivity" />
-
         <activity android:name=".admin.TeacherActivity" />
         <activity android:name=".admin.StudentActivity" />
         <activity android:name=".admin.SpecializationsActivity" />
@@ -59,30 +57,35 @@
         <activity android:name=".admin.SectionsActivity" />
         <activity android:name=".admin.CourseActivity" />
         <activity android:name=".admin.SubjectActivity" />
-
-        <activity android:name=".teacher.TeacherDashboardActivity" />
         <activity android:name=".teacher.ViewStudentsActivity" />
-        <activity android:name=".teacher.Exam" />
         <activity android:name=".teacher.GenerateQuestionsActivity" />
         <activity android:name=".teacher.ManageExamActivity" />
         <activity android:name=".teacher.ProfileActivity" />
-        <activity android:name=".teacher.Question" />
         <activity android:name=".teacher.ExamMonitorActivity" />
-        <activity android:name=".teacher.CreateActivityActivity" />
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+
         <activity android:name=".teacher.SubjectSectionActivity" />
-        <activity android:name=".teacher.TeacherActivitiesActivity" />
         <activity android:name=".teacher.ManageQuizActivity" />
         <activity android:name=".teacher.GenerateQuizActivity" />
         <activity android:name=".teacher.QuizMonitorActivity" />
+
+
         <activity android:name=".teacher.StudentAttendanceActivity" android:exported="false"/>
         <activity android:name=".teacher.AttendanceReportActivity" android:exported="false"/>
+        <!-- DO NOT add LAUNCHER intent-filter here! -->
+        <activity android:name=".teacher.TeacherActivitiesActivity" android:exported="false"/>
 
-        <!-- Student -->
-        <activity
-            android:name=".student.QuizListActivity"
-            android:exported="true" />
-
-        <!-- STUDENT TAKE QUIZ (deep link allowed) -->
+        <activity android:name=".teacher.CreateActivityActivity" android:exported="true"/>
+        <!-- Student section unchanged below -->
+        <activity android:name=".student.QuizListActivity" android:exported="true" />
         <activity
             android:name=".student.TakeQuizActivity"
             android:exported="true">
@@ -93,7 +96,6 @@
                 <data android:scheme="nextgen" android:host="quiz" />
             </intent-filter>
         </activity>
-
         <activity android:name=".student.StudentDashboardActivity" />
         <activity android:name=".student.StudentProfileActivity" />
         <activity android:name=".student.ResultActivity" />
@@ -103,13 +105,7 @@
         <activity android:name=".student.ActivityDetailsActivity" />
         <activity android:name=".student.QuizResultActivity" />
         <activity android:name=".student.StudentAttendanceViewerActivity" android:exported="false"/>
-
-
-        <!-- ✅ Correct scanner for QUIZ -->
-        <activity
-            android:name=".student.StudentQuizScannerActivity"
-            android:exported="true" />
+        <activity android:name=".student.StudentQuizScannerActivity" android:exported="true" />
 
     </application>
-
 </manifest>

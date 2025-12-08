@@ -11,8 +11,11 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Vibrator;
 import android.util.Log;
+import android.widget.Button;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.camera.core.CameraSelector;
@@ -36,6 +39,7 @@ import com.google.zxing.NotFoundException;
 import com.google.zxing.Result;
 import com.google.zxing.common.HybridBinarizer;
 import com.google.zxing.PlanarYUVLuminanceSource;
+import com.google.zxing.RGBLuminanceSource;
 
 import java.io.InputStream;
 import java.nio.ByteBuffer;
@@ -45,21 +49,14 @@ import java.util.concurrent.ExecutionException;
 
 import com.finale.nextgen.SessionManager;
 import com.finale.nextgen.sync.ExamMetadata;
-import com.finale.nextgen.sync.PresenceHelper;
+import com.finale.nextgen.sync.QuizPresenceHelper;
 
 /**
  * StudentQuizScannerActivity
  *
- * Fixes applied here to avoid mismatches between scanner and monitor:
- * - Robust QR parsing (supports JSON with quizId/examId/id, deep links like nextgen://quiz/{id}, and plain ids).
- * - Normalizes quiz id (strips "quiz:" / "exam:" prefixes).
- * - Resolves studentId: uses SessionManager; if missing, attempts lookup by FirebaseAuth UID in /Students.
- *   - If resolved, saves it to SessionManager and proceeds.
- *   - If not resolved, falls back to using FirebaseAuth UID as temporary key AND logs a warning (teacher monitor may expect studentId).
- * - Saves presence locally via PresenceHelper.savePresenceLocallyAndEnqueue(...)
- * - If network available, writes immediately to both QuizStudents/{quizId}/{studentKey}/present and ExamStudents/{quizId}/{studentKey}/present
- *   (studentKey = resolved studentId or fallback uid) so teacher listeners on either path see it.
- * - Writes debug node to /PresenceDebug/{quizId}/{studentKey} with timestamp/displayName to aid debugging.
+ * Added: gallery picker support (button in scanner UI) using ActivityResultContracts.OpenDocument.
+ * - Wire a Button with id btnSelectFromGallery in activity_qr_scanner.xml to enable selecting an image.
+ * - Decodes selected image and feeds result into existing handleScannedQuiz flow.
  */
 public class StudentQuizScannerActivity extends AppCompatActivity {
 
@@ -69,6 +66,9 @@ public class StudentQuizScannerActivity extends AppCompatActivity {
     private PreviewView previewView;
     private volatile boolean scannedOnce = false;
 
+    // ActivityResult launcher for picking images from gallery/storage
+    private ActivityResultLauncher<String[]> pickImageLauncher;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -76,12 +76,37 @@ public class StudentQuizScannerActivity extends AppCompatActivity {
 
         previewView = findViewById(R.id.previewView);
 
+        // register the image picker launcher
+        pickImageLauncher = registerForActivityResult(new ActivityResultContracts.OpenDocument(), uri -> {
+            if (uri == null) return;
+            // try to persist permission for URI if possible (optional)
+            try {
+                final int takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION;
+                getContentResolver().takePersistableUriPermission(uri, takeFlags);
+            } catch (Exception ignored) {}
+            // decode in background and handle if QR found
+            decodeQrFromImageUri(uri);
+        });
+
+        // wire gallery button in scanner UI (optional) - add a Button with id btnSelectFromGallery in layout
+        try {
+            Button btnGallery = findViewById(R.id.btnSelectFromGallery);
+            if (btnGallery != null) {
+                btnGallery.setOnClickListener(v -> pickImageFromGallery());
+            }
+        } catch (Exception ignored) {}
+
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
                 == PackageManager.PERMISSION_GRANTED) {
             startCamera();
         } else {
             requestPermissions(new String[]{Manifest.permission.CAMERA}, CAMERA_PERMISSION_REQUEST);
         }
+    }
+
+    // Launch the system picker for images (MIME filter)
+    private void pickImageFromGallery() {
+        pickImageLauncher.launch(new String[] { "image/*" });
     }
 
     private void startCamera() {
@@ -298,19 +323,19 @@ public class StudentQuizScannerActivity extends AppCompatActivity {
     private void performPresenceSave(String quizId, ExamMetadata meta, String studentKey) {
         if (quizId == null || studentKey == null) return;
 
-        // Save locally + enqueue (always)
+        // Save locally + enqueue (always) using the quiz-specific helper
         try {
-            PresenceHelper.savePresenceLocallyAndEnqueue(getApplicationContext(), quizId, studentKey, meta);
-            Log.d(TAG, "Presence saved locally/enqueued for quiz=" + quizId + " studentKey=" + studentKey);
+            QuizPresenceHelper.saveQuizPresenceLocallyAndEnqueue(getApplicationContext(), quizId, studentKey, meta);
+            Log.d(TAG, "Quiz presence saved locally/enqueued for quiz=" + quizId + " studentKey=" + studentKey);
         } catch (Exception e) {
-            Log.w(TAG, "PresenceHelper.savePresenceLocallyAndEnqueue failed: " + e.getMessage(), e);
+            Log.w(TAG, "QuizPresenceHelper.saveQuizPresenceLocallyAndEnqueue failed: " + e.getMessage(), e);
         }
 
         // Debug display name from SessionManager if available
         SessionManager sessionManager = new SessionManager(this);
         String displayName = sessionManager.getStudentModel() != null ? sessionManager.getStudentModel().getFullName() : "unknown";
 
-        // If network available, write immediately to both paths so teacher listeners catch it (QuizStudents and ExamStudents)
+        // If network available, write immediately to QuizStudents only (quiz-specific path)
         if (isNetworkAvailable()) {
             try {
                 FirebaseDatabase db = FirebaseDatabase.getInstance();
@@ -319,13 +344,6 @@ public class StudentQuizScannerActivity extends AppCompatActivity {
                 qRef.setValue(true).addOnCompleteListener(task -> {
                     Log.d(TAG, "Immediate write to QuizStudents completed success=" + task.isSuccessful() + " quiz=" + quizId + " key=" + studentKey);
                     if (!task.isSuccessful() && task.getException() != null) Log.w(TAG, "Immediate QuizStudents write error", task.getException());
-                });
-
-                // also write to ExamStudents (covering monitors that fall back to that path)
-                DatabaseReference eRef = db.getReference("ExamStudents").child(quizId).child(studentKey).child("present");
-                eRef.setValue(true).addOnCompleteListener(task -> {
-                    Log.d(TAG, "Immediate write to ExamStudents completed success=" + task.isSuccessful() + " quiz=" + quizId + " key=" + studentKey);
-                    if (!task.isSuccessful() && task.getException() != null) Log.w(TAG, "Immediate ExamStudents write error", task.getException());
                 });
 
                 // debug node
@@ -339,7 +357,7 @@ public class StudentQuizScannerActivity extends AppCompatActivity {
                 Log.w(TAG, "Immediate write exception: " + e.getMessage(), e);
             }
         } else {
-            Log.d(TAG, "No network available; presence only enqueued for quiz=" + quizId + " key=" + studentKey);
+            Log.d(TAG, "No network available; quiz presence only enqueued for quiz=" + quizId + " key=" + studentKey);
         }
 
         // Return result to caller (QuizListActivity) — quizId normalized already

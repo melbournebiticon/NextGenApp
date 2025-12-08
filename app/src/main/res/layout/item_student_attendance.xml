@@ -1,97 +1,170 @@
 <?xml version="1.0" encoding="utf-8"?>
-
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/studentItemLayout"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:padding="12dp"
-    android:background="@drawable/item_background"
-    android:layout_marginBottom="8dp">
+    android:layout_marginVertical="7dp"
+    android:layout_marginHorizontal="10dp"
+    app:cardCornerRadius="18dp"
+    app:cardElevation="0dp"
+    app:cardBackgroundColor="@android:color/white"
+    android:background="@android:color/white"
+    app:strokeColor="@android:color/transparent"
+    app:strokeWidth="0dp">
 
-    <!-- Student Name -->
-    <TextView
-        android:id="@+id/studentNameTxt"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Student Name"
-        android:textSize="18sp"
-        android:textStyle="bold"
-        android:paddingBottom="2dp" />
+<LinearLayout
+android:layout_width="match_parent"
+android:layout_height="wrap_content"
+android:orientation="vertical"
+android:padding="16dp">
 
-    <!-- Student ID -->
-    <TextView
-        android:id="@+id/studentIdTxt"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="STD-0007"
-        android:textSize="14sp"
-        android:textColor="#666666"
-        android:paddingBottom="2dp" />
+<LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical">
 
-    <!-- Section -->
-    <TextView
-        android:id="@+id/sectionTxt"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="BSIT - BA - 1 - A"
-        android:textSize="14sp"
-        android:textColor="#666666"
-        android:paddingBottom="8dp" />
+    <com.google.android.material.imageview.ShapeableImageView
+        android:id="@+id/avatarView"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:src="@drawable/examinee_default"
+        android:scaleType="centerCrop"
+        app:shapeAppearanceOverlay="@style/CircleImageView"
+        android:contentDescription="@string/student_avatar"
+        android:layout_marginEnd="14dp"
+        tools:ignore="VectorDrawableCompat" />
 
-    <!-- Attendance Buttons -->
     <LinearLayout
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:weightSum="4"
-        android:gravity="center_vertical"
-        tools:ignore="ExtraText">
+        android:orientation="vertical"
+        android:layout_weight="1">
 
-        <Button
-            android:id="@+id/presentBtn"
-            android:layout_width="0dp"
+        <TextView
+            android:id="@+id/studentNameTxt"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Present"
-            android:backgroundTint="#4CAF50"
-            android:textColor="@android:color/white"
-            android:textAllCaps="false" />
+            android:text="Student Name"
+            android:textSize="17sp"
+            android:textStyle="bold"
+            android:textColor="@color/black"
+            tools:text="Alex Johnson" />
 
-        <Button
-            android:id="@+id/absentBtn"
-            android:layout_width="0dp"
+        <TextView
+            android:id="@+id/studentIdTxt"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Absent"
-            android:backgroundTint="#F44336"
-            android:textColor="@android:color/white"
-            android:textAllCaps="false"
-            android:layout_marginStart="4dp" />
+            android:text="STD-0007"
+            android:textSize="13sp"
+            android:textColor="#7394A7"
+            android:layout_marginTop="1dp"
+            tools:text="STD-1439" />
 
-        <Button
-            android:id="@+id/excusedBtn"
-            android:layout_width="0dp"
+        <TextView
+            android:id="@+id/sectionTxt"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Excused"
-            android:backgroundTint="#2196F3"
-            android:textColor="@android:color/white"
-            android:textAllCaps="false"
-            android:layout_marginStart="4dp" />
-
-        <Button
-            android:id="@+id/lateBtn"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Late"
-            android:backgroundTint="#FF9800"
-            android:textColor="@android:color/white"
-            android:textAllCaps="false"
-            android:layout_marginStart="4dp" />
+            android:text="BSIT - BA - 1 - A"
+            android:textSize="12.5sp"
+            android:textColor="#B0BEC5"
+            android:layout_marginTop="0dp"
+            tools:text="BSIT - 2 - B" />
     </LinearLayout>
+</LinearLayout>
+
+<!-- Row of 4 colored buttons, readable text, white text color -->
+<LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="16dp"
+    android:orientation="horizontal"
+    android:gravity="center">
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/presentBtn"
+        style="@style/Widget.MaterialComponents.Button"
+        android:layout_width="0dp"
+        android:layout_height="44dp"
+        android:layout_weight="1"
+        android:text="@string/present"
+        android:textAllCaps="false"
+        android:textColor="@android:color/white"
+        android:textSize="14sp"
+        android:icon="@drawable/ic_check_circle"
+        android:iconTint="@android:color/white"
+        android:backgroundTint="@color/green"
+        app:cornerRadius="10dp"
+        android:paddingHorizontal="0dp"
+        android:paddingVertical="0dp"
+        tools:text="Present" />
+
+    <Space
+        android:layout_width="8dp"
+        android:layout_height="wrap_content" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/absentBtn"
+        style="@style/Widget.MaterialComponents.Button"
+        android:layout_width="0dp"
+        android:layout_height="44dp"
+        android:layout_weight="1"
+        android:text="@string/absent"
+        android:textAllCaps="false"
+        android:textColor="@android:color/white"
+        android:textSize="14sp"
+        android:iconTint="@android:color/white"
+        android:backgroundTint="@color/red_700"
+        app:cornerRadius="10dp"
+        android:paddingHorizontal="0dp"
+        android:paddingVertical="0dp"
+        tools:text="Absent" />
+
+    <Space
+        android:layout_width="8dp"
+        android:layout_height="wrap_content" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/excusedBtn"
+        style="@style/Widget.MaterialComponents.Button"
+        android:layout_width="0dp"
+        android:layout_height="44dp"
+        android:layout_weight="1"
+        android:text="@string/excused"
+        android:textAllCaps="false"
+        android:textColor="@android:color/white"
+        android:textSize="14sp"
+        android:iconTint="@android:color/white"
+        android:backgroundTint="@color/blue_700"
+        app:cornerRadius="10dp"
+        android:paddingHorizontal="0dp"
+        android:paddingVertical="0dp"
+        tools:text="Excused" />
+
+    <Space
+        android:layout_width="8dp"
+        android:layout_height="wrap_content" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/lateBtn"
+        style="@style/Widget.MaterialComponents.Button"
+        android:layout_width="0dp"
+        android:layout_height="44dp"
+        android:layout_weight="1"
+        android:text="@string/late"
+        android:textAllCaps="false"
+        android:textColor="@android:color/white"
+        android:textSize="14sp"
+        android:iconTint="@android:color/white"
+        android:backgroundTint="@color/orange_800"
+        app:cornerRadius="10dp"
+        android:paddingHorizontal="0dp"
+        android:paddingVertical="0dp"
+        tools:text="Late" />
 
 </LinearLayout>
+</LinearLayout>
+    </com.google.android.material.card.MaterialCardView>

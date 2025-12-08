@@ -11,8 +11,8 @@ android {
         applicationId = "com.finale.nextgen"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.2"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -48,12 +48,30 @@ android {
     buildFeatures {
         mlModelBinding = true
     }
+
+    packaging {
+        resources {
+            // Pick one or exclude duplicates
+            excludes += setOf(
+                "META-INF/LICENSE.md",
+                "META-INF/LICENSE.txt",
+                "META-INF/NOTICE.md",
+                "META-INF/NOTICE.txt"
+            )
+        }
+    }
 }
+
 
 dependencies {
     // Add to dependencies { ... } in app/build.gradle
     implementation("com.google.zxing:core:3.5.1")
     implementation("androidx.work:work-runtime:2.8.1")
+
+
+    implementation("androidx.multidex:multidex:2.0.1")
+    implementation("com.sun.mail:android-mail:1.6.6")
+    implementation("com.sun.mail:android-activation:1.6.6")
 
     implementation("com.google.code.gson:gson:2.10.1")
     implementation("com.google.zxing:core:3.5.2")

@@ -1,11 +1,14 @@
 package com.finale.nextgen.admin;
 
 import android.os.Bundle;
+import android.text.Editable;
 import android.text.TextUtils;
+import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.Toast;
 import android.net.Uri;
 import android.graphics.Bitmap;
@@ -14,13 +17,20 @@ import android.provider.MediaStore;
 import android.util.Base64;
 import android.widget.ImageView;
 import android.content.Intent;
-import android.provider.MediaStore;
+
+
 import androidx.annotation.Nullable;
 import android.widget.ProgressBar;
-import android.widget.TextView;
+import android.widget.ImageView;
+import android.widget.ProgressBar;
+import android.widget.TextView;   // ← add this
 import java.io.ByteArrayOutputStream;
+import android.graphics.Bitmap;
+import android.util.Base64;
 import android.app.DatePickerDialog;
 import java.util.Calendar;
+
+
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
@@ -36,18 +46,22 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
+
+import com.finale.nextgen.utils.EmailSender;
+
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 
+
 public class TeacherActivity extends AppCompatActivity {
 
     private EditText etFullName, etBirthday, etEmail;
     private RecyclerView recyclerCourseSelection, recyclerSubjects, recyclerTeachers;
-    private FloatingActionButton addTeacherFab; // << DECLARE HERE
+    private ImageView btnBack, addTeacherFab;
+
 
     private List<SubjectModel> selectedCourseSubjects = new ArrayList<>();
     private List<CourseModel> courseOptionList = new ArrayList<>();
@@ -56,31 +70,70 @@ public class TeacherActivity extends AppCompatActivity {
     private DatabaseReference teachersRef, coursesRef, subjectsRef, usersRef;
     private FirebaseAuth auth;
 
+    private boolean sortAscending = true;
+
     private SubjectSelectionAdapter subjectAdapter;
     private TeacherAdapter teacherAdapter;
     private CourseSelectionAdapter courseSelectionAdapter;
 
     private Uri selectedImageUri;
     private ImageView currentEditProfileView;
-    private String profileImage; // Base64-encoded profile picture
+    private TextView tvTeacherCount;
+    private LinearLayout emptyState;
+
+    private EditText etSearchTeacher;
+    private List<TeacherModel> teacherListFull; // keep original full list
+
+
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_teacher);
 
-        // Only activity views
+        // Views
         recyclerTeachers = findViewById(R.id.recyclerTeachers);
-        addTeacherFab = findViewById(R.id.addTeacherFab); // << INITIALIZE HERE
+        btnBack = findViewById(R.id.btnBack);
+        addTeacherFab = findViewById(R.id.addTeacherFab);
 
         recyclerTeachers.setLayoutManager(new LinearLayoutManager(this));
 
-        // Firebase refs
+        btnBack.setOnClickListener(v -> finish());
+        addTeacherFab.setOnClickListener(v -> showAddTeacherDialog());
+
+        // Firebase references
         teachersRef = FirebaseDatabase.getInstance().getReference("Teachers");
         coursesRef = FirebaseDatabase.getInstance().getReference("Courses");
         subjectsRef = FirebaseDatabase.getInstance().getReference("Subjects");
         usersRef = FirebaseDatabase.getInstance().getReference("Users");
         auth = FirebaseAuth.getInstance();
+
+        tvTeacherCount = findViewById(R.id.tvTeacherCount);
+        emptyState = findViewById(R.id.emptyState);
+
+        Button btnSort = findViewById(R.id.btnSort);
+        btnSort.setOnClickListener(v -> sortTeachersByName());
+
+        teacherListFull = new ArrayList<>(teacherList); // initial copy
+
+        etSearchTeacher = findViewById(R.id.etSearchTeacher); // make sure you have this EditText in your XML
+        etSearchTeacher.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                filterTeachers(s.toString());
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {}
+        });
+
+
+
+
 
         teacherAdapter = new TeacherAdapter(teacherList, new TeacherAdapter.OnTeacherActionListener() {
             @Override
@@ -115,6 +168,9 @@ public class TeacherActivity extends AppCompatActivity {
                         .setNegativeButton("Cancel", null)
                         .show();
             }
+
+
+
         });
         recyclerTeachers.setAdapter(teacherAdapter);
 
@@ -122,21 +178,59 @@ public class TeacherActivity extends AppCompatActivity {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 teacherList.clear();
+                teacherListFull.clear(); // reset full list
                 for (DataSnapshot ds : snapshot.getChildren()) {
                     TeacherModel t = ds.getValue(TeacherModel.class);
-                    if (t != null) teacherList.add(t);
+                    if (t != null) {
+                        teacherList.add(t);
+                        teacherListFull.add(t);
+                    }
                 }
                 teacherAdapter.notifyDataSetChanged();
+                updateTeacherUI();
             }
 
             @Override
-            public void onCancelled(@NonNull DatabaseError error) { }
+            public void onCancelled(@NonNull DatabaseError error) {
+                Toast.makeText(TeacherActivity.this, "Error: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+            }
         });
+
 
         loadCourses();
 
-        // FAB listener for add teacher
         addTeacherFab.setOnClickListener(v -> showAddTeacherDialog());
+
+    }
+
+    private void filterTeachers(String query) {
+        teacherList.clear();
+        if (query.isEmpty()) {
+            teacherList.addAll(teacherListFull); // restore full list
+        } else {
+            String lowerQuery = query.toLowerCase();
+            for (TeacherModel t : teacherListFull) {
+                if (t.getFullName().toLowerCase().contains(lowerQuery)) {
+                    teacherList.add(t);
+                }
+            }
+        }
+        teacherAdapter.notifyDataSetChanged();
+        updateTeacherUI(); // optional: update empty state
+    }
+
+
+    private void updateTeacherUI() {
+        int count = teacherList.size();
+        tvTeacherCount.setText(count + " teacher" + (count != 1 ? "s" : ""));
+
+        if (teacherList.isEmpty()) {
+            emptyState.setVisibility(View.VISIBLE);
+            recyclerTeachers.setVisibility(View.GONE);
+        } else {
+            emptyState.setVisibility(View.GONE);
+            recyclerTeachers.setVisibility(View.VISIBLE);
+        }
     }
 
 
@@ -157,6 +251,15 @@ public class TeacherActivity extends AppCompatActivity {
         });
     }
 
+    private void sortTeachersByName() {
+        if (sortAscending) {
+            teacherList.sort((t1, t2) -> t1.getFullName().compareToIgnoreCase(t2.getFullName()));
+        } else {
+            teacherList.sort((t1, t2) -> t2.getFullName().compareToIgnoreCase(t1.getFullName()));
+        }
+        sortAscending = !sortAscending; // toggle for next click
+        teacherAdapter.notifyDataSetChanged();
+    }
     private void showAddTeacherDialog() {
         View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_add_teacher, null);
 
@@ -320,7 +423,23 @@ public class TeacherActivity extends AppCompatActivity {
 
                                         // Save full teacher record
                                         teachersRef.child(teacherId).setValue(teacher)
-                                                .addOnSuccessListener(aVoid -> Toast.makeText(this, "Teacher added successfully", Toast.LENGTH_SHORT).show())
+                                                .addOnSuccessListener(aVoid -> {
+                                                    Toast.makeText(this, "Teacher added successfully", Toast.LENGTH_SHORT).show();
+
+                                                    // Prepare email message
+                                                    String subject = "Your Teacher Account Details";
+                                                    String body = "Hello " + fullName + ",\n\n" +
+                                                            "Your teacher account has been created.\n\n" +
+                                                            "Teacher ID: " + teacherId + "\n" +
+                                                            "Email: " + email + "\n" +
+                                                            "Password: " + password + "\n\n" +
+                                                            "Please log in and change your password.\n\n" +
+                                                            "Thank you.";
+
+                                                    // Send email
+                                                    EmailSender.send(TeacherActivity.this, email, subject, body);
+                                                })
+
                                                 .addOnFailureListener(e -> Toast.makeText(this, "Failed to save teacher: " + e.getMessage(), Toast.LENGTH_SHORT).show());
                                     } else {
                                         Toast.makeText(this, "Auth failed: " + authTask.getException().getMessage(), Toast.LENGTH_SHORT).show();
@@ -648,17 +767,11 @@ public class TeacherActivity extends AppCompatActivity {
                                         if (loadedCount[0] == teacher.getCourseIds().size()) {
                                             // Map IDs → names for pre-selection
                                             List<String> preselectedNames = new ArrayList<>();
-                                            List<String> assignedSubjects = teacher.getAssignedSubjects();
-                                            if (assignedSubjects == null) {
-                                                assignedSubjects = new ArrayList<>();
-                                            }
-
                                             for (SubjectModel s : loadedSubjects) {
-                                                if (assignedSubjects.contains(s.getId())) {
+                                                if (teacher.getAssignedSubjects().contains(s.getId())) {
                                                     preselectedNames.add(s.getName());
                                                 }
                                             }
-
 
                                             editSubjectAdapter.updateSubjects(loadedSubjects);
                                             editSubjectAdapter.setPreselectedSubjects(preselectedNames);

@@ -20,6 +20,9 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.finale.nextgen.R;
+import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.material.button.MaterialButton;
+import com.finale.nextgen.teacher.ObservableHorizontalScrollView;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DataSnapshot;
@@ -38,45 +41,29 @@ import java.util.Map;
 import java.util.StringJoiner;
 import java.util.concurrent.atomic.AtomicInteger;
 
-/**
- * AttendanceReportActivity
- *
- * Behavior:
- * - Prefers teacherId passed in Intent extras ("teacherId"). If absent, falls back to authenticated UID.
- * - Reads day snapshots from Attendance/{sectionId}/{teacherId}/{date} when teacherId is provided,
- *   otherwise from Attendance/{sectionId}/{date} (which may contain teacher child nodes).
- * - Reads totals from AttendanceSummary/{sectionId}/{teacherId} when teacherId is provided,
- *   otherwise reads AttendanceSummary/{sectionId} and aggregates across teacher children.
- *
- * - Percentage computation uses counts + totalDays (or derives totalDays from sum(counts) when missing).
- *   Weights: Present=100, Late=90, Excused=100, Absent=0.
- */
 public class AttendanceReportActivity extends AppCompatActivity {
 
     private static final String TAG = "AttendanceReport";
 
     private String sectionId;
-    private DatabaseReference summaryRef;     // AttendanceSummary/{sectionId}/{maybeTeacherId or aggregated}
+    private DatabaseReference summaryRef;
     private DatabaseReference studentsRef;
-    private DatabaseReference attendanceRef;  // Attendance/{sectionId}/{maybeTeacherId}
+    private DatabaseReference attendanceRef;
 
     private RecyclerView recyclerView;
     private SummaryAdapter adapter;
     private final List<AttendanceSummaryModel> items = new ArrayList<>();
 
-    private TextView tvReportTitle;
     private TextView tvLastUpdated;
-    private TextView btnExport;
-
-    private TextView btnToggleCalendar;
+    private MaterialButton btnExport;
+    private MaterialButton btnToggleCalendar;
     private TextView tvDateInfo;
-    private TextView btnComputeClassAverage;
+    private MaterialButton btnComputeClassAverage;
 
     private ObservableHorizontalScrollView headerScroll;
     private final List<ObservableHorizontalScrollView> rowScrolls = new ArrayList<>();
     private boolean isSyncing = false;
 
-    // Weights: Present=100, Late=90, Excused=100, Absent=0
     private static final Map<String, Integer> WEIGHTS = new HashMap<>();
     static {
         WEIGHTS.put("Present", 100);
@@ -85,7 +72,7 @@ public class AttendanceReportActivity extends AppCompatActivity {
         WEIGHTS.put("Absent", 0);
     }
 
-    private String teacherId; // current teacher id if available or passed via intent
+    private String teacherId;
 
     @SuppressLint("MissingInflatedId")
     @Override
@@ -93,27 +80,32 @@ public class AttendanceReportActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_attendance_report);
 
-        // bind views
-        tvReportTitle = findViewById(R.id.tvReportTitle);
+        // Bind views from the layout
+        MaterialToolbar toolbar = findViewById(R.id.reportToolbar);
+
         recyclerView = findViewById(R.id.attendanceRecyclerView);
         tvLastUpdated = findViewById(R.id.tvLastUpdated);
         btnExport = findViewById(R.id.btnExport);
         headerScroll = findViewById(R.id.header_hsv);
-
         btnToggleCalendar = findViewById(R.id.btnToggleCalendar);
         tvDateInfo = findViewById(R.id.tvDateInfo);
         btnComputeClassAverage = findViewById(R.id.btnComputeClassAverage);
 
         sectionId = getIntent().getStringExtra("sectionId");
         String sectionDisplay = getIntent().getStringExtra("sectionDisplay");
-        if (!TextUtils.isEmpty(sectionDisplay)) tvReportTitle.setText("Attendance Report — " + sectionDisplay);
+        if (!TextUtils.isEmpty(sectionDisplay)) {
+            toolbar.setTitle("Attendance Report — " + sectionDisplay);
+        } else {
+            toolbar.setTitle("Attendance Report");
+        }
+        toolbar.setNavigationOnClickListener(v -> finish());
 
         if (sectionId == null || sectionId.trim().isEmpty()) {
-            tvReportTitle.setText("Attendance Report (section not provided)");
+            Toast.makeText(this, "Attendance Report (section not provided)", Toast.LENGTH_LONG).show();
+            finish();
             return;
         }
 
-        // Prefer teacherId passed by intent (StudentAttendanceActivity sets it), else try auth UID
         String teacherIdFromIntent = getIntent().getStringExtra("teacherId");
         if (!TextUtils.isEmpty(teacherIdFromIntent)) {
             teacherId = teacherIdFromIntent;
@@ -153,6 +145,7 @@ public class AttendanceReportActivity extends AppCompatActivity {
 
         loadTodaySnapshot();
     }
+
 
     // Register a row's horizontal scroll view so it syncs with header and other rows
     private void registerRowScroll(ObservableHorizontalScrollView row) {

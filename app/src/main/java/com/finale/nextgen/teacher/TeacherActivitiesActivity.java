@@ -1,6 +1,5 @@
 package com.finale.nextgen.teacher;
 
-import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
@@ -29,23 +28,19 @@ public class TeacherActivitiesActivity extends AppCompatActivity {
 
     private RecyclerView recyclerView;
     private ActivityAdapter adapter;
-    private List<ActivityModel> activityList = new ArrayList<>();
+    private final List<ActivityModel> activityList = new ArrayList<>();
     private DatabaseReference activitiesRef;
     private SessionManager sessionManager;
     private FloatingActionButton fabAddActivity;
     private Toolbar toolbar;
+    private ValueEventListener activityListener;
 
-    // For live UI updates
-    private ValueEventListener activityListener; // <-- add this
-
-    // ACTION LISTENER (View – Edit – Delete)
     public interface ActivityActionListener {
         void onViewSubmissions(ActivityModel activity);
         void onEditActivity(ActivityModel activity);
         void onDeleteActivity(ActivityModel activity);
     }
 
-    @SuppressLint("MissingInflatedId")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -149,8 +144,26 @@ public class TeacherActivitiesActivity extends AppCompatActivity {
 
     @Override
     public boolean onSupportNavigateUp() {
-        finish();
+        handleCustomBack();
         return true;
+    }
+
+    @Override
+    public void onBackPressed() {
+        handleCustomBack();
+    }
+
+    private void handleCustomBack() {
+        // If this is the root, launch TeacherDashboardActivity rather than exit app
+        if (isTaskRoot()) {
+            Intent intent = new Intent(TeacherActivitiesActivity.this, TeacherDashboardActivity.class);
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+            finish();
+        } else {
+            // Otherwise, default back action
+            super.onBackPressed();
+        }
     }
 
     @Override
@@ -159,7 +172,6 @@ public class TeacherActivitiesActivity extends AppCompatActivity {
 
         String subjectId = getIntent().getStringExtra("subjectId");
         Log.d("TeacherActsDebug", "onResume subjectId: " + subjectId);
-        Toast.makeText(this, "SubjectId: " + subjectId, Toast.LENGTH_SHORT).show();
 
         if (subjectId != null && !subjectId.isEmpty()) {
             loadActivitiesForSubject(subjectId);
@@ -190,7 +202,6 @@ public class TeacherActivitiesActivity extends AppCompatActivity {
                     }
                 }
                 Log.d("TeacherActsDebug", "Total fetched: " + total + " | Filtered (subjectId): " + filtered);
-                Toast.makeText(TeacherActivitiesActivity.this, "Loaded " + filtered + " activities", Toast.LENGTH_SHORT).show();
                 adapter.notifyDataSetChanged();
             }
             @Override
@@ -225,7 +236,6 @@ public class TeacherActivitiesActivity extends AppCompatActivity {
                     }
                 }
                 Log.d("TeacherActsDebug", "Loaded ALL: " + total + " activities for this teacher.");
-                Toast.makeText(TeacherActivitiesActivity.this, "Loaded ALL: " + total + " activities", Toast.LENGTH_SHORT).show();
                 adapter.notifyDataSetChanged();
             }
             @Override
@@ -238,7 +248,6 @@ public class TeacherActivitiesActivity extends AppCompatActivity {
 
         activitiesRef.orderByChild("teacherId").equalTo(teacherId).addValueEventListener(activityListener);
     }
-
 
     @Override
     protected void onDestroy() {

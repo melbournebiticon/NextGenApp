@@ -62,7 +62,10 @@ public class TeacherDashboardActivity extends AppCompatActivity {
     DatabaseReference teachersRef, examsRef;
 
     Toolbar toolbar;
+
     private MenuItem profileMenuItem;
+
+
 
     // Dashboard summary
     TextView tvTeacherNameDisplay, tvTeacherIdDisplay, tvActiveExamsCount, tvRecentExamTitle, tvPendingSubmissionsCount;
@@ -112,7 +115,7 @@ public class TeacherDashboardActivity extends AppCompatActivity {
             cardManageQuiz.setOnClickListener(v -> startActivity(new Intent(this, ManageQuizActivity.class)));
         }
         if(cardCreateActivity != null) {
-            cardCreateActivity.setOnClickListener(v -> startActivity(new Intent(this, CreateActivityActivity.class)));
+            cardCreateActivity.setOnClickListener(v -> startActivity(new Intent(this, TeacherActivitiesActivity.class)));
         }
         if(cardManageExaminees != null) {
             cardManageExaminees.setOnClickListener(v -> startActivity(new Intent(this, ViewStudentsActivity.class)));
