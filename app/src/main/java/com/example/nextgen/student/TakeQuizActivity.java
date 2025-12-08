@@ -1046,7 +1046,7 @@ public class TakeQuizActivity extends AppCompatActivity {
         String localStudentId = com.example.nextgen.SessionManager.getStudentId(this);
 
         if (localStudentId != null && !localStudentId.isEmpty()) {
-            com.example.nextgen.sync.SubmissionHelper.saveSubmissionLocallyAndEnqueue(
+            com.example.nextgen.sync.SubmissionHelper.saveQuizSubmissionLocallyAndEnqueue(
                     getApplicationContext(),
                     quizId,
                     localStudentId,
@@ -1080,10 +1080,10 @@ public class TakeQuizActivity extends AppCompatActivity {
                                     btnSubmit.setEnabled(true);
                                     return;
                                 }
-                                com.example.nextgen.sync.SubmissionHelper.saveSubmissionLocallyAndEnqueue(
+                                com.example.nextgen.sync.SubmissionHelper.saveQuizSubmissionLocallyAndEnqueue(
                                         getApplicationContext(),
                                         quizId,
-                                        studentId,
+                                        localStudentId,
                                         questionList,
                                         finalCalculatedScore,
                                         totalQuestions
@@ -1120,7 +1120,7 @@ public class TakeQuizActivity extends AppCompatActivity {
 
         String localStudentId = com.example.nextgen.SessionManager.getStudentId(this);
         if (localStudentId != null && !localStudentId.isEmpty()) {
-            com.example.nextgen.sync.SubmissionHelper.saveSubmissionLocallyAndEnqueue(
+            com.example.nextgen.sync.SubmissionHelper.saveQuizSubmissionLocallyAndEnqueue(
                     getApplicationContext(),
                     quizId,
                     localStudentId,
@@ -1130,7 +1130,6 @@ public class TakeQuizActivity extends AppCompatActivity {
             );
             if (isNetworkAvailable()) saveScoreToFirebase(localStudentId, 0, maxScore);
             Toast.makeText(TakeQuizActivity.this, "Zero-score submission saved locally.", Toast.LENGTH_LONG).show();
-            // --- ADD THIS BROADCAST ---
             Intent intent = new Intent("com.example.nextgen.QUIZ_SUBMITTED");
             intent.putExtra("quizId", quizId);
             LocalBroadcastManager.getInstance(TakeQuizActivity.this).sendBroadcast(intent);
@@ -1152,7 +1151,7 @@ public class TakeQuizActivity extends AppCompatActivity {
                                     return;
                                 }
 
-                                com.example.nextgen.sync.SubmissionHelper.saveSubmissionLocallyAndEnqueue(
+                                com.example.nextgen.sync.SubmissionHelper.saveQuizSubmissionLocallyAndEnqueue(
                                         getApplicationContext(),
                                         quizId,
                                         studentId,
@@ -1162,7 +1161,6 @@ public class TakeQuizActivity extends AppCompatActivity {
                                 );
                                 if (isNetworkAvailable()) saveScoreToFirebase(studentId, 0, maxScore);
                                 Toast.makeText(TakeQuizActivity.this, "Zero-score submission saved locally.", Toast.LENGTH_LONG).show();
-                                // --- ADD THIS BROADCAST ---
                                 Intent intent = new Intent("com.example.nextgen.QUIZ_SUBMITTED");
                                 intent.putExtra("quizId", quizId);
                                 LocalBroadcastManager.getInstance(TakeQuizActivity.this).sendBroadcast(intent);

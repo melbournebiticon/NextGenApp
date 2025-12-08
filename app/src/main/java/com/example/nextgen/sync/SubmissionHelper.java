@@ -3,10 +3,14 @@ package com.example.nextgen.sync;
 import android.content.Context;
 import android.util.Log;
 
+import androidx.work.ExistingWorkPolicy;
+import androidx.work.OneTimeWorkRequest;
+import androidx.work.WorkManager;
+
 import com.example.nextgen.offline.AppDatabase;
 import com.example.nextgen.offline.ExamEntity;
 import com.example.nextgen.offline.PendingSubmission;
-import com.example.nextgen.offline.StudentAnswerEntity; // if needed
+import com.example.nextgen.offline.QuizPendingSubmission;
 import com.example.nextgen.teacher.Question;
 import com.google.gson.Gson;
 
@@ -16,8 +20,8 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Helper to create a PendingSubmission from answers and enqueue sync.
- * Populates optional metadata from cached ExamEntity when available.
+ * Helper to create PendingSubmission / QuizPendingSubmission from answers and enqueue sync.
+ * Keeps exam and quiz flows in the same class for convenience.
  */
 public class SubmissionHelper {
 
@@ -30,7 +34,7 @@ public class SubmissionHelper {
                                                        int computedScore,
                                                        int maxScore) {
 
-        // Prefer application context to avoid leaking Activity
+        // existing exam flow (unchanged)
         final Context appCtx = ctx.getApplicationContext();
 
         // Build answers map (questionDisplayNumber -> answer)
@@ -66,19 +70,64 @@ public class SubmissionHelper {
                     // continue even if exam not present
                 }
 
-                // Optionally, if you cache student info in Room, fetch it here and populate studentName/profileImage
-                // Example:
-                // StudentEntity se = db.studentDao().getByStudentId(studentId);
-                // if (se != null) { p.studentName = se.fullName; p.profileImage = se.profileImageBase64; }
-
                 db.pendingSubmissionDao().insert(p);
                 Log.d(TAG, "Saved pending submission locally: " + p.clientSubmissionId);
 
-                // request immediate sync attempt (use applicationContext)
+                // request immediate sync attempt (use WorkManager enqueuing existing worker)
                 SyncManager.enqueueImmediateSubmissionSync(appCtx);
 
             } catch (Exception e) {
                 Log.e(TAG, "Failed to save pending submission: " + e.getMessage(), e);
+            }
+        }).start();
+    }
+
+    /**
+     * New: save quiz submission locally into quiz_pending_submissions and enqueue QuizSyncWorker.
+     *
+     * Call this from your quiz UI (TakeQuizActivity) instead of the exam method.
+     */
+    public static void saveQuizSubmissionLocallyAndEnqueue(Context ctx,
+                                                           String quizId,
+                                                           String studentId,
+                                                           List<Question> questionList,
+                                                           int computedScore,
+                                                           int maxScore) {
+
+        final Context appCtx = ctx.getApplicationContext();
+
+        // Build answers map (questionDisplayNumber -> answer)
+        Map<String, String> answers = new HashMap<>();
+        for (Question q : questionList) {
+            String key = String.valueOf(q.getDisplayNumber() == 0 ? UUID.randomUUID().toString() : q.getDisplayNumber());
+            answers.put(key, q.getStudentAnswer() == null ? "" : q.getStudentAnswer());
+        }
+
+        QuizPendingSubmission p = new QuizPendingSubmission();
+        p.clientSubmissionId = UUID.randomUUID().toString();
+        p.quizId = quizId;
+        p.studentId = studentId;
+        p.answersJson = new Gson().toJson(answers);
+        p.computedScore = computedScore;
+        p.maxScore = maxScore;
+        p.timestamp = System.currentTimeMillis();
+        p.status = "PENDING";
+        p.deductions = null;
+
+        // Save and enqueue quiz sync
+        new Thread(() -> {
+            try {
+                AppDatabase db = AppDatabase.getInstance(appCtx);
+                db.quizPendingSubmissionDao().insert(p);
+                Log.d(TAG, "Saved quiz pending submission locally: " + p.clientSubmissionId);
+
+                // Enqueue QuizSyncWorker for immediate attempt
+                OneTimeWorkRequest w = new OneTimeWorkRequest.Builder(com.example.nextgen.work.QuizSyncWorker.class).build();
+                WorkManager.getInstance(appCtx)
+                        .enqueueUniqueWork("quiz-sync-immediate", ExistingWorkPolicy.KEEP, w);
+
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to save quiz pending submission: " + e.getMessage(), e);
             }
         }).start();
     }

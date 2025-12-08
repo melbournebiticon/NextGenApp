@@ -49,7 +49,7 @@ import java.util.concurrent.ExecutionException;
 
 import com.example.nextgen.SessionManager;
 import com.example.nextgen.sync.ExamMetadata;
-import com.example.nextgen.sync.PresenceHelper;
+import com.example.nextgen.sync.QuizPresenceHelper;
 
 /**
  * StudentQuizScannerActivity
@@ -323,19 +323,19 @@ public class StudentQuizScannerActivity extends AppCompatActivity {
     private void performPresenceSave(String quizId, ExamMetadata meta, String studentKey) {
         if (quizId == null || studentKey == null) return;
 
-        // Save locally + enqueue (always)
+        // Save locally + enqueue (always) using the quiz-specific helper
         try {
-            PresenceHelper.savePresenceLocallyAndEnqueue(getApplicationContext(), quizId, studentKey, meta);
-            Log.d(TAG, "Presence saved locally/enqueued for quiz=" + quizId + " studentKey=" + studentKey);
+            QuizPresenceHelper.saveQuizPresenceLocallyAndEnqueue(getApplicationContext(), quizId, studentKey, meta);
+            Log.d(TAG, "Quiz presence saved locally/enqueued for quiz=" + quizId + " studentKey=" + studentKey);
         } catch (Exception e) {
-            Log.w(TAG, "PresenceHelper.savePresenceLocallyAndEnqueue failed: " + e.getMessage(), e);
+            Log.w(TAG, "QuizPresenceHelper.saveQuizPresenceLocallyAndEnqueue failed: " + e.getMessage(), e);
         }
 
         // Debug display name from SessionManager if available
         SessionManager sessionManager = new SessionManager(this);
         String displayName = sessionManager.getStudentModel() != null ? sessionManager.getStudentModel().getFullName() : "unknown";
 
-        // If network available, write immediately to both paths so teacher listeners catch it (QuizStudents and ExamStudents)
+        // If network available, write immediately to QuizStudents only (quiz-specific path)
         if (isNetworkAvailable()) {
             try {
                 FirebaseDatabase db = FirebaseDatabase.getInstance();
@@ -344,13 +344,6 @@ public class StudentQuizScannerActivity extends AppCompatActivity {
                 qRef.setValue(true).addOnCompleteListener(task -> {
                     Log.d(TAG, "Immediate write to QuizStudents completed success=" + task.isSuccessful() + " quiz=" + quizId + " key=" + studentKey);
                     if (!task.isSuccessful() && task.getException() != null) Log.w(TAG, "Immediate QuizStudents write error", task.getException());
-                });
-
-                // also write to ExamStudents (covering monitors that fall back to that path)
-                DatabaseReference eRef = db.getReference("ExamStudents").child(quizId).child(studentKey).child("present");
-                eRef.setValue(true).addOnCompleteListener(task -> {
-                    Log.d(TAG, "Immediate write to ExamStudents completed success=" + task.isSuccessful() + " quiz=" + quizId + " key=" + studentKey);
-                    if (!task.isSuccessful() && task.getException() != null) Log.w(TAG, "Immediate ExamStudents write error", task.getException());
                 });
 
                 // debug node
@@ -364,7 +357,7 @@ public class StudentQuizScannerActivity extends AppCompatActivity {
                 Log.w(TAG, "Immediate write exception: " + e.getMessage(), e);
             }
         } else {
-            Log.d(TAG, "No network available; presence only enqueued for quiz=" + quizId + " key=" + studentKey);
+            Log.d(TAG, "No network available; quiz presence only enqueued for quiz=" + quizId + " key=" + studentKey);
         }
 
         // Return result to caller (QuizListActivity) — quizId normalized already
