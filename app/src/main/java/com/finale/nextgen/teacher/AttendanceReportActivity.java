@@ -42,19 +42,13 @@ import java.util.regex.Pattern;
 /**
  * AttendanceReportActivity (updated - full)
  *
- * This implementation:
- * - Scans Attendance/<attendanceChildKey> for date nodes (yyyy-MM-dd) both direct and teacher-scoped.
- * - For each date node, reads STD-xxxx student entries and uses their "status" (Present/Late/Excused/Absent)
- *   to increment per-student counters and increments totalDays once per date per student.
- * - Day preview and single-day views include marks/remark alongside status.
- * - computePercentage uses the WEIGHTS map so Late/Excused/Absent/Present are weighted appropriately.
- *
- * Replace your existing AttendanceReportActivity.java with this file.
+ * Change: removed use of AttendanceSummary cached path. The totals dialog now always
+ * aggregates directly from Attendance/<sectionKey> date nodes (no more AttendanceSummary checks).
+ * This removes the incorrect summary path from the computation flow as requested.
  */
 public class AttendanceReportActivity extends AppCompatActivity {
     private String sectionId;
     private String sectionFallbackKey; // optional fallback key
-    private DatabaseReference summaryRef;
     private DatabaseReference studentsRef;
     private DatabaseReference attendanceRoot;
     private RecyclerView recyclerView;
@@ -121,12 +115,8 @@ public class AttendanceReportActivity extends AppCompatActivity {
         String attendanceChildKey = !TextUtils.isEmpty(sectionFallbackKey) ? sectionFallbackKey : sectionId;
         attendanceRoot = FirebaseDatabase.getInstance().getReference("Attendance").child(attendanceChildKey);
 
-        if (teacherId != null) {
-            summaryRef = FirebaseDatabase.getInstance().getReference("AttendanceSummary").child(sectionId).child(teacherId);
-        } else {
-            summaryRef = FirebaseDatabase.getInstance().getReference("AttendanceSummary").child(sectionId);
-            Toast.makeText(this, "Teacher identity unavailable — showing section-level data (may include multiple teachers).", Toast.LENGTH_LONG).show();
-        }
+        // NOTE: AttendanceSummary usage removed per request (we always compute from Attendance/...).
+        // summaryRef was intentionally dropped.
 
         adapter = new SummaryAdapter(items, this::registerRowScroll);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
@@ -439,63 +429,8 @@ public class AttendanceReportActivity extends AppCompatActivity {
 
     // ---------- Totals dialog ----------
     private void showPerStudentTotalsDialog() {
+        // Per request: don't use AttendanceSummary; always compute from Attendance/... date nodes.
         aggregateTotalsFromAttendanceDates();
-
-
-        summaryRef.get().addOnCompleteListener(task -> {
-            if (!task.isSuccessful() || task.getResult() == null) {
-                aggregateTotalsFromAttendanceDates();
-                return;
-            }
-            DataSnapshot snap = task.getResult();
-            if (!snap.exists()) {
-                aggregateTotalsFromAttendanceDates();
-                return;
-            }
-
-            boolean studentLevel = false;
-            for (DataSnapshot c : snap.getChildren()) {
-                if (c.hasChild("counts") || c.hasChild("totalDays") || c.hasChild("attendancePercentage")) {
-                    studentLevel = true;
-                }
-                break;
-            }
-
-            if (studentLevel) {
-                boolean anyMeaningful = false;
-                for (DataSnapshot s : snap.getChildren()) {
-                    long present = safeLong(s.child("counts").child("Present").getValue());
-                    long late = safeLong(s.child("counts").child("Late").getValue());
-                    long excused = safeLong(s.child("counts").child("Excused").getValue());
-                    long absent = safeLong(s.child("counts").child("Absent").getValue());
-                    int totalDays = safeInt(s.child("totalDays").getValue());
-                    if (totalDays > 0 || (present + late + excused + absent) > 0) {
-                        anyMeaningful = true;
-                        break;
-                    }
-                }
-                if (anyMeaningful) {
-                    buildTotalsFromStudentSnapshot(snap);
-                } else {
-                    aggregateTotalsFromAttendanceDates();
-                }
-            } else {
-                boolean anyCounts = false;
-                outer: for (DataSnapshot teacherNode : snap.getChildren()) {
-                    for (DataSnapshot s : teacherNode.getChildren()) {
-                        if (s.hasChild("counts") || s.hasChild("status") || s.hasChild("totalDays")) {
-                            anyCounts = true;
-                            break outer;
-                        }
-                    }
-                }
-                if (anyCounts) {
-                    aggregateTotalsAcrossTeachers(snap);
-                } else {
-                    aggregateTotalsFromAttendanceDates();
-                }
-            }
-        });
     }
     /**
      * Use top-level Attendance/<attendanceChildKey> snapshot to aggregate totals across all date nodes found
@@ -737,6 +672,7 @@ public class AttendanceReportActivity extends AppCompatActivity {
     }
 
     // Build totals from AttendanceSummary student-level snapshot
+    // (kept for potential future usage, but not invoked since AttendanceSummary usage was removed)
     private void buildTotalsFromStudentSnapshot(DataSnapshot snap) {
         final List<TotalsRow> rows = new ArrayList<>();
         final List<String> idsToResolve = new ArrayList<>();
@@ -764,7 +700,6 @@ public class AttendanceReportActivity extends AppCompatActivity {
         resolveNamesAndShow(rows, idsToResolve);
     }
 
-    // Aggregate when AttendanceSummary snapshot is teacher-scoped
     private void aggregateTotalsAcrossTeachers(DataSnapshot snap) {
         Map<String, TotalsAccumulator> acc = new HashMap<>();
         for (DataSnapshot teacherNode : snap.getChildren()) {
