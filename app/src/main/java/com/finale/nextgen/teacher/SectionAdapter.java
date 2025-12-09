@@ -20,6 +20,8 @@ import androidx.core.content.FileProvider;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.finale.nextgen.R;
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
@@ -32,8 +34,10 @@ import com.google.firebase.database.ValueEventListener;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -43,6 +47,8 @@ import java.util.Set;
  * - Ensures transaction verifies submission.studentId in DB before writing score.
  * - After transaction re-reads DB canonical values and normalizes score before updating UI.
  * - Viewing the file does not mutate local submission.score; only DB listener will update UI.
+ * - Supports requesting resubmit even when the student has not submitted yet by creating a placeholder
+ *   submission node (requires adapter to be constructed with activityId).
  */
 public class SectionAdapter extends RecyclerView.Adapter<SectionAdapter.ViewHolder> {
 
@@ -54,10 +60,14 @@ public class SectionAdapter extends RecyclerView.Adapter<SectionAdapter.ViewHold
     // Track submissionIds currently being graded to avoid optimistic UI flips
     private final Set<String> gradingInProgress = Collections.synchronizedSet(new HashSet<>());
 
-    public SectionAdapter(List<StudentModel> studentList, String maxScore, boolean gradingEnabled) {
+    // Activity id to attach created placeholder submissions
+    private final String activityId;
+
+    public SectionAdapter(List<StudentModel> studentList, String maxScore, boolean gradingEnabled, String activityId) {
         this.studentList = studentList;
         this.fallbackMaxScore = (maxScore != null && !maxScore.isEmpty()) ? maxScore : "100";
         this.submissionsRef = FirebaseDatabase.getInstance().getReference("Submissions");
+        this.activityId = activityId;
     }
 
     @NonNull
@@ -161,8 +171,8 @@ public class SectionAdapter extends RecyclerView.Adapter<SectionAdapter.ViewHold
             holder.tvScore.setText("");
             holder.btnGrade.setVisibility(View.GONE);
             holder.btnGrade.setEnabled(false);
-            holder.btnResubmit.setVisibility(View.GONE);
-            holder.btnResubmit.setEnabled(false);
+            holder.btnResubmit.setVisibility(View.VISIBLE); // allow resubmit even when no submission
+            holder.btnResubmit.setEnabled(true);
             holder.btnViewWork.setVisibility(View.GONE);
         }
 
@@ -421,35 +431,76 @@ public class SectionAdapter extends RecyclerView.Adapter<SectionAdapter.ViewHold
     // Request resubmit
     private void requestResubmit(Context context, StudentModel student, ViewHolder holder) {
         SubmissionModel submission = student.getSubmission();
-        if (submission == null) {
-            Toast.makeText(context, "No submission yet", Toast.LENGTH_SHORT).show();
-            return;
-        }
 
         new AlertDialog.Builder(context)
                 .setTitle("Request resubmission?")
                 .setMessage("Student: " + (student.getFullName() != null ? student.getFullName() : "student"))
                 .setPositiveButton("Yes", (dialog, which) -> {
-                    String id = submission.getSubmissionId();
-                    if (id == null || id.isEmpty()) {
-                        Toast.makeText(context, "Submission ID not found", Toast.LENGTH_SHORT).show();
-                        return;
+                    // If submission exists, update it. If not, create placeholder submission node.
+                    if (submission != null && submission.getSubmissionId() != null && !submission.getSubmissionId().isEmpty()) {
+                        String id = submission.getSubmissionId();
+
+                        Map<String, Object> updates = new HashMap<>();
+                        updates.put("resubmitRequested", true);
+                        updates.put("score", null);
+                        updates.put("fileData", null);
+                        updates.put("fileName", null);
+                        updates.put("viewed", false);
+
+                        submissionsRef.child(id).updateChildren(updates)
+                                .addOnSuccessListener(aVoid -> {
+                                    submission.setScore(null);
+                                    submission.setFileData(null);
+                                    submission.setFileName(null);
+                                    submission.setViewed(false);
+                                    submission.setResubmitRequested(true);
+                                    if (holder.getAdapterPosition() != RecyclerView.NO_POSITION) notifyItemChanged(holder.getAdapterPosition());
+                                    Toast.makeText(context, "Resubmit requested ✅", Toast.LENGTH_SHORT).show();
+                                })
+                                .addOnFailureListener(e -> Toast.makeText(context, "Failed to request resubmit: " + e.getMessage(), Toast.LENGTH_LONG).show());
+
+                    } else {
+                        // Create placeholder submission node so teacher can request resubmit even if student didn't upload
+                        if (activityId == null || activityId.isEmpty()) {
+                            Toast.makeText(context, "Cannot request resubmit: activity id missing", Toast.LENGTH_LONG).show();
+                            return;
+                        }
+                        String newId = submissionsRef.push().getKey();
+                        if (newId == null) {
+                            Toast.makeText(context, "Failed to create resubmit request", Toast.LENGTH_LONG).show();
+                            return;
+                        }
+
+                        Map<String, Object> map = new HashMap<>();
+                        map.put("activityId", activityId);
+                        map.put("studentId", student.getUid());
+                        map.put("resubmitRequested", true);
+                        map.put("score", null);
+                        map.put("fileData", null);
+                        map.put("fileName", null);
+                        map.put("viewed", false);
+                        map.put("submittedAt", String.valueOf(System.currentTimeMillis()));
+
+                        submissionsRef.child(newId).updateChildren(map)
+                                .addOnSuccessListener(aVoid -> {
+                                    // build local SubmissionModel placeholder and attach
+                                    SubmissionModel placeholder = new SubmissionModel();
+                                    placeholder.setSubmissionId(newId);
+                                    placeholder.setActivityId(activityId);
+                                    placeholder.setStudentId(student.getUid());
+                                    placeholder.setFileName(null);
+                                    placeholder.setFileData(null);
+                                    placeholder.setScore(null);
+                                    placeholder.setMaxScore(fallbackMaxScore);
+                                    placeholder.setViewed(false);
+                                    placeholder.setResubmitRequested(true);
+                                    // attach locally
+                                    student.setSubmission(placeholder);
+                                    if (holder.getAdapterPosition() != RecyclerView.NO_POSITION) notifyItemChanged(holder.getAdapterPosition());
+                                    Toast.makeText(context, "Resubmit requested ✅ (placeholder created)", Toast.LENGTH_SHORT).show();
+                                })
+                                .addOnFailureListener(e -> Toast.makeText(context, "Failed to create resubmit request: " + e.getMessage(), Toast.LENGTH_LONG).show());
                     }
-
-                    submissionsRef.child(id).child("resubmitRequested").setValue(true);
-                    submissionsRef.child(id).child("score").setValue(null);
-                    submissionsRef.child(id).child("fileData").setValue(null);
-                    submissionsRef.child(id).child("fileName").setValue(null);
-                    submissionsRef.child(id).child("viewed").setValue(false);
-
-                    submission.setScore(null);
-                    submission.setFileData(null);
-                    submission.setFileName(null);
-                    submission.setViewed(false);
-                    submission.setResubmitRequested(true);
-
-                    if (holder.getAdapterPosition() != RecyclerView.NO_POSITION) notifyItemChanged(holder.getAdapterPosition());
-                    Toast.makeText(context, "Resubmit requested ✅", Toast.LENGTH_SHORT).show();
                 })
                 .setNegativeButton("Cancel", null)
                 .show();

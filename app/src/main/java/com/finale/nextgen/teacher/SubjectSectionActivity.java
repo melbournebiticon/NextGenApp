@@ -27,12 +27,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * SubjectSectionActivity - updated to normalize "Pending" -> null so UI doesn't treat it as graded.
- *
- * Key points:
- * - When loading submissions we convert score == "Pending" (case-insensitive) to null.
- * - updateStudentSubmission also normalizes "Pending".
- * - Adapter (SectionAdapter) should rely on submission.getScore() == null to decide Grade button state.
+ * SubjectSectionActivity - updated to pass activityId into adapter so adapter can create placeholder submissions.
  */
 public class SubjectSectionActivity extends AppCompatActivity {
 
@@ -151,7 +146,7 @@ public class SubjectSectionActivity extends AppCompatActivity {
     }
 
     private void initAdapterAndLoad() {
-        sectionAdapter = new SectionAdapter(studentList, maxScore, gradingEnabled);
+        sectionAdapter = new SectionAdapter(studentList, maxScore, gradingEnabled, activityId);
         recyclerView.setAdapter(sectionAdapter);
 
         if (courseNameIntent != null && specializationIntent != null && yearIntent != null && sectionIntent != null) {
@@ -317,21 +312,6 @@ public class SubjectSectionActivity extends AppCompatActivity {
             }
         }
 
-        if (updatedIndex == -1 && targetSubmissionId != null) {
-            for (int i = 0; i < studentList.size(); i++) {
-                StudentModel student = studentList.get(i);
-                SubmissionModel existing = student.getSubmission();
-                if (existing != null) {
-                    String existingId = existing.getSubmissionId() != null ? existing.getSubmissionId() : existing.getId();
-                    if (targetSubmissionId.equals(existingId)) {
-                        student.setSubmission(newSubmission);
-                        updatedIndex = i;
-                        break;
-                    }
-                }
-            }
-        }
-
         if (updatedIndex != -1 && sectionAdapter != null) {
             sectionAdapter.notifyItemChanged(updatedIndex);
         } else if (sectionAdapter != null) {
@@ -339,5 +319,5 @@ public class SubjectSectionActivity extends AppCompatActivity {
         }
     }
 
-    // grading method intentionally left to adapter's transaction implementation (SectionAdapter handles the grade transaction UI).
+    // grading method intentionally left to SectionAdapter (transaction + canonical read).
 }
