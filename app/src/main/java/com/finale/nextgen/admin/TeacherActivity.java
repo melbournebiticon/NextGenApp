@@ -30,7 +30,7 @@ import android.util.Base64;
 import android.app.DatePickerDialog;
 import java.util.Calendar;
 
-
+import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
@@ -144,30 +144,8 @@ public class TeacherActivity extends AppCompatActivity {
 
             @Override
             public void onDelete(TeacherModel teacher) {
-                new AlertDialog.Builder(TeacherActivity.this)
-                        .setTitle("Delete Teacher")
-                        .setMessage("Are you sure you want to delete " + teacher.getFullName() + "?")
-                        .setPositiveButton("Yes", (dialog, which) -> {
-                            // Delete from "Users"
-                            if (teacher.getUid() != null && !teacher.getUid().isEmpty()) {
-                                usersRef.child(teacher.getUid()).removeValue()
-                                        .addOnSuccessListener(aVoid -> {
-                                            // Delete from "Teachers"
-                                            teachersRef.child(teacher.getId()).removeValue()
-                                                    .addOnSuccessListener(aVoid2 ->
-                                                            Toast.makeText(TeacherActivity.this, "Teacher deleted", Toast.LENGTH_SHORT).show()
-                                                    )
-                                                    .addOnFailureListener(e ->
-                                                            Toast.makeText(TeacherActivity.this, "Failed to delete teacher record: " + e.getMessage(), Toast.LENGTH_SHORT).show()
-                                                    );
-                                        })
-                                        .addOnFailureListener(e ->
-                                                Toast.makeText(TeacherActivity.this, "Failed to delete user record: " + e.getMessage(), Toast.LENGTH_SHORT).show()
-                                        );
-                            }
-                        })
-                        .setNegativeButton("Cancel", null)
-                        .show();
+                // Use centralized confirm + delete flow
+                confirmAndDeleteTeacher(teacher);
             }
 
 
@@ -808,7 +786,90 @@ public class TeacherActivity extends AppCompatActivity {
         }
     }
 
+    // New: confirm dialog before deletion
+    private void confirmAndDeleteTeacher(TeacherModel teacher) {
+        if (teacher == null) return;
+        new AlertDialog.Builder(TeacherActivity.this)
+                .setTitle("Delete Teacher")
+                .setMessage("Are you sure you want to delete " + teacher.getFullName() + "?")
+                .setPositiveButton("Yes", (dialog, which) -> {
+                    deleteTeacherRecordAndUser(teacher);
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
 
+    // New: robust delete flow - deletes Teachers record (by id if available, otherwise queries by uid),
+    // and also attempts to remove Users/{uid} independently.
+    private void deleteTeacherRecordAndUser(TeacherModel teacher) {
+        if (teacher == null) return;
+
+        String teacherId = teacher.getId();
+        String uid = teacher.getUid();
+
+        // 1) Delete Teachers record - prefer using teacherId if present
+        if (teacherId != null && !teacherId.isEmpty()) {
+            teachersRef.child(teacherId).removeValue()
+                    .addOnSuccessListener(aVoid -> {
+                        Toast.makeText(TeacherActivity.this, "Teacher record deleted", Toast.LENGTH_SHORT).show();
+                        // update local lists / UI immediately
+                        teacherList.remove(teacher);
+                        teacherListFull.remove(teacher);
+                        teacherAdapter.notifyDataSetChanged();
+                        updateTeacherUI();
+                    })
+                    .addOnFailureListener(e -> {
+                        Toast.makeText(TeacherActivity.this, "Failed to delete teacher record: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                        Log.e("TeacherDelete", "teachersRef.removeValue() failed", e);
+                    });
+        } else if (uid != null && !uid.isEmpty()) {
+            // 1b) teacherId missing => find the teacher node by uid and delete by the actual key
+            teachersRef.orderByChild("uid").equalTo(uid)
+                    .addListenerForSingleValueEvent(new ValueEventListener() {
+                        @Override
+                        public void onDataChange(@NonNull DataSnapshot snapshot) {
+                            if (!snapshot.exists()) {
+                                Toast.makeText(TeacherActivity.this, "Teachers record not found for uid", Toast.LENGTH_SHORT).show();
+                                return;
+                            }
+                            for (DataSnapshot ds : snapshot.getChildren()) { // usually just one
+                                ds.getRef().removeValue()
+                                        .addOnSuccessListener(aVoid -> {
+                                            Toast.makeText(TeacherActivity.this, "Teacher record deleted", Toast.LENGTH_SHORT).show();
+                                            teacherList.remove(teacher);
+                                            teacherListFull.remove(teacher);
+                                            teacherAdapter.notifyDataSetChanged();
+                                            updateTeacherUI();
+                                        })
+                                        .addOnFailureListener(e -> {
+                                            Toast.makeText(TeacherActivity.this, "Failed to delete teacher record: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                                            Log.e("TeacherDelete", "removeValue by key failed", e);
+                                        });
+                            }
+                        }
+
+                        @Override
+                        public void onCancelled(@NonNull DatabaseError error) {
+                            Toast.makeText(TeacherActivity.this, "Error finding teacher record: " + error.getMessage(), Toast.LENGTH_LONG).show();
+                            Log.e("TeacherDelete", "query cancelled", error.toException());
+                        }
+                    });
+        } else {
+            Toast.makeText(TeacherActivity.this, "Cannot delete: missing teacher id and uid", Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        // 2) Delete Users node (if exists) — do this independently (don't block Teachers deletion)
+        if (uid != null && !uid.isEmpty()) {
+            usersRef.child(uid).removeValue()
+                    .addOnSuccessListener(aVoid -> {
+                        Toast.makeText(TeacherActivity.this, "User record removed", Toast.LENGTH_SHORT).show();
+                    })
+                    .addOnFailureListener(e -> {
+                        Toast.makeText(TeacherActivity.this, "Failed to remove user record: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                        Log.e("TeacherDelete", "usersRef.removeValue() failed", e);
+                    });
+        }
+    }
 
 }
-
