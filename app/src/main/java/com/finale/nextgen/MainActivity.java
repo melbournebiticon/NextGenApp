@@ -5,6 +5,7 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.widget.Button;
 import android.widget.EditText;
@@ -21,6 +22,10 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
 public class MainActivity extends AppCompatActivity {
+
+    private static final String PREFS_NAME = "ForgotPasswordPrefs";
+    private static final String KEY_LAST_RESET_TIME = "last_reset_time";
+    private static final long COOLDOWN_MILLIS = 5 * 60 * 1000; // 5 minutes
 
     EditText emailEt, passwordEt;
     Button loginBtn;
@@ -287,13 +292,26 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void sendPasswordResetEmail(String email) {
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        long lastResetTime = prefs.getLong(KEY_LAST_RESET_TIME, 0);
+        long currentTime = System.currentTimeMillis();
+
+        if (currentTime - lastResetTime < COOLDOWN_MILLIS) {
+            long minutesLeft = (COOLDOWN_MILLIS - (currentTime - lastResetTime)) / 60000;
+            Toast.makeText(this, "Please wait " + minutesLeft + " minute(s) before requesting again.", Toast.LENGTH_LONG).show();
+            return;
+        }
+
         auth.sendPasswordResetEmail(email)
                 .addOnCompleteListener(task -> {
                     if (task.isSuccessful()) {
+                        // Save the timestamp
+                        prefs.edit().putLong(KEY_LAST_RESET_TIME, currentTime).apply();
                         Toast.makeText(MainActivity.this, "Password reset email sent. Check your inbox.", Toast.LENGTH_LONG).show();
                     } else {
                         Toast.makeText(MainActivity.this, "Error: " + task.getException().getMessage(), Toast.LENGTH_LONG).show();
                     }
                 });
     }
+
 }
