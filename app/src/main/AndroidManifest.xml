@@ -46,7 +46,18 @@
         <activity
             android:name=".LogoIntroActivity"
             android:theme="@style/DarkBlueTheme"
-            android:exported="true" />
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+        </activity>
+
 
         <activity android:name=".admin.AdminActivity" />
         <activity android:name=".admin.AcademicsActivity" />
@@ -63,15 +74,7 @@
         <activity android:name=".teacher.ProfileActivity" />
         <activity android:name=".teacher.ExamMonitorActivity" />
 
-        <activity
-            android:name=".MainActivity"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN"/>
-                <category android:name="android.intent.category.LAUNCHER"/>
-            </intent-filter>
-        </activity>
-
+        <activity android:name=".teacher.TeacherDashboardActivity" />
         <activity android:name=".teacher.SubjectSectionActivity" />
         <activity android:name=".teacher.ManageQuizActivity" />
         <activity android:name=".teacher.GenerateQuizActivity" />
@@ -97,6 +100,7 @@
             </intent-filter>
         </activity>
         <activity android:name=".student.StudentDashboardActivity" />
+        <activity android:name=".student.ExamListActivity" />
         <activity android:name=".student.StudentProfileActivity" />
         <activity android:name=".student.ResultActivity" />
         <activity android:name=".student.StudentQRScannerActivity" />

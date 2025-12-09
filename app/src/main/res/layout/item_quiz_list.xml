@@ -9,203 +9,167 @@
     android:layout_marginBottom="10dp"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    app:cardElevation="8dp"
+    app:cardElevation="0dp"
     app:cardUseCompatPadding="true"
-    app:cardCornerRadius="18dp"
+    app:cardCornerRadius="0dp"
+    app:cardBackgroundColor="@android:color/white"
     android:clickable="true"
     android:focusable="true"
     android:foreground="?attr/selectableItemBackground">
 
-    <LinearLayout
-        android:orientation="vertical"
-        android:padding="18dp"
-        android:layout_width="match_parent"
+<LinearLayout
+android:orientation="vertical"
+android:padding="20dp"
+android:layout_width="match_parent"
+android:layout_height="wrap_content"
+android:background="@android:color/white"
+android:divider="@android:color/darker_gray"
+android:showDividers="beginning|middle|end">
+
+<!-- Top section with icon and title -->
+<LinearLayout
+    android:orientation="horizontal"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_vertical"
+    android:layout_marginBottom="6dp">
+
+    <ImageView
+        android:id="@+id/ivQuizIcon"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginEnd="14dp"
+        android:src="@drawable/ic_quiz"
+        app:tint="#12306D"/> <!-- improved dark blue -->
+
+    <TextView
+        android:id="@+id/tvQuizTitle"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:background="@android:color/white"
-        android:divider="@android:color/darker_gray"
-        android:showDividers="beginning|middle|end">
+        android:layout_weight="1"
+        android:text="Quiz Title"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:textColor="#12306D"
+        android:maxLines="2"
+        android:ellipsize="end"/>
+</LinearLayout>
 
-        <!-- Top section with icon and title -->
-        <LinearLayout
-            android:orientation="horizontal"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center_vertical">
+<!-- Quiz Section -->
+<TextView
+    android:id="@+id/tvQuizSection"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:text="Section"
+    android:textColor="#12306D"
+    android:textSize="15sp"
+    android:layout_marginTop="2dp"
+    android:maxLines="1"
+    android:ellipsize="end"
+    android:typeface="sans"/>
 
-            <ImageView
-                android:id="@+id/ivQuizIcon"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:layout_marginEnd="12dp"
-                android:src="@drawable/ic_quiz"
-                app:tint="@android:color/holo_blue_dark"/>
+<!-- Quiz Subject -->
+<TextView
+    android:id="@+id/tvQuizSubject"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:text="Subject"
+    android:textColor="#12306D"
+    android:textSize="15sp"
+    android:layout_marginTop="0dp"
+    android:maxLines="1"
+    android:ellipsize="end"
+    android:typeface="sans"/>
 
-            <TextView
-                android:id="@+id/tvQuizTitle"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Quiz Title"
-                android:textSize="19sp"
-                android:textStyle="bold"
-                android:textColor="@android:color/holo_blue_dark"
-                android:maxLines="1"
-                android:ellipsize="end"/>
-        </LinearLayout>
+<!-- Quiz Teacher -->
+<TextView
+    android:id="@+id/tvQuizTeacher"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:text="Teacher"
+    android:textColor="#12306D"
+    android:textSize="15sp"
+    android:layout_marginTop="0dp"
+    android:maxLines="1"
+    android:ellipsize="end"
+    android:typeface="sans"/>
 
-        <!-- Quiz Section -->
-        <TextView
-            android:id="@+id/tvQuizSection"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Section"
-            android:textColor="@android:color/darker_gray"
-            android:textSize="14sp"
-            android:layout_marginTop="6dp"
-            android:maxLines="1"
-            android:ellipsize="end"/>
+<!-- Divider -->
+<View
+    android:layout_width="match_parent"
+    android:layout_height="1dp"
+    android:background="#E3E8F7"
+    android:layout_marginTop="12dp"
+    android:layout_marginBottom="12dp"/>
 
-        <!-- Quiz Subject -->
-        <TextView
-            android:id="@+id/tvQuizSubject"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Subject"
-            android:textColor="@android:color/darker_gray"
-            android:textSize="14sp"
-            android:layout_marginTop="2dp"
-            android:maxLines="1"
-            android:ellipsize="end"/>
+<!-- Duration & Schedule row -->
+<LinearLayout
+    android:orientation="horizontal"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="start|center_vertical">
 
-        <!-- Quiz Teacher -->
-        <TextView
-            android:id="@+id/tvQuizTeacher"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Teacher"
-            android:textColor="@android:color/darker_gray"
-            android:textSize="14sp"
-            android:layout_marginTop="2dp"
-            android:maxLines="1"
-            android:ellipsize="end"/>
+    <TextView
+        android:id="@+id/tvQuizDuration"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="30 mins"
+        android:textColor="#12306D"
+        android:textSize="15sp"
+        android:fontFamily="sans-serif-medium"
+        android:drawableLeft="@drawable/ic_timer"
+        android:drawablePadding="4dp"
+        android:visibility="visible"
+        android:layout_marginEnd="22dp" />
 
-        <!-- Info chips row -->
-        <LinearLayout
-            android:orientation="horizontal"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:gravity="start|center_vertical">
+    <TextView
+        android:id="@+id/tvQuizSchedule"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="12 Dec, 09:00 AM"
+        android:textColor="#12306D"
+        android:textSize="15sp"
+        android:fontFamily="sans-serif-medium"
+        android:drawableLeft="@drawable/ic_calendar"
+        android:drawablePadding="4dp"/>
+</LinearLayout>
 
-            <com.google.android.material.chip.Chip
-                android:id="@+id/chipQuizSection"
-                style="@style/Widget.MaterialComponents.Chip.Entry"
-                android:text="Section"
-                android:textSize="13sp"
-                android:layout_marginEnd="8dp"
-                app:chipBackgroundColor="@android:color/darker_gray"
-                app:chipStrokeColor="@android:color/holo_blue_dark"
-                app:chipStrokeWidth="0.5dp"
-                android:textColor="@android:color/black"/>
+<!-- Button and state row -->
+<LinearLayout
+    android:orientation="horizontal"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="end|center_vertical"
+    android:layout_marginTop="10dp">
 
-            <com.google.android.material.chip.Chip
-                android:id="@+id/chipQuizSubject"
-                style="@style/Widget.MaterialComponents.Chip.Entry"
-                android:text="Subject"
-                android:textSize="13sp"
-                android:layout_marginEnd="8dp"
-                app:chipBackgroundColor="@android:color/darker_gray"
-                app:chipStrokeColor="@android:color/holo_blue_dark"
-                app:chipStrokeWidth="0.5dp"
-                android:textColor="@android:color/black"/>
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnTakeQuiz"
+        android:layout_width="wrap_content"
+        android:layout_height="38dp"
+        android:text="Take Quiz"
+        android:visibility="gone"
+        android:backgroundTint="#12306D"
+        android:textColor="@android:color/white"
+        android:layout_marginEnd="12dp"
+        app:cornerRadius="18dp"
+        style="@style/Widget.MaterialComponents.Button.OutlinedButton"/>
 
-            <com.google.android.material.chip.Chip
-                android:id="@+id/chipQuizTeacher"
-                style="@style/Widget.MaterialComponents.Chip.Entry"
-                android:text="Teacher"
-                android:textSize="13sp"
-                app:chipBackgroundColor="@android:color/darker_gray"
-                app:chipStrokeColor="@android:color/holo_blue_dark"
-                app:chipStrokeWidth="0.5dp"
-                android:textColor="@android:color/black"/>
-        </LinearLayout>
-
-        <!-- Divider -->
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:background="@android:color/darker_gray"
-            android:layout_marginTop="10dp"
-            android:layout_marginBottom="10dp"/>
-
-        <!-- Duration & Schedule row -->
-        <LinearLayout
-            android:orientation="horizontal"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="start|center_vertical">
-
-            <TextView
-                android:id="@+id/tvQuizDuration"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="30 mins"
-                android:textColor="@android:color/holo_blue_dark"
-                android:textSize="14sp"
-                android:fontFamily="sans-serif-medium"
-                android:drawableLeft="@drawable/ic_timer"
-                android:drawablePadding="4dp"
-                android:visibility="visible"
-                android:layout_marginEnd="20dp" />
-
-            <TextView
-                android:id="@+id/tvQuizSchedule"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="12 Dec, 09:00 AM"
-                android:textColor="@android:color/darker_gray"
-                android:textSize="14sp"
-                android:fontFamily="sans-serif-medium"
-                android:drawableLeft="@drawable/ic_calendar"
-                android:drawablePadding="4dp"/>
-        </LinearLayout>
-
-        <!-- Button and state row -->
-        <LinearLayout
-            android:orientation="horizontal"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="end|center_vertical"
-            android:layout_marginTop="8dp">
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnTakeQuiz"
-                android:layout_width="wrap_content"
-                android:layout_height="36dp"
-                android:text="Take Quiz"
-                android:visibility="gone"
-                android:backgroundTint="@android:color/holo_blue_dark"
-                android:textColor="@android:color/white"
-                android:layout_marginEnd="12dp"
-                app:cornerRadius="18dp"
-                style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
-
-            <TextView
-                android:id="@+id/tvQuizTaken"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="TAKEN"
-                android:textAllCaps="true"
-                android:textColor="@android:color/darker_gray"
-                android:background="@drawable/bg_taken_chip"
-                android:textSize="12sp"
-                android:visibility="gone"
-                android:paddingLeft="12dp"
-                android:paddingRight="12dp"
-                android:paddingTop="4dp"
-                android:paddingBottom="4dp"
-                android:layout_gravity="center_vertical"
-                android:layout_marginEnd="8dp"/>
-        </LinearLayout>
-    </LinearLayout>
-</androidx.cardview.widget.CardView>
+    <TextView
+        android:id="@+id/tvQuizTaken"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="TAKEN"
+        android:textAllCaps="true"
+        android:textColor="#12306D"
+        android:background="@drawable/bg_taken_chip"
+        android:textSize="13sp"
+        android:visibility="gone"
+        android:paddingLeft="14dp"
+        android:paddingRight="14dp"
+        android:paddingTop="5dp"
+        android:paddingBottom="5dp"
+        android:layout_gravity="center_vertical"
+        android:layout_marginEnd="8dp"/>
+</LinearLayout>
+</LinearLayout>
+    </androidx.cardview.widget.CardView>

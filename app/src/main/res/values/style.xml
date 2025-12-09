@@ -19,6 +19,11 @@
         <item name="android:textStyle">normal</item>
     </style>
 
+    <style name="Widget.MaterialComponents.ShapeableImageView.Circle" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">50%</item>
+    </style>
+
     <style name="MyBlueOutlinedButton" parent="Widget.MaterialComponents.Button.OutlinedButton">
         <item name="android:backgroundTint">@android:color/white</item>
         <item name="strokeColor">@color/blue_700</item>

@@ -45,7 +45,6 @@
                         android:src="@drawable/examinee_default"
                         android:contentDescription="User profile menu button"/>
                 </com.google.android.material.card.MaterialCardView>
-
             </androidx.appcompat.widget.Toolbar>
         </com.google.android.material.appbar.AppBarLayout>
 
@@ -100,129 +99,127 @@
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
+                <!-- Cards Row/Tile -->
                 <LinearLayout
+                    android:id="@+id/cardContainer"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="20dp"
-                    android:layout_marginTop="-40dp"
-                    android:layout_marginEnd="20dp"
-                    android:layout_marginBottom="24dp"
-                    android:orientation="horizontal"
-                    android:weightSum="2">
+                    android:orientation="vertical"
+                    android:padding="24dp"
+                    android:gravity="center">
 
+                    <!-- Exams Card -->
                     <com.google.android.material.card.MaterialCardView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:layout_marginEnd="10dp"
-                        android:backgroundTint="?attr/colorSurfaceContainerHigh"
-                        app:cardCornerRadius="24dp"
-                        app:cardElevation="16dp">
+                        android:id="@+id/cardExam"
+                        android:layout_width="match_parent"
+                        android:layout_height="100dp"
+                        android:layout_marginBottom="16dp"
+                        app:cardElevation="4dp"
+                        app:cardCornerRadius="12dp">
 
                         <LinearLayout
                             android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="vertical"
+                            android:layout_height="match_parent"
+                            android:gravity="center_vertical"
                             android:padding="20dp">
-
                             <ImageView
-                                android:layout_width="32dp"
-                                android:layout_height="32dp"
-                                android:src="@drawable/ic_book"
-                                android:contentDescription="Icon"
-                                app:tint="?attr/colorPrimary"/>
-
+                                android:src="@drawable/ic_list"
+                                android:layout_width="40dp"
+                                android:layout_height="40dp"
+                                android:layout_marginEnd="12dp"/>
                             <TextView
-                                android:id="@+id/tvTotalExams"
+                                android:text="EXAMS"
+                                android:textSize="20sp"
+                                android:textStyle="bold"
                                 android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="16dp"
-                                android:text="12"
-                                android:textColor="?attr/colorPrimary"
-                                android:textSize="48sp"
-                                android:textStyle="bold"/>
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="Exams Taken"
-                                android:textColor="?attr/colorOnSurfaceVariant"
-                                android:textSize="14sp"/>
+                                android:layout_height="wrap_content" />
                         </LinearLayout>
                     </com.google.android.material.card.MaterialCardView>
 
+                    <!-- Quizzes Card -->
                     <com.google.android.material.card.MaterialCardView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:layout_marginStart="10dp"
-                        android:backgroundTint="?attr/colorPrimaryContainer"
-                        app:cardCornerRadius="24dp"
-                        app:cardElevation="16dp">
+                        android:id="@+id/cardQuiz"
+                        android:layout_width="match_parent"
+                        android:layout_height="100dp"
+                        android:layout_marginBottom="16dp"
+                        app:cardElevation="4dp"
+                        app:cardCornerRadius="12dp">
 
                         <LinearLayout
                             android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="vertical"
+                            android:layout_height="match_parent"
+                            android:gravity="center_vertical"
                             android:padding="20dp">
-
                             <ImageView
-                                android:layout_width="32dp"
-                                android:layout_height="32dp"
-                                android:src="@drawable/ic_star"
-                                android:contentDescription="Icon"
-                                app:tint="?attr/colorOnPrimaryContainer"/>
-
+                                android:src="@drawable/ic_quiz"
+                                android:layout_width="40dp"
+                                android:layout_height="40dp"
+                                android:layout_marginEnd="12dp"/>
                             <TextView
-                                android:id="@+id/tvAvgScore"
+                                android:text="QUIZZES"
+                                android:textSize="20sp"
+                                android:textStyle="bold"
                                 android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="16dp"
-                                android:text="85%"
-                                android:textColor="?attr/colorOnPrimaryContainer"
-                                android:textSize="48sp"
-                                android:textStyle="bold"/>
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="Pending Submissions"
-                                android:textColor="?attr/colorOnPrimaryContainer"
-                                android:textSize="14sp"/>
+                                android:layout_height="wrap_content" />
                         </LinearLayout>
                     </com.google.android.material.card.MaterialCardView>
-                </LinearLayout>
 
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="24dp"
-                    android:layout_marginTop="8dp"
-                    android:layout_marginEnd="16dp"
-                    android:layout_marginBottom="16dp"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
+                    <!-- Activities Card -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/cardActivity"
+                        android:layout_width="match_parent"
+                        android:layout_height="100dp"
+                        android:layout_marginBottom="16dp"
+                        app:cardElevation="4dp"
+                        app:cardCornerRadius="12dp">
 
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="Upcoming Exams"
-                        android:textColor="?attr/colorOnSurface"
-                        android:textSize="22sp"
-                        android:textStyle="bold"/>
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:gravity="center_vertical"
+                            android:padding="20dp">
+                            <ImageView
+                                android:src="@drawable/ic_students"
+                                android:layout_width="40dp"
+                                android:layout_height="40dp"
+                                android:layout_marginEnd="12dp"/>
+                            <TextView
+                                android:text="ACTIVITIES"
+                                android:textSize="20sp"
+                                android:textStyle="bold"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content" />
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
 
-                    <!-- NEW: Button to open quizzes -->
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnOpenQuizzes"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Quizzes"
-                        android:layout_marginEnd="24dp"
-                        app:icon="@drawable/ic_quiz"
-                        app:iconPadding="8dp"
-                        app:strokeWidth="0dp"
-                        style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
+                    <!-- Attendance Card -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/cardAttendance"
+                        android:layout_width="match_parent"
+                        android:layout_height="100dp"
+                        android:layout_marginBottom="16dp"
+                        app:cardElevation="4dp"
+                        app:cardCornerRadius="12dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:gravity="center_vertical"
+                            android:padding="20dp">
+                            <ImageView
+                                android:src="@drawable/ic_calendar"
+                                android:layout_width="40dp"
+                                android:layout_height="40dp"
+                                android:layout_marginEnd="12dp"/>
+                            <TextView
+                                android:text="MY ATTENDANCE"
+                                android:textSize="20sp"
+                                android:textStyle="bold"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content" />
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+
                 </LinearLayout>
 
                 <LinearLayout
@@ -239,7 +236,6 @@
                         android:layout_width="32dp"
                         android:layout_height="32dp"
                         android:indeterminate="true"/>
-
                     <TextView
                         android:id="@+id/tvOfflinePrep"
                         android:layout_width="wrap_content"
@@ -248,24 +244,6 @@
                         android:layout_marginStart="10dp"
                         android:textSize="14sp"/>
                 </LinearLayout>
-
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/rvExams"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:clipToPadding="false"
-                    android:paddingStart="16dp"
-                    android:paddingEnd="16dp"
-                    tools:listitem="@layout/item_student_exam_list" />
-
-                <LinearLayout
-                    android:id="@+id/emptyState"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:gravity="center"
-                    android:orientation="vertical"
-                    android:padding="48dp"
-                    android:visibility="gone"/>
             </LinearLayout>
         </androidx.core.widget.NestedScrollView>
 
@@ -279,21 +257,7 @@
             app:fabCradleMargin="10dp"
             app:fabCradleRoundedCornerRadius="28dp"
             app:fabCradleVerticalOffset="12dp"
-            app:layout_behavior="@string/hide_bottom_view_on_scroll_behavior">
-
-            <com.google.android.material.bottomnavigation.BottomNavigationView
-                android:id="@+id/bottomNavigationView"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:background="@android:color/transparent"
-                app:menu="@menu/bottom_navigation_menu_student"
-                app:labelVisibilityMode="labeled"
-                app:itemIconTint="?attr/colorOnSurfaceVariant"
-                app:itemTextColor="?attr/colorOnSurfaceVariant"
-                app:itemActiveIndicatorStyle="@style/Widget.Material3.BottomNavigationView.ActiveIndicator" />
-
-        </com.google.android.material.bottomappbar.BottomAppBar>
-
+            app:layout_behavior="@string/hide_bottom_view_on_scroll_behavior"/>
 
     </androidx.coordinatorlayout.widget.CoordinatorLayout>
 

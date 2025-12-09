@@ -8,7 +8,8 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
-import android.widget.Button;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
+
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -32,6 +33,7 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
+import androidx.appcompat.widget.Toolbar;
 
 
 import java.util.ArrayList;
@@ -75,7 +77,7 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
     private RecyclerView rvQuizzes;
     private ProgressBar progress;
     private TextView tvEmpty;
-    private Button btnScanQr;
+    private FloatingActionButton btnScanQr;
 
 
     private QuizListAdapter adapter;
@@ -139,6 +141,12 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
 
         debugReadServerPresenceOnce( "-OfwYDC8ZXUPI6uNLcc6");
 
+        Toolbar toolbar = findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        }
+        toolbar.setNavigationOnClickListener(v -> finish());
 
         rvQuizzes = findViewById(R.id.rvQuizzes);
         progress = findViewById(R.id.progressQuizzes);
@@ -151,7 +159,6 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
         rvQuizzes.setAdapter(adapter);
 
 
-        // after: rvQuizzes.setLayoutManager(...) and rvQuizzes.setAdapter(adapter);
         dumpSpecificCachedQuiz("" +
                 "-Oft2XaEk5EN_3l0WK2Y");
 
