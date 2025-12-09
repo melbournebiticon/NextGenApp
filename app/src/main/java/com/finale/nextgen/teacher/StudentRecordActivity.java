@@ -267,7 +267,7 @@ public class StudentRecordActivity extends AppCompatActivity {
         return s == null ? "" : s;
     }
 
-    static String formatDate(int year, int month, int day) {
+    public static String formatDate(int year, int month, int day) {
         int m = month + 1;
         return String.format(Locale.getDefault(), "%04d-%02d-%02d", year, m, day);
     }
