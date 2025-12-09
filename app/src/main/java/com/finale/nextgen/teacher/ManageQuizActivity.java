@@ -40,13 +40,12 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * ManageQuizActivity - updated to avoid publishing "Unknown" as teacherName.
- *
- * Changes:
- * - publishQuizForStudents now prefers sessionManager.getFullName() when available.
- * - If sessionManager lacks a full name, the code attempts to read Teachers/{teacherId}/fullName
- *   and only writes teacherName if a non-empty value is found. Otherwise it omits teacherName
- *   (teacherId is still published).
+ * ManageQuizActivity - updates:
+ * - Disable past dates in DatePicker (minDate = today)
+ * - Restrict quiz time to between 7:00 (inclusive) and 21:00 (inclusive)
+ *   -> if user picks invalid time, show warning and let them pick again
+ * - When deleting a quiz, remove it immediately from the RecyclerView (no need to wait)
+ *   and continue to delete related nodes in the background.
  */
 public class ManageQuizActivity extends AppCompatActivity {
 
@@ -58,6 +57,11 @@ public class ManageQuizActivity extends AppCompatActivity {
     private DatabaseReference teachersRef;
     private String teacherId;
     private static boolean isFirebaseInitialized = false;
+
+    // Make quizList a field so we can remove items and notify adapter immediately
+    private final List<Quiz> quizList = new ArrayList<>();
+
+    private static final String TAG = "ManageQuizActivity";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -136,15 +140,18 @@ public class ManageQuizActivity extends AppCompatActivity {
         quizzesRef.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
-                List<Quiz> quizList = new ArrayList<>();
+                quizList.clear();
                 for (DataSnapshot child : snapshot.getChildren()) {
                     Quiz quiz = child.getValue(Quiz.class);
                     if (quiz != null) quizList.add(quiz);
                 }
 
+                // initialize adapter with quizList (backed by the field)
                 adapter = new QuizAdapter(ManageQuizActivity.this, quizList, new QuizAdapter.OnQuizActionListener() {
                     @Override
-                    public void onEdit(Quiz quiz) { showEditQuizDialog(quiz); }
+                    public void onEdit(Quiz quiz) {
+                        showEditQuizDialog(quiz);
+                    }
 
                     @Override
                     public void onDelete(Quiz quiz) {
@@ -164,7 +171,6 @@ public class ManageQuizActivity extends AppCompatActivity {
 
                     @Override
                     public void onViewStudents(Quiz quiz) {
-                        // Split section (courseDisplay) into parts: "Course - Specialization - Year - Section"
                         String section = quiz.getSection() != null ? quiz.getSection() : "";
                         String[] parts = section.split(" - ");
                         String quizCourse = parts.length > 0 ? parts[0].trim() : "";
@@ -174,7 +180,6 @@ public class ManageQuizActivity extends AppCompatActivity {
 
                         Intent intent = new Intent(ManageQuizActivity.this, QuizMonitorActivity.class);
 
-                        // Provide both quiz-specific and exam-named extras for compatibility
                         intent.putExtra("quizId", quiz.getFirebaseKey());
                         intent.putExtra("quizName", quiz.getQuizName());
                         intent.putExtra("quizCourseName", quizCourse);
@@ -182,7 +187,6 @@ public class ManageQuizActivity extends AppCompatActivity {
                         intent.putExtra("quizYearName", quizYear);
                         intent.putExtra("quizSectionName", quizSection);
 
-                        // also add exam* extras to support monitor implementations expecting those keys
                         intent.putExtra("examId", quiz.getFirebaseKey());
                         intent.putExtra("examTitle", quiz.getQuizName());
                         intent.putExtra("examCourseName", quizCourse);
@@ -195,7 +199,6 @@ public class ManageQuizActivity extends AppCompatActivity {
 
                     @Override
                     public void onGenerateQuestions(Quiz quiz) {
-                        // Open GenerateQuizActivity
                         Intent intent = new Intent(ManageQuizActivity.this, GenerateQuizActivity.class);
                         intent.putExtra("quizId", quiz.getFirebaseKey());
                         intent.putExtra("quizName", quiz.getQuizName());
@@ -204,6 +207,7 @@ public class ManageQuizActivity extends AppCompatActivity {
                 });
 
                 recyclerView.setAdapter(adapter);
+                adapter.notifyDataSetChanged();
             }
 
             @Override
@@ -273,24 +277,14 @@ public class ManageQuizActivity extends AppCompatActivity {
         SimpleDateFormat sdf = new SimpleDateFormat("MMM dd, yyyy hh:mm a", Locale.getDefault());
         tvSchedule.setOnClickListener(v -> {
             Calendar now = Calendar.getInstance();
-            new DatePickerDialog(this, (datePicker, year, month, day) -> {
+            // DatePicker with min date = today (disable past dates)
+            DatePickerDialog dpd = new DatePickerDialog(this, (datePicker, year, month, day) -> {
                 now.set(year, month, day);
-                MaterialTimePicker timePicker = new MaterialTimePicker.Builder()
-                        .setTimeFormat(TimeFormat.CLOCK_12H)
-                        .setHour(now.get(Calendar.HOUR_OF_DAY))
-                        .setMinute(now.get(Calendar.MINUTE))
-                        .setTitleText("Select Quiz Time")
-                        .build();
-
-                timePicker.addOnPositiveButtonClickListener(dialog -> {
-                    now.set(Calendar.HOUR_OF_DAY, timePicker.getHour());
-                    now.set(Calendar.MINUTE, timePicker.getMinute());
-                    selectedDate.setTimeInMillis(now.getTimeInMillis());
-                    tvSchedule.setText(sdf.format(now.getTime()));
-                });
-
-                timePicker.show(getSupportFragmentManager(), "QUIZ_TIME_PICKER");
-            }, now.get(Calendar.YEAR), now.get(Calendar.MONTH), now.get(Calendar.DAY_OF_MONTH)).show();
+                showTimePickerWithRange(now, selectedDate, sdf, tvSchedule);
+            }, now.get(Calendar.YEAR), now.get(Calendar.MONTH), now.get(Calendar.DAY_OF_MONTH));
+            // disable past dates
+            dpd.getDatePicker().setMinDate(System.currentTimeMillis() - 1000);
+            dpd.show();
         });
 
         new AlertDialog.Builder(this)
@@ -310,7 +304,9 @@ public class ManageQuizActivity extends AppCompatActivity {
 
                     Quiz newQuiz = new Quiz(name, subject, duration, scheduledAt, course, teacherId);
                     syncQuizToFirebase(newQuiz);
-                    loadQuizzes();
+                    // add to list and notify immediately; loadQuizzes() will refresh eventually
+                    quizList.add(newQuiz);
+                    if (adapter != null) adapter.notifyDataSetChanged();
                 })
                 .setNegativeButton("Cancel", null)
                 .show();
@@ -388,24 +384,12 @@ public class ManageQuizActivity extends AppCompatActivity {
         tvSchedule.setOnClickListener(v -> {
             Calendar now = Calendar.getInstance();
             now.setTimeInMillis(selectedDate.getTimeInMillis());
-            new DatePickerDialog(this, (datePicker, year, month, day) -> {
+            DatePickerDialog dpd = new DatePickerDialog(this, (datePicker, year, month, day) -> {
                 now.set(year, month, day);
-                MaterialTimePicker timePicker = new MaterialTimePicker.Builder()
-                        .setTimeFormat(TimeFormat.CLOCK_12H)
-                        .setHour(now.get(Calendar.HOUR_OF_DAY))
-                        .setMinute(now.get(Calendar.MINUTE))
-                        .setTitleText("Select Quiz Time")
-                        .build();
-
-                timePicker.addOnPositiveButtonClickListener(dialog -> {
-                    now.set(Calendar.HOUR_OF_DAY, timePicker.getHour());
-                    now.set(Calendar.MINUTE, timePicker.getMinute());
-                    selectedDate.setTimeInMillis(now.getTimeInMillis());
-                    tvSchedule.setText(sdf.format(now.getTime()));
-                });
-
-                timePicker.show(getSupportFragmentManager(), "EDIT_QUIZ_TIME_PICKER");
-            }, now.get(Calendar.YEAR), now.get(Calendar.MONTH), now.get(Calendar.DAY_OF_MONTH)).show();
+                showTimePickerWithRange(now, selectedDate, sdf, tvSchedule);
+            }, now.get(Calendar.YEAR), now.get(Calendar.MONTH), now.get(Calendar.DAY_OF_MONTH));
+            dpd.getDatePicker().setMinDate(System.currentTimeMillis() - 1000);
+            dpd.show();
         });
 
         new AlertDialog.Builder(this)
@@ -419,10 +403,61 @@ public class ManageQuizActivity extends AppCompatActivity {
                     quiz.setScheduledAt(selectedDate.getTimeInMillis());
 
                     syncQuizToFirebase(quiz);
-                    loadQuizzes();
+                    // update local list immediately
+                    int idx = findQuizIndexByKey(quiz.getFirebaseKey());
+                    if (idx >= 0) {
+                        quizList.set(idx, quiz);
+                        if (adapter != null) adapter.notifyItemChanged(idx);
+                    } else if (adapter != null) adapter.notifyDataSetChanged();
                 })
                 .setNegativeButton("Cancel", null)
                 .show();
+    }
+
+    /**
+     * Show MaterialTimePicker and enforce allowed hour range (7..21 inclusive).
+     * If user picks an invalid hour, show an alert and let them pick again.
+     */
+    private void showTimePickerWithRange(Calendar dateCandidate, Calendar selectedDate, SimpleDateFormat sdf, TextView tvSchedule) {
+        MaterialTimePicker timePicker = new MaterialTimePicker.Builder()
+                .setTimeFormat(TimeFormat.CLOCK_12H)
+                .setHour(dateCandidate.get(Calendar.HOUR_OF_DAY))
+                .setMinute(dateCandidate.get(Calendar.MINUTE))
+                .setTitleText("Select Quiz Time (7:00 - 21:00)")
+                .build();
+
+        timePicker.addOnPositiveButtonClickListener(dialog -> {
+            int hour = timePicker.getHour();
+            int minute = timePicker.getMinute();
+
+            // Allowed hours: 7..21 (21:00 is allowed)
+            if (hour < 7 || hour > 21) {
+                // show warning and let user pick again
+                new AlertDialog.Builder(this)
+                        .setTitle("Invalid time")
+                        .setMessage("Please choose a time between 7:00 AM and 9:00 PM.")
+                        .setPositiveButton("Pick time again", (d, w) -> showTimePickerWithRange(dateCandidate, selectedDate, sdf, tvSchedule))
+                        .setNegativeButton("Cancel", null)
+                        .show();
+                return;
+            }
+
+            dateCandidate.set(Calendar.HOUR_OF_DAY, hour);
+            dateCandidate.set(Calendar.MINUTE, minute);
+            selectedDate.setTimeInMillis(dateCandidate.getTimeInMillis());
+            tvSchedule.setText(sdf.format(dateCandidate.getTime()));
+        });
+
+        timePicker.show(getSupportFragmentManager(), "QUIZ_TIME_PICKER");
+    }
+
+    private int findQuizIndexByKey(String key) {
+        if (key == null) return -1;
+        for (int i = 0; i < quizList.size(); i++) {
+            Quiz q = quizList.get(i);
+            if (q != null && key.equals(q.getFirebaseKey())) return i;
+        }
+        return -1;
     }
 
     /**
@@ -440,21 +475,11 @@ public class ManageQuizActivity extends AppCompatActivity {
         quizzesRef.child(firebaseKey).setValue(quiz)
                 .addOnSuccessListener(aVoid -> {
                     Log.d("FirebaseSync", "Quiz synced successfully");
-                    // publish lightweight summary for students
                     publishQuizForStudents(quiz);
                 })
                 .addOnFailureListener(e -> Log.e("FirebaseSync", "Failed to sync quiz", e));
     }
 
-    /**
-     * Publish a lightweight summary of the quiz to a public node students can query.
-     * Path: AvailableQuizzes/{quizId}
-     *
-     * This version avoids writing "Unknown" as teacherName by:
-     *  - preferring sessionManager.getFullName()
-     *  - if missing, attempting to read Teachers/{teacherId}/fullName and using it if non-empty
-     *  - only writing teacherName when we have a non-empty real name
-     */
     private void publishQuizForStudents(Quiz quiz) {
         if (quiz == null || quiz.getFirebaseKey() == null) return;
 
@@ -466,24 +491,20 @@ public class ManageQuizActivity extends AppCompatActivity {
         summary.put("quizName", quiz.getQuizName());
         summary.put("subjectName", quiz.getSubject());
         summary.put("teacherId", teacherId);
-        // do not put teacherName here yet - we will add it only when we have a valid non-empty name
-        summary.put("section", quiz.getSection()); // "Course - Spec - Year - Section"
+        summary.put("section", quiz.getSection());
         summary.put("durationMinutes", quiz.getDurationMinutes());
         summary.put("scheduledAt", quiz.getScheduledAt());
         summary.put("active", quiz.isActive());
 
-        // prefer stored session name
         String sessionFullName = sessionManager != null ? sessionManager.getFullName() : null;
         if (sessionFullName != null && !sessionFullName.trim().isEmpty()) {
             summary.put("teacherName", sessionFullName.trim());
-            // write summary immediately
             publicRef.setValue(summary)
                     .addOnSuccessListener(aVoid -> Log.d("PublishQuiz", "Published quiz to AvailableQuizzes/" + key + " with teacherName from session"))
                     .addOnFailureListener(e -> Log.e("PublishQuiz", "Failed to publish quiz", e));
             return;
         }
 
-        // session name not present -> try to fetch from Teachers/{teacherId}/fullName
         if (teacherId != null && !teacherId.trim().isEmpty()) {
             teachersRef.child(teacherId).child("fullName").addListenerForSingleValueEvent(new ValueEventListener() {
                 @Override public void onDataChange(@NonNull DataSnapshot snapshot) {
@@ -501,14 +522,12 @@ public class ManageQuizActivity extends AppCompatActivity {
 
                 @Override public void onCancelled(@NonNull DatabaseError error) {
                     Log.w("PublishQuiz", "Failed to fetch teacher fullName; publishing without teacherName: " + error.getMessage());
-                    // proceed to publish without teacherName (teacherId still present)
                     publicRef.setValue(summary)
                             .addOnSuccessListener(aVoid -> Log.d("PublishQuiz", "Published quiz to AvailableQuizzes/" + key + " (fallback)"))
                             .addOnFailureListener(e -> Log.e("PublishQuiz", "Failed to publish quiz", e));
                 }
             });
         } else {
-            // no teacherId - just publish summary without teacherName (unlikely)
             publicRef.setValue(summary)
                     .addOnSuccessListener(aVoid -> Log.d("PublishQuiz", "Published quiz to AvailableQuizzes/" + key + " (no teacherId)"))
                     .addOnFailureListener(e -> Log.e("PublishQuiz", "Failed to publish quiz", e));
@@ -516,54 +535,48 @@ public class ManageQuizActivity extends AppCompatActivity {
     }
 
     /**
-     * Update only the 'active' flag in the public index (useful for toggles).
-     */
-    private void updatePublicQuizActiveFlag(String quizId, boolean active) {
-        if (quizId == null) return;
-        DatabaseReference publicRef = FirebaseDatabase.getInstance()
-                .getReference("AvailableQuizzes").child(quizId).child("active");
-        publicRef.setValue(active)
-                .addOnSuccessListener(aVoid -> Log.d("PublishQuiz", "Updated active flag for " + quizId))
-                .addOnFailureListener(e -> Log.e("PublishQuiz", "Failed to update active flag", e));
-    }
-
-    /**
      * Delete quiz from teacher node, questions node, and public AvailableQuizzes index.
+     * Immediately remove the quiz from UI after teacher confirms deletion.
      */
     private void deleteQuizFromFirebase(Quiz quiz) {
-        if (quiz.getFirebaseKey() != null) {
-            String quizKey = quiz.getFirebaseKey();
+        if (quiz.getFirebaseKey() == null) return;
+        final String quizKey = quiz.getFirebaseKey();
 
-            DatabaseReference quizRef = FirebaseDatabase.getInstance()
-                    .getReference("Quizzes").child(teacherId).child(quizKey);
-            DatabaseReference questionsRef = FirebaseDatabase.getInstance()
-                    .getReference("Questions").child(quizKey);
-            DatabaseReference publicRef = FirebaseDatabase.getInstance()
-                    .getReference("AvailableQuizzes").child(quizKey);
+        DatabaseReference quizRef = FirebaseDatabase.getInstance()
+                .getReference("Quizzes").child(teacherId).child(quizKey);
+        DatabaseReference questionsRef = FirebaseDatabase.getInstance()
+                .getReference("Questions").child(quizKey);
+        DatabaseReference publicRef = FirebaseDatabase.getInstance()
+                .getReference("AvailableQuizzes").child(quizKey);
 
-            // Delete teacher node first
-            quizRef.removeValue().addOnSuccessListener(aVoid -> {
-                // Then delete questions
-                questionsRef.removeValue()
-                        .addOnSuccessListener(qVoid -> {
-                            // Then remove public listing
-                            publicRef.removeValue()
-                                    .addOnSuccessListener(pv -> {
-                                        Toast.makeText(this, "Quiz and related questions deleted", Toast.LENGTH_SHORT).show();
-                                    })
-                                    .addOnFailureListener(e -> {
-                                        Log.e("FirebaseDelete", "Failed to remove public index", e);
-                                        Toast.makeText(this, "Quiz deleted but failed to remove public index", Toast.LENGTH_SHORT).show();
-                                    });
-                        })
-                        .addOnFailureListener(e -> {
-                            Log.e("FirebaseDelete", "Failed to delete questions", e);
-                            Toast.makeText(this, "Failed to delete related questions", Toast.LENGTH_SHORT).show();
-                        });
-            }).addOnFailureListener(e -> {
-                Log.e("FirebaseDelete", "Failed to delete quiz", e);
-                Toast.makeText(this, "Failed to delete quiz", Toast.LENGTH_SHORT).show();
-            });
+        // Remove from UI immediately
+        int idx = findQuizIndexByKey(quizKey);
+        if (idx >= 0) {
+            quizList.remove(idx);
+            if (adapter != null) adapter.notifyItemRemoved(idx);
         }
+
+        // Delete teacher node first
+        quizRef.removeValue().addOnSuccessListener(aVoid -> {
+            // Then delete questions
+            questionsRef.removeValue()
+                    .addOnSuccessListener(qVoid -> {
+                        // Then remove public listing
+                        publicRef.removeValue()
+                                .addOnSuccessListener(pv -> {
+                                    Log.d(TAG, "Deleted quiz and related nodes for " + quizKey);
+                                })
+                                .addOnFailureListener(e -> {
+                                    Log.e("FirebaseDelete", "Failed to remove public index", e);
+                                });
+                    })
+                    .addOnFailureListener(e -> {
+                        Log.e("FirebaseDelete", "Failed to delete questions", e);
+                    });
+        }).addOnFailureListener(e -> {
+            Log.e("FirebaseDelete", "Failed to delete quiz", e);
+            // If deletion failed, reload list to re-sync UI
+            loadQuizzes();
+        });
     }
 }

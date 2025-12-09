@@ -10,13 +10,9 @@ import java.io.Serializable;
 /**
  * SubmissionModel - robust Firebase mapping
  *
- * Changes:
- * - Added @IgnoreExtraProperties to tolerate extra fields in the DB
- * - Use @PropertyName("...") annotated setters that accept Object so Firebase won't fail
- *   when the DB stores a number vs string (common cause of DatabaseException Long->String)
- * - Keep a simple String-based getter API for the rest of the app
- *
- * Important: keep only ONE method annotated for "score" so Firebase mapping is deterministic.
+ * - Tolerates extra DB fields with @IgnoreExtraProperties
+ * - Accepts both Number and String for score/maxScore/submittedAt via @PropertyName setters
+ * - Provides plain String setters/getters for app use
  */
 @IgnoreExtraProperties
 public class SubmissionModel implements Serializable {
@@ -67,9 +63,6 @@ public class SubmissionModel implements Serializable {
     /**
      * Single, annotated setter to accept whatever the database stored for "score".
      * It safely normalizes numbers and strings into our internal String representation.
-     *
-     * This avoids DatabaseException when the DB contains a Long/Integer where previously
-     * the model expected a String.
      */
     @PropertyName("score")
     public void setScoreFromFirebase(@Nullable Object scoreObj) {
@@ -84,17 +77,19 @@ public class SubmissionModel implements Serializable {
     }
 
     /**
-     * Same approach for maxScore: accept number or string from DB.
+     * Accept both number and string for maxScore.
+     * IMPORTANT: do NOT default to a concrete number here — leave null if DB has no value
+     * so callers can correctly fall back to activity-level max when desired.
      */
     @PropertyName("maxScore")
     public void setMaxScoreFromFirebase(@Nullable Object maxScoreObj) {
         if (maxScoreObj == null) {
-            this.maxScore = "100";
+            this.maxScore = null;
         } else if (maxScoreObj instanceof Number) {
             this.maxScore = String.valueOf(((Number) maxScoreObj).intValue());
         } else {
-            String s = maxScoreObj.toString();
-            this.maxScore = s.isEmpty() ? "100" : s;
+            String s = maxScoreObj.toString().trim();
+            this.maxScore = s.isEmpty() ? null : s;
         }
     }
 
@@ -105,12 +100,20 @@ public class SubmissionModel implements Serializable {
         } else if (submittedAtObj instanceof Number) {
             this.submittedAt = String.valueOf(((Number) submittedAtObj).longValue());
         } else {
-            this.submittedAt = submittedAtObj.toString();
+            String s = submittedAtObj.toString().trim();
+            this.submittedAt = s.isEmpty() ? null : s;
         }
     }
 
     public void setViewed(boolean viewed) { this.viewed = viewed; }
     public void setResubmitRequested(boolean resubmitRequested) { this.resubmitRequested = resubmitRequested; }
+
+    // Plain setters used by app logic (not annotated) --------------------------------
+    // These allow code to set values before pushing to Firebase (the Firebase SDK will
+    // still write these fields by their property names).
+    public void setScore(String score) { this.score = (score == null || score.trim().isEmpty()) ? null : score.trim(); }
+    public void setMaxScore(String maxScore) { this.maxScore = (maxScore == null || maxScore.trim().isEmpty()) ? null : maxScore.trim(); }
+    public void setSubmittedAt(String submittedAt) { this.submittedAt = (submittedAt == null || submittedAt.trim().isEmpty()) ? null : submittedAt.trim(); }
 
     // ============ DISPLAY HELPERS ============
     public String getScoreDisplay() {
@@ -119,7 +122,7 @@ public class SubmissionModel implements Serializable {
         return score + " / " + maxScore;
     }
 
-    // Helper to get score as int
+    // Helper to get score as int (safe)
     public int getScoreAsInt() {
         try {
             return Integer.parseInt(score);
@@ -128,9 +131,18 @@ public class SubmissionModel implements Serializable {
         }
     }
 
-    public void setMaxScore(String s) {
-    }
-
-    public void setScore(String score) {
+    @Override
+    public String toString() {
+        return "SubmissionModel{" +
+                "id='" + id + '\'' +
+                ", activityId='" + activityId + '\'' +
+                ", studentId='" + studentId + '\'' +
+                ", fileName='" + fileName + '\'' +
+                ", score='" + score + '\'' +
+                ", maxScore='" + maxScore + '\'' +
+                ", submittedAt='" + submittedAt + '\'' +
+                ", viewed=" + viewed +
+                ", resubmitRequested=" + resubmitRequested +
+                '}';
     }
 }
