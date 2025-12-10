@@ -68,6 +68,9 @@ public class TeacherActivity extends AppCompatActivity {
     private List<CourseModel> courseOptionList = new ArrayList<>();
     private List<TeacherModel> teacherList = new ArrayList<>();
 
+    // NEW: cache of all subjects for id->name mapping
+    private List<SubjectModel> allSubjects = new ArrayList<>();
+
     private DatabaseReference teachersRef, coursesRef, subjectsRef, usersRef;
     private FirebaseAuth auth;
 
@@ -153,6 +156,9 @@ public class TeacherActivity extends AppCompatActivity {
         });
         recyclerTeachers.setAdapter(teacherAdapter);
 
+        // IMPORTANT: load subject mapping so the adapter can show names instead of raw IDs
+        loadSubjectsForMapping();
+
         teachersRef.addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
@@ -228,6 +234,47 @@ public class TeacherActivity extends AppCompatActivity {
             @Override
             public void onCancelled(@NonNull DatabaseError error) {}
         });
+    }
+
+    // NEW: load subjects once and provide id->name mapping to TeacherAdapter
+    private void loadSubjectsForMapping() {
+        subjectsRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                allSubjects.clear();
+                for (DataSnapshot ds : snapshot.getChildren()) {
+                    SubjectModel s = ds.getValue(SubjectModel.class);
+                    if (s != null) allSubjects.add(s);
+                }
+                // Provide to adapter so it shows names instead of IDs
+                teacherAdapter.setSubjectsListForMapping(allSubjects);
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                // If load fails, adapter will simply fallback to IDs (no mapping available)
+                Log.w("TeacherActivity", "Failed to load subjects for mapping: " + error.getMessage());
+            }
+        });
+
+        // Optional: also listen for future changes to Subjects and update mapping in real-time
+        // If you prefer real-time updates uncomment below:
+        /*
+        subjectsRef.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                allSubjects.clear();
+                for (DataSnapshot ds : snapshot.getChildren()) {
+                    SubjectModel s = ds.getValue(SubjectModel.class);
+                    if (s != null) allSubjects.add(s);
+                }
+                teacherAdapter.setSubjectsListForMapping(allSubjects);
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) { }
+        });
+        */
     }
 
     private void sortTeachersByName() {
