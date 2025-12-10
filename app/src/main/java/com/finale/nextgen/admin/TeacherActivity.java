@@ -1,5 +1,6 @@
 package com.finale.nextgen.admin;
 
+
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextUtils;
@@ -19,6 +20,8 @@ import android.widget.ImageView;
 import android.content.Intent;
 
 
+
+
 import androidx.annotation.Nullable;
 import android.widget.ProgressBar;
 import android.widget.ImageView;
@@ -30,13 +33,16 @@ import android.util.Base64;
 import android.app.DatePickerDialog;
 import java.util.Calendar;
 
+
 import android.util.Log;
+
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+
 
 import com.finale.nextgen.R;
 import com.finale.nextgen.utils.InputValidator;
@@ -48,7 +54,10 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
+
 import com.finale.nextgen.utils.EmailSender;
+
+
 
 
 import java.util.ArrayList;
@@ -57,33 +66,51 @@ import java.util.Map;
 import java.util.HashMap;
 
 
+
+
 public class TeacherActivity extends AppCompatActivity {
+
 
     private EditText etFullName, etBirthday, etEmail;
     private RecyclerView recyclerCourseSelection, recyclerSubjects, recyclerTeachers;
     private ImageView btnBack, addTeacherFab;
 
 
+
+
     private List<SubjectModel> selectedCourseSubjects = new ArrayList<>();
     private List<CourseModel> courseOptionList = new ArrayList<>();
     private List<TeacherModel> teacherList = new ArrayList<>();
 
+
+    // NEW: cache of all subjects for id->name mapping
+    private List<SubjectModel> allSubjects = new ArrayList<>();
+
+
     private DatabaseReference teachersRef, coursesRef, subjectsRef, usersRef;
     private FirebaseAuth auth;
 
+
     private boolean sortAscending = true;
+
 
     private SubjectSelectionAdapter subjectAdapter;
     private TeacherAdapter teacherAdapter;
     private CourseSelectionAdapter courseSelectionAdapter;
+
 
     private Uri selectedImageUri;
     private ImageView currentEditProfileView;
     private TextView tvTeacherCount;
     private LinearLayout emptyState;
 
+
     private EditText etSearchTeacher;
     private List<TeacherModel> teacherListFull; // keep original full list
+
+
+
+
 
 
 
@@ -93,15 +120,19 @@ public class TeacherActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_teacher);
 
+
         // Views
         recyclerTeachers = findViewById(R.id.recyclerTeachers);
         btnBack = findViewById(R.id.btnBack);
         addTeacherFab = findViewById(R.id.addTeacherFab);
 
+
         recyclerTeachers.setLayoutManager(new LinearLayoutManager(this));
+
 
         btnBack.setOnClickListener(v -> finish());
         addTeacherFab.setOnClickListener(v -> showAddTeacherDialog());
+
 
         // Firebase references
         teachersRef = FirebaseDatabase.getInstance().getReference("Teachers");
@@ -110,27 +141,38 @@ public class TeacherActivity extends AppCompatActivity {
         usersRef = FirebaseDatabase.getInstance().getReference("Users");
         auth = FirebaseAuth.getInstance();
 
+
         tvTeacherCount = findViewById(R.id.tvTeacherCount);
         emptyState = findViewById(R.id.emptyState);
+
 
         Button btnSort = findViewById(R.id.btnSort);
         btnSort.setOnClickListener(v -> sortTeachersByName());
 
+
         teacherListFull = new ArrayList<>(teacherList); // initial copy
+
 
         etSearchTeacher = findViewById(R.id.etSearchTeacher); // make sure you have this EditText in your XML
         etSearchTeacher.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
 
+
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
                 filterTeachers(s.toString());
             }
 
+
             @Override
             public void afterTextChanged(Editable s) {}
         });
+
+
+
+
+
 
 
 
@@ -142,6 +184,7 @@ public class TeacherActivity extends AppCompatActivity {
                 showTeacherDialog(teacher);
             }
 
+
             @Override
             public void onDelete(TeacherModel teacher) {
                 // Use centralized confirm + delete flow
@@ -150,8 +193,16 @@ public class TeacherActivity extends AppCompatActivity {
 
 
 
+
+
+
         });
         recyclerTeachers.setAdapter(teacherAdapter);
+
+
+        // IMPORTANT: load subject mapping so the adapter can show names instead of raw IDs
+        loadSubjectsForMapping();
+
 
         teachersRef.addValueEventListener(new ValueEventListener() {
             @Override
@@ -169,6 +220,7 @@ public class TeacherActivity extends AppCompatActivity {
                 updateTeacherUI();
             }
 
+
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
                 Toast.makeText(TeacherActivity.this, "Error: " + error.getMessage(), Toast.LENGTH_SHORT).show();
@@ -176,11 +228,16 @@ public class TeacherActivity extends AppCompatActivity {
         });
 
 
+
+
         loadCourses();
+
 
         addTeacherFab.setOnClickListener(v -> showAddTeacherDialog());
 
+
     }
+
 
     private void filterTeachers(String query) {
         teacherList.clear();
@@ -199,9 +256,12 @@ public class TeacherActivity extends AppCompatActivity {
     }
 
 
+
+
     private void updateTeacherUI() {
         int count = teacherList.size();
         tvTeacherCount.setText(count + " teacher" + (count != 1 ? "s" : ""));
+
 
         if (teacherList.isEmpty()) {
             emptyState.setVisibility(View.VISIBLE);
@@ -211,6 +271,8 @@ public class TeacherActivity extends AppCompatActivity {
             recyclerTeachers.setVisibility(View.VISIBLE);
         }
     }
+
+
 
 
     private void loadCourses() {
@@ -225,10 +287,57 @@ public class TeacherActivity extends AppCompatActivity {
                 // No need to notify anything here in activity
             }
 
+
             @Override
             public void onCancelled(@NonNull DatabaseError error) {}
         });
     }
+
+
+    // NEW: load subjects once and provide id->name mapping to TeacherAdapter
+    private void loadSubjectsForMapping() {
+        subjectsRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                allSubjects.clear();
+                for (DataSnapshot ds : snapshot.getChildren()) {
+                    SubjectModel s = ds.getValue(SubjectModel.class);
+                    if (s != null) allSubjects.add(s);
+                }
+                // Provide to adapter so it shows names instead of IDs
+                teacherAdapter.setSubjectsListForMapping(allSubjects);
+            }
+
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                // If load fails, adapter will simply fallback to IDs (no mapping available)
+                Log.w("TeacherActivity", "Failed to load subjects for mapping: " + error.getMessage());
+            }
+        });
+
+
+        // Optional: also listen for future changes to Subjects and update mapping in real-time
+        // If you prefer real-time updates uncomment below:
+       /*
+       subjectsRef.addValueEventListener(new ValueEventListener() {
+           @Override
+           public void onDataChange(@NonNull DataSnapshot snapshot) {
+               allSubjects.clear();
+               for (DataSnapshot ds : snapshot.getChildren()) {
+                   SubjectModel s = ds.getValue(SubjectModel.class);
+                   if (s != null) allSubjects.add(s);
+               }
+               teacherAdapter.setSubjectsListForMapping(allSubjects);
+           }
+
+
+           @Override
+           public void onCancelled(@NonNull DatabaseError error) { }
+       });
+       */
+    }
+
 
     private void sortTeachersByName() {
         if (sortAscending) {
@@ -242,6 +351,7 @@ public class TeacherActivity extends AppCompatActivity {
     private void showAddTeacherDialog() {
         View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_add_teacher, null);
 
+
         EditText etFullNameDialog = dialogView.findViewById(R.id.etFullName);
         EditText etBirthdayDialog = dialogView.findViewById(R.id.etBirthday);
         etBirthdayDialog.setOnClickListener(v -> {
@@ -250,6 +360,7 @@ public class TeacherActivity extends AppCompatActivity {
             int month = calendar.get(Calendar.MONTH);
             int day = calendar.get(Calendar.DAY_OF_MONTH);
 
+
             DatePickerDialog datePicker = new DatePickerDialog(TeacherActivity.this,
                     (view, selectedYear, selectedMonth, selectedDay) -> {
                         String formattedDate = String.format("%04d-%02d-%02d",
@@ -257,38 +368,46 @@ public class TeacherActivity extends AppCompatActivity {
                         etBirthdayDialog.setText(formattedDate);
                     }, year, month, day);
 
+
             datePicker.show();
         });
         EditText etEmailDialog = dialogView.findViewById(R.id.etEmail);
         RecyclerView recyclerCourseDialog = dialogView.findViewById(R.id.recyclerCourseSelection);
         RecyclerView recyclerSubjectsDialog = dialogView.findViewById(R.id.recyclerSubjects);
 
+
         // Setup RecyclerViews
         recyclerCourseDialog.setLayoutManager(new LinearLayoutManager(this));
         recyclerSubjectsDialog.setLayoutManager(new LinearLayoutManager(this));
+
 
         // Clone the course list
         List<CourseModel> dialogCourses = new ArrayList<>(courseOptionList);
         CourseSelectionAdapter courseAdapterDialog = new CourseSelectionAdapter(this, dialogCourses);
         recyclerCourseDialog.setAdapter(courseAdapterDialog);
 
+
         // Subject adapter starts empty
         List<SubjectModel> dialogSubjects = new ArrayList<>();
         SubjectSelectionAdapter subjectAdapterDialog = new SubjectSelectionAdapter(dialogSubjects);
         recyclerSubjectsDialog.setAdapter(subjectAdapterDialog);
 
+
         // Map to store subjects per selected course
         Map<String, List<SubjectModel>> courseSubjectsMap = new HashMap<>();
+
 
         // Update subjects when course selection changes
         courseAdapterDialog.setOnCourseSelectionChanged(() -> {
             List<CourseModel> selectedCourses = courseAdapterDialog.getSelectedCourses();
             List<SubjectModel> combinedSubjects = new ArrayList<>();
 
+
             if (selectedCourses.isEmpty()) {
                 subjectAdapterDialog.updateSubjects(combinedSubjects);
                 return;
             }
+
 
             final int[] loadedCount = {0};
             for (CourseModel course : selectedCourses) {
@@ -302,6 +421,7 @@ public class TeacherActivity extends AppCompatActivity {
                     continue;
                 }
 
+
                 subjectsRef.orderByChild("courseId").equalTo(course.getId())
                         .addListenerForSingleValueEvent(new ValueEventListener() {
                             @Override
@@ -314,11 +434,13 @@ public class TeacherActivity extends AppCompatActivity {
                                 courseSubjectsMap.put(course.getId(), courseSubjects);
                                 combinedSubjects.addAll(courseSubjects);
 
+
                                 loadedCount[0]++;
                                 if (loadedCount[0] == selectedCourses.size()) {
                                     subjectAdapterDialog.updateSubjects(combinedSubjects);
                                 }
                             }
+
 
                             @Override
                             public void onCancelled(@NonNull DatabaseError error) {
@@ -336,37 +458,51 @@ public class TeacherActivity extends AppCompatActivity {
                 .setTitle("Add Teacher")
                 .setView(dialogView)
 
+
                 .setPositiveButton("Add", (dialog, which) -> {
                     String fullNameRaw = etFullNameDialog.getText().toString().trim();
                     String error;
                     error = InputValidator.validateFullName(fullNameRaw);
                     if (error != null) { Toast.makeText(this, error, Toast.LENGTH_SHORT).show(); return; }
 
+
                     String fullName = InputValidator.formatFullName(fullNameRaw);
+
 
                     String birthday = etBirthdayDialog.getText().toString().trim();
                     String email = etEmailDialog.getText().toString().trim();
 
+
                     List<CourseModel> selectedCourses = courseAdapterDialog.getSelectedCourses();
                     List<SubjectModel> selectedSubjects = subjectAdapterDialog.getSelectedSubjects();
 
+
                     // ---------- VALIDATION ----------
+
+
 
 
                     error = InputValidator.validateFullName(fullName);
                     if (error != null) { Toast.makeText(this, error, Toast.LENGTH_SHORT).show(); return; }
 
+
                     error = InputValidator.validateBirthday(birthday, 18);
                     if (error != null) { Toast.makeText(this, error, Toast.LENGTH_SHORT).show(); return; }
+
 
                     error = InputValidator.validateEmail(email);
                     if (error != null) { Toast.makeText(this, error, Toast.LENGTH_SHORT).show(); return; }
 
+
                     error = InputValidator.validateCourses(selectedCourses);
                     if (error != null) { Toast.makeText(this, error, Toast.LENGTH_SHORT).show(); return; }
 
+
                     error = InputValidator.validateSubjects(selectedSubjects);
                     if (error != null) { Toast.makeText(this, error, Toast.LENGTH_SHORT).show(); return; }
+
+
+
 
 
 
@@ -376,6 +512,7 @@ public class TeacherActivity extends AppCompatActivity {
                         assignedSubjectIds.add(s.getId());  // ✅ store ID
                     }
 
+
 // Generate teacher ID and create teacher
                     generateTeacherId(teacherId -> {
                         String[] parts = birthday.split("-"); // [YYYY, MM, DD]
@@ -383,6 +520,7 @@ public class TeacherActivity extends AppCompatActivity {
                         String month = parts[1];
                         String day = parts[2];
                         String password = month + day + year; // MMDDYY format
+
 
                         List<String> courseIds = new ArrayList<>();
                         List<String> courseDisplays = new ArrayList<>();
@@ -395,6 +533,7 @@ public class TeacherActivity extends AppCompatActivity {
                                             c.getSectionName()
                             );
                         }
+
 
                         TeacherModel teacher = new TeacherModel(
                                 teacherId,
@@ -409,6 +548,7 @@ public class TeacherActivity extends AppCompatActivity {
                                 null
                         );
 
+
                         auth.createUserWithEmailAndPassword(email, password)
                                 .addOnCompleteListener(authTask -> {
                                     if (authTask.isSuccessful()) {
@@ -416,13 +556,16 @@ public class TeacherActivity extends AppCompatActivity {
                                         String uid = firebaseUser.getUid();
                                         teacher.setUid(uid);
 
+
                                         // Save role
                                         usersRef.child(uid).child("role").setValue("teacher");
+
 
                                         // Save full teacher record
                                         teachersRef.child(teacherId).setValue(teacher)
                                                 .addOnSuccessListener(aVoid -> {
                                                     Toast.makeText(this, "Teacher added successfully", Toast.LENGTH_SHORT).show();
+
 
                                                     // Prepare email message
                                                     String subject = "Your Teacher Account Details";
@@ -434,9 +577,11 @@ public class TeacherActivity extends AppCompatActivity {
                                                             "Please log in and change your password.\n\n" +
                                                             "Thank you.";
 
+
                                                     // Send email
                                                     EmailSender.send(TeacherActivity.this, email, subject, body);
                                                 })
+
 
                                                 .addOnFailureListener(e -> Toast.makeText(this, "Failed to save teacher: " + e.getMessage(), Toast.LENGTH_SHORT).show());
                                     } else {
@@ -445,10 +590,13 @@ public class TeacherActivity extends AppCompatActivity {
                                 });
                     });
 
+
                 })
                 .setNegativeButton("Cancel", null)
                 .show();
     }
+
+
 
 
     private String getDisplayName(String fullName) {
@@ -458,6 +606,7 @@ public class TeacherActivity extends AppCompatActivity {
         }
         return fullName;
     }
+
 
     private void generateTeacherId(OnIdGeneratedListener listener) {
         teachersRef.addListenerForSingleValueEvent(new ValueEventListener() {
@@ -478,6 +627,7 @@ public class TeacherActivity extends AppCompatActivity {
                 listener.onGenerated(String.format("TCHR-%04d", newNum));
             }
 
+
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
                 Toast.makeText(TeacherActivity.this, "Error generating ID", Toast.LENGTH_SHORT).show();
@@ -485,18 +635,23 @@ public class TeacherActivity extends AppCompatActivity {
         });
     }
 
+
     interface OnIdGeneratedListener {
         void onGenerated(String teacherId);
     }
 
 
+
+
     private void showTeacherDialog(TeacherModel teacher) {
         View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_teacher_edit, null);
+
 
         EditText etEditFullName = dialogView.findViewById(R.id.etEditFullName);
         EditText etEditBirthday = dialogView.findViewById(R.id.etEditBirthday);
         etEditBirthday.setOnClickListener(v -> {
             Calendar calendar = Calendar.getInstance();
+
 
             // Preload current birthday if available
             if (!TextUtils.isEmpty(etEditBirthday.getText().toString())) {
@@ -509,9 +664,11 @@ public class TeacherActivity extends AppCompatActivity {
                 } catch (Exception ignored) {}
             }
 
+
             int year = calendar.get(Calendar.YEAR);
             int month = calendar.get(Calendar.MONTH);
             int day = calendar.get(Calendar.DAY_OF_MONTH);
+
 
             DatePickerDialog datePicker = new DatePickerDialog(TeacherActivity.this,
                     (view, selectedYear, selectedMonth, selectedDay) -> {
@@ -519,8 +676,10 @@ public class TeacherActivity extends AppCompatActivity {
                         etEditBirthday.setText(formattedDate);
                     }, year, month, day);
 
+
             datePicker.show();
         });
+
 
         EditText etEditEmail = dialogView.findViewById(R.id.etEditEmail);
         RecyclerView recyclerEditCourses = dialogView.findViewById(R.id.recyclerEditCourses);
@@ -529,9 +688,11 @@ public class TeacherActivity extends AppCompatActivity {
         ProgressBar progressBar = dialogView.findViewById(R.id.progressBarUpload);
         TextView tvProgress = dialogView.findViewById(R.id.tvUploadProgress);
 
+
         etEditFullName.setText(teacher.getFullName());
         etEditBirthday.setText(teacher.getBirthday());
         etEditEmail.setText(teacher.getEmail());
+
 
         // Load profile image
         if (teacher.getProfileImage() != null && !teacher.getProfileImage().isEmpty()) {
@@ -542,12 +703,15 @@ public class TeacherActivity extends AppCompatActivity {
             ivEditProfile.setImageResource(R.drawable.examinee_default);
         }
 
+
         currentEditProfileView = ivEditProfile;
+
 
         ivEditProfile.setOnClickListener(v -> {
             Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
             startActivityForResult(intent, 202);
         });
+
 
         // Setup recycler views
         List<CourseModel> editCourseList = new ArrayList<>();
@@ -555,9 +719,11 @@ public class TeacherActivity extends AppCompatActivity {
         recyclerEditCourses.setLayoutManager(new LinearLayoutManager(this));
         recyclerEditCourses.setAdapter(editCourseAdapter);
 
+
         SubjectSelectionAdapter editSubjectAdapter = new SubjectSelectionAdapter(new ArrayList<>());
         recyclerEditSubjects.setLayoutManager(new LinearLayoutManager(this));
         recyclerEditSubjects.setAdapter(editSubjectAdapter);
+
 
         // Load all courses first
         coursesRef.addListenerForSingleValueEvent(new ValueEventListener() {
@@ -570,6 +736,7 @@ public class TeacherActivity extends AppCompatActivity {
                 }
                 editCourseAdapter.notifyDataSetChanged();
 
+
                 if (teacher.getCourseIds() != null)
                     editCourseAdapter.setPreselectedCoursesById(teacher.getCourseIds());
                 // May nabago
@@ -577,6 +744,7 @@ public class TeacherActivity extends AppCompatActivity {
                 if (teacher.getCourseIds() != null && !teacher.getCourseIds().isEmpty()) {
                     final List<SubjectModel> loadedSubjects = new ArrayList<>();
                     final int[] loadedCount = {0};
+
 
                     for (String courseId : teacher.getCourseIds()) {
                         subjectsRef.orderByChild("courseId").equalTo(courseId)
@@ -598,10 +766,12 @@ public class TeacherActivity extends AppCompatActivity {
                                                 }
                                             }
 
+
                                             editSubjectAdapter.updateSubjects(loadedSubjects);
                                             editSubjectAdapter.setPreselectedSubjects(preselectedNames);
                                         }
                                     }
+
 
                                     @Override
                                     public void onCancelled(@NonNull DatabaseError error) {}
@@ -609,11 +779,14 @@ public class TeacherActivity extends AppCompatActivity {
                     }
                 }
 
+
             }
+
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) {}
         });
+
 
         // 🔹 Course selection listener (dynamically update subjects)
         editCourseAdapter.setOnCourseSelectionChanged(() -> {
@@ -621,10 +794,12 @@ public class TeacherActivity extends AppCompatActivity {
             List<SubjectModel> combinedSubjects = new ArrayList<>();
             final int[] loadedCount = {0};
 
+
             if (selectedCourses.isEmpty()) {
                 editSubjectAdapter.updateSubjects(new ArrayList<>());
                 return;
             }
+
 
             for (CourseModel c : selectedCourses) {
                 subjectsRef.orderByChild("courseId").equalTo(c.getId())
@@ -643,11 +818,13 @@ public class TeacherActivity extends AppCompatActivity {
                                 }
                             }
 
+
                             @Override
                             public void onCancelled(@NonNull DatabaseError error) {}
                         });
             }
         });
+
 
         // ✅ Show the actual dialog here
         new AlertDialog.Builder(this)
@@ -660,6 +837,7 @@ public class TeacherActivity extends AppCompatActivity {
                 .show();
     }
 
+
     // May nabago
     private void updateTeacherData(
             TeacherModel teacher,
@@ -671,20 +849,25 @@ public class TeacherActivity extends AppCompatActivity {
     ) {
         String fullNameRaw = etEditFullName.getText().toString().trim();
 
+
         String error = InputValidator.validateFullName(fullNameRaw);
         if (error != null) {
             Toast.makeText(this, error, Toast.LENGTH_SHORT).show();
             return;
         }
 
+
         String fullName = InputValidator.formatFullName(fullNameRaw);
+
 
         String birthday = etEditBirthday.getText().toString().trim();
         String email = etEditEmail.getText().toString().trim();
         List<CourseModel> selectedCourses = editCourseAdapter.getSelectedCourses();
         List<SubjectModel> selectedSubjects = editSubjectAdapter.getSelectedSubjects();
 
+
         // ---------- VALIDATION ----------
+
 
         error = InputValidator.validateFullName(fullName);
         if (error != null) {
@@ -692,11 +875,13 @@ public class TeacherActivity extends AppCompatActivity {
             return;
         }
 
+
         error = InputValidator.validateBirthday(birthday,5);
         if (error != null) {
             Toast.makeText(this, error, Toast.LENGTH_SHORT).show();
             return;
         }
+
 
         error = InputValidator.validateEmail(email);
         if (error != null) {
@@ -704,11 +889,13 @@ public class TeacherActivity extends AppCompatActivity {
             return;
         }
 
+
         error = InputValidator.validateCourses(selectedCourses);
         if (error != null) {
             Toast.makeText(this, error, Toast.LENGTH_SHORT).show();
             return;
         }
+
 
         error = InputValidator.validateSubjects(selectedSubjects);
         if (error != null) {
@@ -716,11 +903,13 @@ public class TeacherActivity extends AppCompatActivity {
             return;
         }
 
+
         // ---------- UPDATE TEACHER ----------
         teacher.setFullName(fullName);
         teacher.setBirthday(birthday);
         teacher.setEmail(email);
         teacher.setDisplayName(getDisplayName(fullName));
+
 
         // Update profile image if changed
         if (selectedImageUri != null) {
@@ -728,6 +917,7 @@ public class TeacherActivity extends AppCompatActivity {
             if (base64Image != null)
                 teacher.setProfileImage(base64Image);
         }
+
 
         // Courses
         List<String> courseIds = new ArrayList<>();
@@ -739,6 +929,7 @@ public class TeacherActivity extends AppCompatActivity {
         teacher.setCourseIds(courseIds);
         teacher.setCourseDisplays(courseDisplays);
 
+
         // Subjects → store IDs
         List<String> updatedSubjectIds = new ArrayList<>();
         for (SubjectModel s : selectedSubjects) {
@@ -746,12 +937,16 @@ public class TeacherActivity extends AppCompatActivity {
         }
         teacher.setAssignedSubjects(updatedSubjectIds);
 
+
         // Save to Firebase
         teachersRef.child(teacher.getId())
                 .setValue(teacher)
                 .addOnSuccessListener(aVoid -> Toast.makeText(this, "Teacher updated", Toast.LENGTH_SHORT).show())
                 .addOnFailureListener(e -> Toast.makeText(this, "Update failed: " + e.getMessage(), Toast.LENGTH_SHORT).show());
     }
+
+
+
 
 
 
@@ -776,6 +971,7 @@ public class TeacherActivity extends AppCompatActivity {
             int newHeight = Math.round(height * scale);
             Bitmap resized = Bitmap.createScaledBitmap(original, newWidth, newHeight, true);
 
+
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             resized.compress(Bitmap.CompressFormat.JPEG, 60, baos);
             byte[] imageBytes = baos.toByteArray();
@@ -785,6 +981,7 @@ public class TeacherActivity extends AppCompatActivity {
             return null;
         }
     }
+
 
     // New: confirm dialog before deletion
     private void confirmAndDeleteTeacher(TeacherModel teacher) {
@@ -799,13 +996,16 @@ public class TeacherActivity extends AppCompatActivity {
                 .show();
     }
 
+
     // New: robust delete flow - deletes Teachers record (by id if available, otherwise queries by uid),
     // and also attempts to remove Users/{uid} independently.
     private void deleteTeacherRecordAndUser(TeacherModel teacher) {
         if (teacher == null) return;
 
+
         String teacherId = teacher.getId();
         String uid = teacher.getUid();
+
 
         // 1) Delete Teachers record - prefer using teacherId if present
         if (teacherId != null && !teacherId.isEmpty()) {
@@ -848,6 +1048,7 @@ public class TeacherActivity extends AppCompatActivity {
                             }
                         }
 
+
                         @Override
                         public void onCancelled(@NonNull DatabaseError error) {
                             Toast.makeText(TeacherActivity.this, "Error finding teacher record: " + error.getMessage(), Toast.LENGTH_LONG).show();
@@ -858,6 +1059,7 @@ public class TeacherActivity extends AppCompatActivity {
             Toast.makeText(TeacherActivity.this, "Cannot delete: missing teacher id and uid", Toast.LENGTH_LONG).show();
             return;
         }
+
 
         // 2) Delete Users node (if exists) — do this independently (don't block Teachers deletion)
         if (uid != null && !uid.isEmpty()) {
@@ -872,4 +1074,6 @@ public class TeacherActivity extends AppCompatActivity {
         }
     }
 
+
 }
+

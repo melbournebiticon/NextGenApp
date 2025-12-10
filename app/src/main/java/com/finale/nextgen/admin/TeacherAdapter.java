@@ -93,6 +93,10 @@ public class TeacherAdapter extends RecyclerView.Adapter<TeacherAdapter.TeacherV
         return teacherList;
     }
 
+    public void setSubjectsListForMapping(List<SubjectModel> allSubjects) {
+        
+    }
+
     public static class TeacherViewHolder extends RecyclerView.ViewHolder {
         TextView tvTeacherId, tvDisplayName, tvFullName, tvCourse, tvEmail, tvSubjects;
         Button btnUpdate, btnDelete;
