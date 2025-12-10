@@ -68,7 +68,7 @@ public class TeacherDashboardActivity extends AppCompatActivity {
 
 
     // Dashboard summary
-    TextView tvTeacherNameDisplay, tvTeacherIdDisplay, tvActiveExamsCount, tvRecentExamTitle, tvPendingSubmissionsCount;
+    TextView tvTeacherNameDisplay, tvTeacherIdDisplay, tvActiveExamsCount, tvRecentExamTitle, tvActiveQuizCount;
 
     // Dashboard cards (Quick Actions)
     CardView cardManageExam, cardManageQuiz, cardManageExaminees, cardCreateActivity, cardStudentAttendance;
@@ -98,7 +98,10 @@ public class TeacherDashboardActivity extends AppCompatActivity {
         tvTeacherIdDisplay = findViewById(R.id.tvTeacherIdDisplay);
         tvRecentExamTitle = findViewById(R.id.tvRecentExamTitle);
         tvActiveExamsCount = findViewById(R.id.tvActiveExamsCount);
-        tvPendingSubmissionsCount = findViewById(R.id.tvPendingSubmissionsCount);
+        tvActiveQuizCount = findViewById(R.id.tvActiveQuizCount);
+
+        CardView cardHeaderProfile = findViewById(R.id.cardHeaderProfile);
+
 
         // Cards (match XML IDs)
         cardManageExam = findViewById(R.id.cardManageExam);
@@ -106,6 +109,10 @@ public class TeacherDashboardActivity extends AppCompatActivity {
         cardCreateActivity = findViewById(R.id.cardCreateActivity);
         cardManageExaminees = findViewById(R.id.cardViewExaminee);
         cardStudentAttendance = findViewById(R.id.cardStudentAttendance);
+
+        if (cardHeaderProfile != null) {
+            cardHeaderProfile.setOnClickListener(v -> openProfile());
+        }
 
         // Safe set click listeners
         if(cardManageExam != null) {
@@ -124,7 +131,7 @@ public class TeacherDashboardActivity extends AppCompatActivity {
             cardStudentAttendance.setOnClickListener(v -> startActivity(new Intent(this, StudentAttendanceActivity.class)));
         }
 
-        listenPendingSubmissions();
+        loadActiveQuizCount();
 
         // Get teacher ID from session
         String teacherId = sessionManager.getUserId();
@@ -146,6 +153,33 @@ public class TeacherDashboardActivity extends AppCompatActivity {
         profileMenuItem = menu.findItem(R.id.action_profile);
         loadToolbarProfileIcon();
         return true;
+    }
+
+    private void loadActiveQuizCount() {
+        DatabaseReference quizRef = FirebaseDatabase.getInstance().getReference("Quizzes");
+        String teacherId = sessionManager.getUserId();
+        quizRef.orderByChild("teacherId").equalTo(teacherId)
+                .addListenerForSingleValueEvent(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(@NonNull DataSnapshot snapshot) {
+                        int activeQuizCount = 0;
+                        for (DataSnapshot quizSnap : snapshot.getChildren()) {
+                            Boolean isActive = quizSnap.child("active").getValue(Boolean.class);
+                            if (isActive != null && isActive) {
+                                activeQuizCount++;
+                            }
+                        }
+                        TextView tvActiveQuizCount = findViewById(R.id.tvActiveQuizCount);
+                        if (tvActiveQuizCount != null)
+                            tvActiveQuizCount.setText(String.valueOf(activeQuizCount));
+                    }
+                    @Override
+                    public void onCancelled(@NonNull DatabaseError error) {
+                        Toast.makeText(TeacherDashboardActivity.this,
+                                "Failed to load active quizzes: " + error.getMessage(),
+                                Toast.LENGTH_SHORT).show();
+                    }
+                });
     }
 
     // Dynamically load/draw the user's profile photo in toolbar
@@ -464,31 +498,7 @@ public class TeacherDashboardActivity extends AppCompatActivity {
         });
     }
 
-    private void listenPendingSubmissions() {
-        DatabaseReference submissionsRef = FirebaseDatabase.getInstance().getReference("Submissions");
-        submissionsRef.addValueEventListener(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot snapshot) {
-                int pendingCount = 0;
-                for (DataSnapshot examSnap : snapshot.getChildren()) {
-                    for (DataSnapshot studentSnap : examSnap.getChildren()) {
-                        Boolean isSubmitted = studentSnap.child("isSubmitted").getValue(Boolean.class);
-                        Boolean isGraded = studentSnap.child("isGraded").getValue(Boolean.class);
-                        if (isSubmitted != null && isSubmitted && (isGraded == null || !isGraded)) {
-                            pendingCount++;
-                        }
-                    }
-                }
-                tvPendingSubmissionsCount.setText(String.valueOf(pendingCount));
-            }
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) {
-                Toast.makeText(TeacherDashboardActivity.this,
-                        "Failed to load pending submissions: " + error.getMessage(),
-                        Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
+
 
     private Bitmap getCircularBitmap(Bitmap bitmap) {
         int size = Math.min(bitmap.getWidth(), bitmap.getHeight());

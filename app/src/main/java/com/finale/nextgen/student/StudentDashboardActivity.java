@@ -1,5 +1,8 @@
 package com.finale.nextgen.student;
 
+
+
+
 import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -17,9 +20,18 @@ import android.widget.TextView;
 import android.widget.Toast;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
+
+
+
 import com.finale.nextgen.offline.QuestionDao; // <--- must be offline DAO
 import com.finale.nextgen.offline.QuestionEntity;
 import com.finale.nextgen.offline.AppDatabase; // offline DB instance
+
+
+
+
+
+
 
 
 import androidx.annotation.NonNull;
@@ -29,6 +41,9 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.drawerlayout.widget.DrawerLayout; // Import for Navigation Drawer
 import android.widget.ProgressBar;
+
+
+
 
 import com.finale.nextgen.MainActivity;
 import com.finale.nextgen.R;
@@ -41,6 +56,9 @@ import com.google.android.material.card.MaterialCardView;
 // import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton;
 import com.google.android.material.navigation.NavigationView; // Import for Navigation Drawer
 
+
+
+
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DataSnapshot;
@@ -48,6 +66,9 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
+
+
+
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -62,22 +83,43 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import com.finale.nextgen.sync.PresenceHelper;
 
+
+
+
 public class StudentDashboardActivity extends AppCompatActivity
         implements BottomNavigationView.OnNavigationItemSelectedListener {
 
+
+
+
     private static final String TAG = "StudentDashboard";
+
+
+
 
     // --- Dashboard UI Fields ---
     private TextView tvGreeting;
     private TextView tvStudentNameHeader;
 
+
+
+
     private LinearLayout emptyStateLayout;
+
+
+
 
     private DrawerLayout drawerLayout; // New: Drawer Layout
     private NavigationView navigationView; // New: Navigation View
 
+
+
+
     // --- Profile Menu ---
     private MaterialCardView btnProfileMenu;
+
+
+
 
     // --- Firebase ---
     private FirebaseAuth auth;
@@ -87,6 +129,9 @@ public class StudentDashboardActivity extends AppCompatActivity
     private String currentStudentUid;
     private StudentModel currentStudent;
 
+
+
+
     // --- RecyclerView for Exams ---
     private RecyclerView rvExams;
     private ExamAdapter examAdapter;
@@ -94,13 +139,22 @@ public class StudentDashboardActivity extends AppCompatActivity
     private List<ExamModel> examList = Collections.synchronizedList(new ArrayList<>());
     private boolean isFetchingExams = false;  // Flag to prevent overlapping fetches
 
+
+
+
     // --- Constants ---
     private static final long MAX_LOGIN_WINDOW_MILLIS = TimeUnit.MINUTES.toMillis(15);
     private final int REFRESH_INTERVAL = 3000;
 
+
+
+
     // --- Handler for periodic exam refresh ---
     private Handler handler = new Handler();
     private Runnable examRefreshRunnable;
+
+
+
 
     private ImageView imgProfileMenu;
     private Button btnLogout;
@@ -108,10 +162,16 @@ public class StudentDashboardActivity extends AppCompatActivity
     private TextView tvOfflinePrep;
     private ProgressBar progressOfflinePrep;
 
+
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_student_dashboard);
+
+
+
 
         fabScanner = findViewById(R.id.fab_scanner);
         if (fabScanner != null) {
@@ -124,11 +184,17 @@ public class StudentDashboardActivity extends AppCompatActivity
             });
         }
 
+
+
+
         // Replace the existing btnOpenQuizzes click listener in StudentDashboardActivity with this.
-        View btnOpenQuizzes = findViewById(R.id.btnOpenQuizzes);
+        @SuppressLint({"MissingInflatedId", "LocalSuppress"}) View btnOpenQuizzes = findViewById(R.id.btnOpenQuizzes);
         if (btnOpenQuizzes != null) {
             btnOpenQuizzes.setOnClickListener(v -> {
                 SessionManager sessionManager = new SessionManager(StudentDashboardActivity.this);
+
+
+
 
                 // Debug log current session values
                 Log.d("QUIZ_DEBUG", "Dashboard session: course='" + sessionManager.getCourseName()
@@ -137,32 +203,53 @@ public class StudentDashboardActivity extends AppCompatActivity
                         + "' section='" + sessionManager.getSectionName()
                         + "' studentId='" + sessionManager.getStudentId() + "'");
 
+
+
+
                 Intent intent = new Intent(StudentDashboardActivity.this, QuizListActivity.class);
+
+
+
 
                 try {
                     String studentId = sessionManager.getStudentId();
                     if (studentId != null && !studentId.isEmpty()) intent.putExtra("studentId", studentId);
                 } catch (Exception ignored) {}
 
+
+
+
                 try {
                     String course = sessionManager.getCourseName();
                     if (course != null && !course.trim().isEmpty()) intent.putExtra("courseName", course);
                 } catch (Exception ignored) {}
+
+
+
 
                 try {
                     String spec = sessionManager.getSpecializationName();
                     if (spec != null && !spec.trim().isEmpty()) intent.putExtra("specializationName", spec);
                 } catch (Exception ignored) {}
 
+
+
+
                 try {
                     String year = sessionManager.getYearName();
                     if (year != null && !year.trim().isEmpty()) intent.putExtra("yearName", year);
                 } catch (Exception ignored) {}
 
+
+
+
                 try {
                     String section = sessionManager.getSectionName();
                     if (section != null && !section.trim().isEmpty()) intent.putExtra("sectionName", section);
                 } catch (Exception ignored) {}
+
+
+
 
                 startActivity(intent);
             });
@@ -180,6 +267,9 @@ public class StudentDashboardActivity extends AppCompatActivity
         examsRef = FirebaseDatabase.getInstance().getReference("Exams");
         scoresRef = FirebaseDatabase.getInstance().getReference("Scores");
 
+
+
+
         tvGreeting = findViewById(R.id.tvGreeting);
         tvStudentNameHeader = findViewById(R.id.tvStudentNameHeader);
         emptyStateLayout = findViewById(R.id.emptyState);
@@ -187,8 +277,14 @@ public class StudentDashboardActivity extends AppCompatActivity
         tvOfflinePrep = findViewById(R.id.tvOfflinePrep);
         progressOfflinePrep = findViewById(R.id.progressOfflinePrep);
 
+
+
+
         drawerLayout = findViewById(R.id.drawer_layout);
         navigationView = findViewById(R.id.nav_view);
+
+
+
 
         navigationView.setNavigationItemSelectedListener(item -> {
             int id = item.getItemId();
@@ -208,10 +304,16 @@ public class StudentDashboardActivity extends AppCompatActivity
             return false;
         });
 
+
+
+
         // BottomNavigationView: no scanner logic anymore!
         BottomNavigationView bottomNavigationView = findViewById(R.id.bottomNavigationView);
         bottomNavigationView.setOnNavigationItemSelectedListener(item -> {
             int id = item.getItemId();
+
+
+
 
             if (id == R.id.nav_view_activities) {
                 if (currentStudent != null) showSubjectSelection(currentStudent);
@@ -234,17 +336,67 @@ public class StudentDashboardActivity extends AppCompatActivity
         });
 
 
+
+
+
+
+
+
         btnProfileMenu = findViewById(R.id.btnProfileMenu);
         imgProfileMenu = findViewById(R.id.imgProfileMenu);
 
+
+
+
         btnProfileMenu.setOnClickListener(this::showProfilePopup);
+
+
+
 
         rvExams = findViewById(R.id.rvExams);
         rvExams.setLayoutManager(new LinearLayoutManager(this));
         examAdapter = new ExamAdapter(this, examList);
         rvExams.setAdapter(examAdapter);
+        SessionManager session = new SessionManager(this);
+        StudentModel cachedStudent = null;
+        try {
+            cachedStudent = session.getStudentModel();
+        } catch (Exception ignored) { }
+
+
+
+
+        if (cachedStudent != null) {
+            // Use cached values to fill UI quickly while offline / while the network fetch runs
+            currentStudent = cachedStudent;
+            try {
+                // keep currentStudentUid (auth uid) as before — only set if present in cache
+                if (cachedStudent.getUid() != null && !cachedStudent.getUid().isEmpty()) {
+                    currentStudentUid = cachedStudent.getUid();
+                }
+            } catch (Exception ignored) { }
+
+
+
+
+            // populate UI
+            populateStudentData(cachedStudent);
+            showStudentSubjects();
+
+
+
+
+            // Optionally start periodic local UI tasks (but keep network fetch to refresh)
+            // startPeriodicExamFetch(cachedStudent);   // only if you want periodic server fetch
+        }
+
+
+
 
         loadExamsFromLocalDb();
+
+
+
 
         // --- Fetch Student Data ---
         studentsRef.orderByChild("uid").equalTo(currentUser.getUid())
@@ -272,6 +424,9 @@ public class StudentDashboardActivity extends AppCompatActivity
                                     showStudentSubjects();
                                     startPeriodicExamFetch(student);
 
+
+
+
                                     // 🔥 ADD THIS
                                     fetchRealtimeExamStatus(student);
                                 }
@@ -281,12 +436,18 @@ public class StudentDashboardActivity extends AppCompatActivity
                         }
                     }
 
+
+
+
                     @Override
                     public void onCancelled(@NonNull DatabaseError error) {
                         Toast.makeText(StudentDashboardActivity.this, "Failed to fetch data: " + error.getMessage(), Toast.LENGTH_SHORT).show();
                     }
                 });
     }
+
+
+
 
     // --- Periodic Exam Fetch ---
     private void startPeriodicExamFetch(StudentModel student) {
@@ -303,6 +464,9 @@ public class StudentDashboardActivity extends AppCompatActivity
         };
         handler.post(examRefreshRunnable);
     }
+
+
+
 
     private final android.content.BroadcastReceiver presenceSavedReceiver = new android.content.BroadcastReceiver() {
         @Override
@@ -323,10 +487,19 @@ public class StudentDashboardActivity extends AppCompatActivity
     };
 
 
+
+
+
+
+
+
     @SuppressLint("UnspecifiedRegisterReceiverFlag")
     @Override
     protected void onResume() {
         super.onResume();
+
+
+
 
         // Register LocalBroadcastManager receiver so dashboard refreshes after offline QR scan
         try {
@@ -336,8 +509,14 @@ public class StudentDashboardActivity extends AppCompatActivity
             );
         } catch (Exception ignored) {}
 
+
+
+
         // Also reload local cache to ensure any pending presence saved while scanning is reflected
         loadExamsFromLocalDb();
+
+
+
 
         // Existing resume logic: ensure periodic fetch continues
         FirebaseUser currentUser = auth.getCurrentUser();
@@ -354,11 +533,17 @@ public class StudentDashboardActivity extends AppCompatActivity
                             }
                         }
 
+
+
+
                         @Override
                         public void onCancelled(@NonNull DatabaseError error) { /* Do nothing */ }
                     });
         }
     }
+
+
+
 
     // in onPause(), replace unregisterReceiver(...) with LocalBroadcastManager
     @Override
@@ -368,11 +553,20 @@ public class StudentDashboardActivity extends AppCompatActivity
             LocalBroadcastManager.getInstance(this).unregisterReceiver(presenceSavedReceiver);
         } catch (Exception ignored) { }
 
+
+
+
         // Keep existing handler cleanup
         if (handler != null && examRefreshRunnable != null) handler.removeCallbacks(examRefreshRunnable);
 
+
+
+
         super.onPause();
     }
+
+
+
 
     private void loadExamsFromLocalDb() {
         new Thread(() -> {
@@ -395,6 +589,9 @@ public class StudentDashboardActivity extends AppCompatActivity
         android.net.NetworkInfo netInfo = cm.getActiveNetworkInfo();
         return netInfo != null && netInfo.isConnected();
     }
+
+
+
 
     // Example manual converter (add the fields you use)
     private ExamModel toExamModel(com.finale.nextgen.offline.ExamEntity entity) {
@@ -421,6 +618,9 @@ public class StudentDashboardActivity extends AppCompatActivity
     public boolean onNavigationItemSelected(@NonNull android.view.MenuItem item) {
         int id = item.getItemId();
 
+
+
+
         if (id == R.id.nav_view_activities) {
             if (currentStudent != null) {
                 showSubjectSelection(currentStudent);
@@ -432,6 +632,15 @@ public class StudentDashboardActivity extends AppCompatActivity
 
 
 
+
+
+
+
+
+
+
+
+
         // Existing: Handle Grades/Profile from Bottom Navigation
         if (id == R.id.nav_view_profile) {
             // Add navigation logic for Grades here, e.g.:
@@ -440,8 +649,17 @@ public class StudentDashboardActivity extends AppCompatActivity
             return true;
         }
 
+
+
+
         return false;
     }
+
+
+
+
+
+
 
 
     // --- Logout ---
@@ -454,6 +672,9 @@ public class StudentDashboardActivity extends AppCompatActivity
                     new SessionManager(this).clearSession();
                     FirebaseAuth.getInstance().signOut();
 
+
+
+
                     Intent intent = new Intent(this, MainActivity.class);
                     intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
                     startActivity(intent);
@@ -463,6 +684,9 @@ public class StudentDashboardActivity extends AppCompatActivity
                 .show();
     }
 
+
+
+
     // --- Profile Popup Menu ---
     // Pwede itong tanggalin kung ang Profile actions ay nasa Navigation Drawer na.
     // Pero hinayaan ko ito kung sakaling gagamitin mo ang button na ito para sa mabilisang action.
@@ -471,6 +695,9 @@ public class StudentDashboardActivity extends AppCompatActivity
         popupMenu.getMenu().add("View Profile");
         popupMenu.getMenu().add("Change Password");
         popupMenu.getMenu().add("Logout");
+
+
+
 
         popupMenu.setOnMenuItemClickListener(item -> {
             String title = item.getTitle().toString();
@@ -489,8 +716,14 @@ public class StudentDashboardActivity extends AppCompatActivity
             }
         });
 
+
+
+
         popupMenu.show();
     }
+
+
+
 
     // --- Change Password Dialog ---
     private void showChangePasswordDialog() {
@@ -499,13 +732,22 @@ public class StudentDashboardActivity extends AppCompatActivity
         EditText etNewPassword = view.findViewById(R.id.etNewPassword);
         EditText etConfirmPassword = view.findViewById(R.id.etConfirmPassword);
 
+
+
+
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Change Password")
                 .setView(view)
                 .setPositiveButton("Change", null)
                 .setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss());
 
+
+
+
         AlertDialog dialog = builder.create();
+
+
+
 
         dialog.setOnShowListener(d -> {
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
@@ -513,15 +755,24 @@ public class StudentDashboardActivity extends AppCompatActivity
                 String newPass = etNewPassword.getText().toString().trim();
                 String confirmPass = etConfirmPassword.getText().toString().trim();
 
+
+
+
                 if (oldPass.isEmpty() || newPass.isEmpty() || confirmPass.isEmpty()) {
                     Toast.makeText(this, "Please fill all fields", Toast.LENGTH_SHORT).show();
                     return;
                 }
 
+
+
+
                 if (!newPass.equals(confirmPass)) {
                     Toast.makeText(this, "Passwords do not match", Toast.LENGTH_SHORT).show();
                     return;
                 }
+
+
+
 
                 FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
                 if (user == null || user.getEmail() == null) {
@@ -529,8 +780,14 @@ public class StudentDashboardActivity extends AppCompatActivity
                     return;
                 }
 
+
+
+
                 com.google.firebase.auth.AuthCredential credential =
                         com.google.firebase.auth.EmailAuthProvider.getCredential(user.getEmail(), oldPass);
+
+
+
 
                 user.reauthenticate(credential)
                         .addOnSuccessListener(aVoid -> user.updatePassword(newPass)
@@ -553,8 +810,14 @@ public class StudentDashboardActivity extends AppCompatActivity
             });
         });
 
+
+
+
         dialog.show();
     }
+
+
+
 
     public static String hashPassword(String password) {
         try {
@@ -573,6 +836,9 @@ public class StudentDashboardActivity extends AppCompatActivity
         }
     }
 
+
+
+
     // --- Populate Student Data ---
     private void populateStudentData(StudentModel student) {
         if (student == null) return;
@@ -590,6 +856,9 @@ public class StudentDashboardActivity extends AppCompatActivity
         }
     }
 
+
+
+
     private String getGreetingMessage() {
         int hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY);
         if (hour >= 5 && hour < 12) {
@@ -601,16 +870,28 @@ public class StudentDashboardActivity extends AppCompatActivity
         }
     }
 
+
+
+
     private void showStudentSubjects() {
         tvGreeting.setText(getGreetingMessage());
     }
+
+
+
 
     // --- Show subject selection dialog ---
     private void showSubjectSelection(StudentModel student) {
         if (student == null) return;
 
+
+
+
         DatabaseReference teachersRef = FirebaseDatabase.getInstance().getReference("Teachers");
         DatabaseReference subjectsRef = FirebaseDatabase.getInstance().getReference("Subjects");
+
+
+
 
         teachersRef.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
@@ -629,11 +910,17 @@ public class StudentDashboardActivity extends AppCompatActivity
                     }
                 }
 
+
+
+
                 subjectsRef.addListenerForSingleValueEvent(new ValueEventListener() {
                     @Override
                     public void onDataChange(@NonNull DataSnapshot snapshot) {
                         List<String> subjectDisplays = new ArrayList<>();
                         List<Map<String, String>> subjectData = new ArrayList<>();
+
+
+
 
                         for (DataSnapshot snap : snapshot.getChildren()) {
                             final String subjectId = snap.getKey();
@@ -644,14 +931,23 @@ public class StudentDashboardActivity extends AppCompatActivity
                             final String yearName = snap.child("yearName").getValue(String.class);
                             final String sectionName = snap.child("sectionName").getValue(String.class);
 
+
+
+
                             if (subjectCode != null && courseName != null
                                     && courseName.equals(student.getCourseName())
                                     && specializationName != null && specializationName.equals(student.getSpecializationName())
                                     && yearName != null && yearName.equals(student.getYearName())
                                     && sectionName != null && sectionName.equals(student.getSectionName())) {
 
+
+
+
                                 final String teacherName = subjectTeacherMap.getOrDefault(subjectId, "N/A");
                                 final String courseDisplay = courseName + " - " + specializationName + " - " + yearName + " - " + sectionName;
+
+
+
 
                                 subjectDisplays.add(subjectCode + " - " + subjectName);
                                 Map<String, String> data = new HashMap<>();
@@ -664,10 +960,16 @@ public class StudentDashboardActivity extends AppCompatActivity
                             }
                         }
 
+
+
+
                         if (subjectDisplays.isEmpty()) {
                             Toast.makeText(StudentDashboardActivity.this, "No subjects found for your class.", Toast.LENGTH_SHORT).show();
                             return;
                         }
+
+
+
 
                         AlertDialog.Builder builder = new AlertDialog.Builder(StudentDashboardActivity.this);
                         builder.setTitle("Select a Subject");
@@ -677,6 +979,9 @@ public class StudentDashboardActivity extends AppCompatActivity
                         builder.setView(listView);
                         builder.setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss());
                         AlertDialog dialog = builder.create();
+
+
+
 
                         listView.setOnItemClickListener((parent, view, position, id) -> {
                             Map<String, String> selectedData = subjectData.get(position);
@@ -690,8 +995,14 @@ public class StudentDashboardActivity extends AppCompatActivity
                             dialog.dismiss();
                         });
 
+
+
+
                         dialog.show();
                     }
+
+
+
 
                     @Override
                     public void onCancelled(@NonNull DatabaseError error) {
@@ -700,6 +1011,9 @@ public class StudentDashboardActivity extends AppCompatActivity
                 });
             }
 
+
+
+
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
                 Toast.makeText(StudentDashboardActivity.this, "Failed to fetch teachers: " + error.getMessage(), Toast.LENGTH_SHORT).show();
@@ -707,9 +1021,15 @@ public class StudentDashboardActivity extends AppCompatActivity
         });
     }
 
+
+
+
     // --- Fetch student stats ---
     private void fetchStudentStats(final TextView tvTotalExams, final TextView tvAvgScore) {
         if (currentStudentUid == null) return;
+
+
+
 
         scoresRef.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
@@ -717,6 +1037,9 @@ public class StudentDashboardActivity extends AppCompatActivity
                 int totalExamsTaken = 0;
                 long totalScoreSum = 0;
                 String studentId = currentStudentUid;
+
+
+
 
                 if (snapshot.hasChild(studentId)) {
                     DataSnapshot studentScoresSnap = snapshot.child(studentId);
@@ -734,6 +1057,9 @@ public class StudentDashboardActivity extends AppCompatActivity
                     }
                 }
 
+
+
+
                 if (totalExamsTaken > 0) {
                     int averageScore = (int) (totalScoreSum / totalExamsTaken);
                     tvTotalExams.setText(String.valueOf(totalExamsTaken));
@@ -744,6 +1070,9 @@ public class StudentDashboardActivity extends AppCompatActivity
                 }
             }
 
+
+
+
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
                 Log.e(TAG, "Failed to fetch student stats: " + error.getMessage());
@@ -753,25 +1082,43 @@ public class StudentDashboardActivity extends AppCompatActivity
         });
     }
 
+
+
+
     // --- Fetch exams for student ---
     private void fetchExamsForStudent(StudentModel student) {
         if (isFetchingExams) return;  // Prevent overlapping
         isFetchingExams = true;
+
+
+
 
         String studentCourseDisplay = student.getCourseName()
                 + " - " + student.getSpecializationName()
                 + " - " + student.getYearName()
                 + " - " + student.getSectionName();
 
+
+
+
         long currentTime = System.currentTimeMillis();
         SimpleDateFormat sdf = new SimpleDateFormat("MMM dd, yyyy hh:mm a", Locale.getDefault());
 
+
+
+
         String studentId = student.getStudentId();
+
+
+
 
         examsRef.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 List<ExamModel> tempExamList = Collections.synchronizedList(new ArrayList<>());  // Temporary list for collecting data
+
+
+
 
                 List<DataSnapshot> eligibleExams = new ArrayList<>();
                 for (DataSnapshot teacherSnap : snapshot.getChildren()) {
@@ -780,9 +1127,15 @@ public class StudentDashboardActivity extends AppCompatActivity
                         Long scheduledAtLong = examSnap.child("scheduledAt").getValue(Long.class);
                         Integer durationMinutesInt = examSnap.child("durationMinutes").getValue(Integer.class);
 
+
+
+
                         if (scheduledAtLong != null && scheduledAtLong < 1_000_000_000_000L) {
                             scheduledAtLong = scheduledAtLong * 1000L;
                         }
+
+
+
 
                         if (exam != null && scheduledAtLong != null && durationMinutesInt != null &&
                                 exam.getCourseDisplay().equals(studentCourseDisplay) &&
@@ -792,8 +1145,14 @@ public class StudentDashboardActivity extends AppCompatActivity
                     }
                 }
 
+
+
+
                 final int totalEligibleExams = eligibleExams.size();
                 final int[] examsProcessed = {0};
+
+
+
 
                 if (totalEligibleExams == 0) {
                     runOnUiThread(() -> {
@@ -806,9 +1165,15 @@ public class StudentDashboardActivity extends AppCompatActivity
                     return;
                 }
 
+
+
+
                 for (DataSnapshot examSnap : eligibleExams) {
                     ExamModel exam = examSnap.getValue(ExamModel.class);
                     String examId = examSnap.getKey();
+
+
+
 
                     exam.setExamId(examId);
                     Long scheduled = examSnap.child("scheduledAt").getValue(Long.class);
@@ -818,13 +1183,22 @@ public class StudentDashboardActivity extends AppCompatActivity
                     exam.setDurationMinutes(examSnap.child("durationMinutes").getValue(Integer.class));
                     exam.setDurationMinutes(examSnap.child("durationMinutes").getValue(Integer.class));
 
+
+
+
                     // Check if exam has been taken
                     scoresRef.child(studentId).child(examId)
                             .addListenerForSingleValueEvent(new ValueEventListener() {
                                 @Override
                                 public void onDataChange(@NonNull DataSnapshot scoreSnapshot) {
 
+
+
+
                                     long now = System.currentTimeMillis(); // use fresh time here
+
+
+
 
                                     synchronized (tempExamList) {
                                         if (scoreSnapshot.exists()) {
@@ -834,12 +1208,18 @@ public class StudentDashboardActivity extends AppCompatActivity
                                             long start = exam.getScheduledAt();
                                             long endLogin = start + MAX_LOGIN_WINDOW_MILLIS;
 
+
+
+
                                             // human-readable debug
                                             Log.d(TAG, "HUMAN_CHECK: examId=" + examId
                                                     + " scheduledAt=" + (start == 0 ? "<null>" : sdf.format(new Date(start)))
                                                     + " now=" + sdf.format(new Date(now))
                                                     + " startMs=" + start
                                             );
+
+
+
 
                                             if (now < start) {
                                                 exam.setStatus("Scheduled: Starts at " + sdf.format(new Date(start)));
@@ -854,11 +1234,20 @@ public class StudentDashboardActivity extends AppCompatActivity
                                         }
 
 
+
+
+
+
+
+
                                         // Fetch "present"
                                         DatabaseReference examStudentRef = FirebaseDatabase.getInstance()
                                                 .getReference("ExamStudents")
                                                 .child(examId)
                                                 .child(studentId);
+
+
+
 
                                         examStudentRef.child("present").addListenerForSingleValueEvent(new ValueEventListener() {
                                             @Override
@@ -867,9 +1256,15 @@ public class StudentDashboardActivity extends AppCompatActivity
                                                     Boolean present = presentSnap.getValue(Boolean.class);
                                                     Log.d(TAG, "Fetched present value: " + present + " for exam: " + exam.getExamTitle());
 
+
+
+
                                                     // Use boolean logic for availability: Must be initially available AND marked present
                                                     exam.setPresent(present != null && present);
                                                     exam.setAvailable(exam.isAvailable() && exam.isPresent());
+
+
+
 
                                                     tempExamList.add(exam);
                                                     examsProcessed[0]++;
@@ -878,6 +1273,9 @@ public class StudentDashboardActivity extends AppCompatActivity
                                                         new Thread(() -> {
                                                             com.finale.nextgen.offline.AppDatabase db = com.finale.nextgen.offline.AppDatabase.getInstance(StudentDashboardActivity.this);
                                                             String studentIdForDb = student.getStudentId(); // Make sure this matches PendingSubmission.studentId
+
+
+
 
                                                             for (ExamModel ex : tempExamList) {
                                                                 if (ex.getExamId() == null) continue;
@@ -895,12 +1293,18 @@ public class StudentDashboardActivity extends AppCompatActivity
                                                                 }
                                                             }
 
+
+
+
                                                             // Now update UI on main thread and save to Room as before
                                                             runOnUiThread(() -> {
                                                                 synchronized (examList) {
                                                                     examList.clear();
                                                                     examList.addAll(tempExamList);
                                                                     updateExamRecyclerView();
+
+
+
 
                                                                     // Save to Room offline cache (run in background thread)
                                                                     new Thread(() -> {
@@ -934,6 +1338,9 @@ public class StudentDashboardActivity extends AppCompatActivity
                                                 }
                                             }
 
+
+
+
                                             @Override
                                             public void onCancelled(@NonNull DatabaseError error) {
                                                 // IMPORTANT: Handle cancellation and ensure fetching flag is reset
@@ -950,6 +1357,9 @@ public class StudentDashboardActivity extends AppCompatActivity
                                         });
                                     }
                                 }
+
+
+
 
                                 @Override
                                 public void onCancelled(@NonNull DatabaseError error) {
@@ -968,6 +1378,9 @@ public class StudentDashboardActivity extends AppCompatActivity
                 }
             }
 
+
+
+
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
                 // Outer listener cancellation
@@ -983,16 +1396,28 @@ public class StudentDashboardActivity extends AppCompatActivity
         });
     }
 
+
+
+
     // Insert this method into StudentDashboardActivity (paste near other helpers)
+
+
+
 
     private void markPendingPresences(List<ExamModel> exams) {
         if (exams == null || exams.isEmpty()) return;
+
+
+
 
         new Thread(() -> {
             try {
                 com.finale.nextgen.offline.AppDatabase db = com.finale.nextgen.offline.AppDatabase.getInstance(getApplicationContext());
                 String studentIdForDb = com.finale.nextgen.SessionManager.getStudentId(StudentDashboardActivity.this);
                 if (studentIdForDb == null) return;
+
+
+
 
                 for (ExamModel e : exams) {
                     if (e == null || e.getExamId() == null) continue;
@@ -1010,6 +1435,9 @@ public class StudentDashboardActivity extends AppCompatActivity
                     }
                 }
 
+
+
+
                 // Update UI on main thread
                 runOnUiThread(() -> {
                     if (examAdapter != null) examAdapter.notifyDataSetChanged();
@@ -1022,13 +1450,22 @@ public class StudentDashboardActivity extends AppCompatActivity
     private void cacheAllExamQuestionsForOffline(List<ExamModel> exams) {
         if (exams == null || exams.isEmpty()) return;
 
+
+
+
         runOnUiThread(() -> {
             layoutOfflinePrep.setVisibility(View.VISIBLE);
             tvOfflinePrep.setText("Preparing exams for offline use... 0/" + exams.size());
         });
 
+
+
+
         final int total = exams.size();
         final int[] done = {0};
+
+
+
 
         for (ExamModel exam : exams) {
             String examId = exam.getExamId();
@@ -1037,6 +1474,9 @@ public class StudentDashboardActivity extends AppCompatActivity
                 done[0]++;
                 continue;
             }
+
+
+
 
             // Skip if already cached (optional)
             new Thread(() -> {
@@ -1054,6 +1494,9 @@ public class StudentDashboardActivity extends AppCompatActivity
                     return;
                 }
 
+
+
+
                 DatabaseReference questionsRef = FirebaseDatabase.getInstance().getReference("Questions").child(examId);
                 questionsRef.addListenerForSingleValueEvent(new ValueEventListener() {
                     @Override
@@ -1064,9 +1507,15 @@ public class StudentDashboardActivity extends AppCompatActivity
                             com.finale.nextgen.offline.QuestionEntity q = snap.getValue(com.finale.nextgen.offline.QuestionEntity.class);
                             if (q == null) q = new com.finale.nextgen.offline.QuestionEntity();
 
+
+
+
                             // Ensure required fields are set (important!)
                             q.examId = examId;
                             q.firebaseKey = snap.getKey();
+
+
+
 
                             // Defensive/manual mapping for fields that might not map automatically
                             if (snap.child("questionText").exists())
@@ -1093,9 +1542,15 @@ public class StudentDashboardActivity extends AppCompatActivity
                                 q.matchingOptions = mo;
                             }
 
+
+
+
                             questions.add(q);
                             Log.d(TAG, "Fetched question for examId=" + examId + " key=" + q.firebaseKey + " text=" + q.questionText);
                         }
+
+
+
 
                         // Save via OfflineExamManager (clears old and inserts)
                         new Thread(() -> {
@@ -1112,6 +1567,9 @@ public class StudentDashboardActivity extends AppCompatActivity
                             });
                         }).start();
                     }
+
+
+
 
                     @Override
                     public void onCancelled(@NonNull DatabaseError error) {
@@ -1130,8 +1588,14 @@ public class StudentDashboardActivity extends AppCompatActivity
         }
     }
 
+
+
+
     private void fetchRealtimeExamStatus(StudentModel student) {
         if (student == null) return;
+
+
+
 
         String course = student.getCourseName();
         String specialization = student.getSpecializationName();
@@ -1139,26 +1603,50 @@ public class StudentDashboardActivity extends AppCompatActivity
         String section = student.getSectionName();
         String uid = student.getUid();
 
+
+
+
         Log.d("REALTIME", "Fetching realtime exams...");
+
+
+
 
         examsRef.addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot examSnapshot) {
 
+
+
+
                 DatabaseReference userScoresRef = scoresRef.child(uid).child("examScores");
+
+
+
 
                 // Fetch scores FIRST
                 userScoresRef.addListenerForSingleValueEvent(new ValueEventListener() {
                     @Override
                     public void onDataChange(@NonNull DataSnapshot scoreSnapshot) {
 
+
+
+
                         List<ExamModel> takenList = new ArrayList<>();
                         List<ExamModel> pendingList = new ArrayList<>();
 
+
+
+
                         for (DataSnapshot examSnap : examSnapshot.getChildren()) {
+
+
+
 
                             ExamModel exam = examSnap.getValue(ExamModel.class);
                             if (exam == null) continue;
+
+
+
 
                             if (exam.getCourseName() == null || !course.equals(exam.getCourseName())) continue;
                             if (exam.getSpecializationName() == null || !specialization.equals(exam.getSpecializationName())) continue;
@@ -1166,7 +1654,16 @@ public class StudentDashboardActivity extends AppCompatActivity
                             if (exam.getSectionName() == null || !section.equals(exam.getSectionName())) continue;
 
 
+
+
+
+
+
+
                             boolean isTaken = false;
+
+
+
 
                             // Check submitted scores
                             for (DataSnapshot scoreSnap : scoreSnapshot.getChildren()) {
@@ -1178,12 +1675,18 @@ public class StudentDashboardActivity extends AppCompatActivity
                                 }
                             }
 
+
+
+
                             // If not taken, check Attempts
                             if (!isTaken) {
                                 DatabaseReference attemptRef = FirebaseDatabase.getInstance()
                                         .getReference("Attempts")
                                         .child(uid)
                                         .child(exam.getExamId());
+
+
+
 
                                 attemptRef.addListenerForSingleValueEvent(new ValueEventListener() {
                                     @Override
@@ -1192,8 +1695,14 @@ public class StudentDashboardActivity extends AppCompatActivity
                                             pendingList.add(exam);
                                         }
 
+
+
+
                                         updateExamStatusUI(takenList, pendingList);
                                     }
+
+
+
 
                                     @Override
                                     public void onCancelled(@NonNull DatabaseError error) { }
@@ -1201,23 +1710,47 @@ public class StudentDashboardActivity extends AppCompatActivity
                             }
                         }
 
+
+
+
                         // Update UI after processing all exams
                         updateExamStatusUI(takenList, pendingList);
                     }
+
+
+
 
                     @Override
                     public void onCancelled(@NonNull DatabaseError error) { }
                 });
             }
 
+
+
+
             @Override
             public void onCancelled(@NonNull DatabaseError error) { }
         });
     }
 
+
+
+
     private void updateExamStatusUI(List<ExamModel> taken, List<ExamModel> pending) {
 
+
+
+
         Log.d("REALTIME", "Taken: " + taken.size() + " | Pending: " + pending.size());
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1227,6 +1760,9 @@ public class StudentDashboardActivity extends AppCompatActivity
         examList.addAll(taken);    // then taken
         examAdapter.notifyDataSetChanged();
 
+
+
+
         // Show empty state
         if (examList.isEmpty()) {
             emptyStateLayout.setVisibility(View.VISIBLE);
@@ -1234,6 +1770,12 @@ public class StudentDashboardActivity extends AppCompatActivity
             emptyStateLayout.setVisibility(View.GONE);
         }
     }
+
+
+
+
+
+
 
 
     // New helper method to handle UI updates for the RecyclerView
@@ -1248,3 +1790,4 @@ public class StudentDashboardActivity extends AppCompatActivity
         }
     }
 }
+

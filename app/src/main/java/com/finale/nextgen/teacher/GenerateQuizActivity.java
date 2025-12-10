@@ -13,6 +13,8 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+
+import com.google.android.material.appbar.MaterialToolbar;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.tom_roush.pdfbox.pdmodel.PDDocument;
@@ -59,6 +61,22 @@ public class GenerateQuizActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         // NOTE: reuse the same layout as the exam version if desired.
         setContentView(R.layout.activity_generate_questions);
+
+
+        MaterialToolbar topBar = findViewById(R.id.topBar);
+        setSupportActionBar(topBar); // enable Toolbar as ActionBar
+
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+            getSupportActionBar().setDisplayShowHomeEnabled(true);
+        }
+
+        topBar.setNavigationOnClickListener(v -> {
+            finish();
+        });
+
+        fabImportQuestions = findViewById(R.id.fabImportQuestions);
+        fabImportQuestions.setOnClickListener(v -> openFilePicker());
 
         // Accept both "quizId" and (for compatibility) "examId" if caller hasn't been updated.
         Intent intent = getIntent();

@@ -2,109 +2,187 @@
 <androidx.cardview.widget.CardView
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:material="http://schemas.android.com/apk/res-auto"
     android:id="@+id/cardQuizRoot"
-    android:layout_margin="16dp"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    app:cardElevation="8dp"
+    android:layout_marginTop="0dp"
+    android:layout_marginStart="12dp"
+    android:layout_marginEnd="12dp"
+    android:layout_marginBottom="0dp"
+    app:cardElevation="10dp"
     app:cardUseCompatPadding="true"
-    app:cardCornerRadius="16dp"
+    app:cardCornerRadius="18dp"
     android:clickable="true"
     android:focusable="true"
     android:foreground="?attr/selectableItemBackground">
 
-    <LinearLayout
-        android:orientation="vertical"
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:padding="16dp">
 
-        <!-- QUIZ TITLE -->
+        <!-- Status Chip - (Section as chip) -->
+        <TextView
+            android:id="@+id/tvQuizSection"
+            android:layout_width="wrap_content"
+            android:layout_height="28dp"
+            android:text="Section"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:background="@drawable/bg_chip"
+            android:textColor="@android:color/black"
+            android:gravity="center"
+            android:paddingLeft="12dp"
+            android:paddingRight="12dp"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintBottom_toTopOf="@id/tvQuizTitle"
+            app:layout_constraintEnd_toStartOf="@id/tvQuizSubject"
+            android:layout_marginEnd="8dp"/>
+
+        <!-- Subject Chip -->
+
+        <!-- Quiz Title -->
+        <TextView
+            android:id="@+id/tvQuizSubject"
+            android:layout_width="wrap_content"
+            android:layout_height="28dp"
+            android:background="@drawable/bg_chip"
+            android:gravity="center"
+            android:paddingLeft="12dp"
+            android:paddingRight="12dp"
+            android:text="Subject"
+            android:textColor="@android:color/black"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            app:layout_constraintBottom_toTopOf="@id/tvQuizTitle"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@id/tvQuizSection"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintVertical_bias="0.0" />
+
         <TextView
             android:id="@+id/tvQuizTitle"
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:text="Quiz Title"
             android:textSize="18sp"
             android:textStyle="bold"
             android:textColor="?attr/colorPrimary"
-            android:maxLines="1"
-            android:ellipsize="end"/>
-
-        <!-- SECTION -->
-        <TextView
-            android:id="@+id/tvQuizSection"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Section"
-            android:textColor="?attr/colorOnSurfaceVariant"
-            android:layout_marginTop="4dp"
+            android:maxLines="2"
             android:ellipsize="end"
-            android:maxLines="1"/>
+            app:layout_constraintTop_toBottomOf="@id/tvQuizSection"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:layout_marginTop="8dp"/>
 
-        <!-- SUBJECT -->
-        <TextView
-            android:id="@+id/tvQuizSubject"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Subject"
-            android:layout_marginTop="6dp"
-            android:textColor="?attr/colorOnSurfaceVariant"
-            android:ellipsize="end"
-            android:maxLines="1"/>
+        <!-- Divider -->
+        <View
+            android:layout_width="40dp"
+            android:layout_height="2dp"
+            android:background="?attr/colorPrimary"
+            app:layout_constraintTop_toBottomOf="@id/tvQuizTitle"
+            app:layout_constraintStart_toStartOf="parent"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="4dp"/>
 
-        <!-- TEACHER -->
+        <!-- Teacher icon (for design only, does not have an id) -->
+        <!--
+        <ImageView
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:src="@drawable/ic_person"
+            app:tint="?attr/colorTertiary"
+            app:layout_constraintTop_toBottomOf="@id/tvQuizTitle"
+            app:layout_constraintStart_toStartOf="parent"
+            android:layout_marginTop="10dp"/>
+        -->
+
+        <!-- Teacher Name -->
         <TextView
             android:id="@+id/tvQuizTeacher"
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:text="Teacher"
-            android:layout_marginTop="6dp"
-            android:textColor="?attr/colorOnSurfaceVariant"/>
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="12sp"
+            android:maxLines="1"
+            android:ellipsize="end"
+            app:layout_constraintTop_toBottomOf="@id/tvQuizTitle"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:layout_marginTop="12dp"/>
 
-        <!-- DURATION -->
+        <!-- Duration -->
         <TextView
             android:id="@+id/tvQuizDuration"
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="Duration: 30 mins"
-            android:layout_marginTop="6dp"
-            android:textColor="?attr/colorOnSurfaceVariant"
-            android:textSize="14sp"
-            android:visibility="gone"/>
+            android:text="30 mins"
+            android:textColor="#607D8B"
+            android:textSize="12sp"
+            android:visibility="gone"
+            android:maxLines="1"
+            android:ellipsize="end"
+            app:layout_constraintTop_toBottomOf="@id/tvQuizTeacher"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:layout_marginTop="4dp"/>
 
-        <!-- SCHEDULE -->
+        <!-- Schedule -->
         <TextView
             android:id="@+id/tvQuizSchedule"
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:text="Schedule"
-            android:layout_marginTop="6dp"
-            android:textColor="?attr/colorOnSurfaceVariant"
-            android:textSize="14sp"/>
+            android:textColor="#607D8B"
+            android:textSize="12sp"
+            android:maxLines="1"
+            android:ellipsize="end"
+            app:layout_constraintTop_toBottomOf="@id/tvQuizDuration"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:layout_marginTop="4dp"/>
 
+        <!-- Take Quiz Button -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnTakeQuiz"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
             android:text="Take Quiz"
-            android:layout_marginTop="12dp"
-            android:visibility="gone"
+            android:visibility="visible"
             android:backgroundTint="?attr/colorPrimary"
             android:textColor="@android:color/white"
+            android:textSize="13sp"
+            android:textStyle="bold"
             app:cornerRadius="8dp"
-            style="@style/Widget.MaterialComponents.Button" />
+            app:icon="@drawable/ic_arrow_forward"
+            app:iconGravity="textEnd"
+            app:iconSize="16dp"
+            style="@style/Widget.MaterialComponents.Button"
+            android:elevation="2dp"
+            app:layout_constraintTop_toBottomOf="@id/tvQuizSchedule"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            android:layout_marginTop="12dp"
+            android:layout_marginEnd="0dp"/>
 
-        <!-- Optional label when quiz is already taken -->
+        <!-- Taken Label -->
         <TextView
             android:id="@+id/tvQuizTaken"
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Taken"
-            android:textColor="#888888"
+            android:text="✓ Taken"
+            android:textColor="#43a047"
+            android:gravity="center"
+            android:textStyle="normal"
             android:visibility="gone"
-            android:layout_marginTop="8dp" />
+            android:layout_marginTop="12dp"
+            android:textSize="14sp"
+            app:layout_constraintTop_toBottomOf="@id/btnTakeQuiz"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"/>
 
-    </LinearLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
 </androidx.cardview.widget.CardView>

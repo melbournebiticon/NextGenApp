@@ -1,6 +1,5 @@
 package com.finale.nextgen.teacher;
 
-
 import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.graphics.Bitmap;
@@ -12,7 +11,6 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
@@ -21,9 +19,12 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 
+import com.google.firebase.database.DatabaseError;
+
 import com.finale.nextgen.R;
 import com.finale.nextgen.admin.StudentModel;
 import com.google.android.material.snackbar.Snackbar;
+import com.google.android.material.switchmaterial.SwitchMaterial;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
@@ -33,7 +34,6 @@ import com.google.zxing.WriterException;
 import com.google.zxing.common.BitMatrix;
 import com.google.zxing.qrcode.QRCodeWriter;
 
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -41,10 +41,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-
 import com.google.android.gms.tasks.Task;
 import com.google.android.gms.tasks.Tasks;
-
 
 /**
  * QuizMonitorActivity - teacher view for monitoring students for a quiz.
@@ -55,18 +53,26 @@ import com.google.android.gms.tasks.Tasks;
  *   When teacher marks a student absent -> present=false and allowed=false (student should not be able to start).
  *   When teacher marks present -> present=true and allowed=true.
  *
+ * - Filtering: this version filters the Students snapshot by class/course/year/section using intent extras:
+ *   quizSpecialization, quizSectionName, quizYearName, quizCourseName.
+ *
  * Note: student apps must check the "allowed" flag (QuizStudents/{quizId}/{studentId}/allowed)
  * in addition to "present" if you want to ensure they're prevented from starting a quiz.
  * This update only ensures the teacher side writes the required fields.
  */
 public class QuizMonitorActivity extends AppCompatActivity {
 
-
     private RecyclerView recyclerView;
     private StudentQuizAdapter adapter;
     private String quizTitle;
     private String quizId;
+    private List<StudentQuizStatus> currentStudents = new ArrayList<>();
 
+    // Filtering criteria obtained from intent
+    private String quizSpecialization;
+    private String quizSectionName;
+    private String quizYearName;
+    private String quizCourseName;
 
     // Firebase refs and cached snapshots
     private DatabaseReference studentsRef;
@@ -74,27 +80,22 @@ public class QuizMonitorActivity extends AppCompatActivity {
     private DataSnapshot studentsSnapshotCache;
     private ValueEventListener quizStudentsRealtimeListener;
 
-
     // Keep last-known presence map so we can detect changes (studentId -> present)
     private final Map<String, Boolean> lastPresenceMap = new HashMap<>();
-
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_quiz_monitor);
 
-
         recyclerView = findViewById(R.id.recyclerStudents);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
-
 
         // Read id/title from intent (support both quiz and exam keys for compatibility)
         quizId = getIntent().getStringExtra("quizId");
         if (quizId == null || quizId.isEmpty()) {
             quizId = getIntent().getStringExtra("examId");
         }
-
 
         quizTitle = getIntent().getStringExtra("quizName");
         if (quizTitle == null || quizTitle.isEmpty()) {
@@ -105,10 +106,21 @@ public class QuizMonitorActivity extends AppCompatActivity {
         }
         if (quizTitle == null) quizTitle = "(Untitled)";
 
+        // Read filtering criteria from intent. These should match the keys the caller sends.
+        quizSpecialization = getIntent().getStringExtra("quizSpecialization");
+        quizSectionName = getIntent().getStringExtra("quizSectionName");
+        quizYearName = getIntent().getStringExtra("quizYearName");
+        quizCourseName = getIntent().getStringExtra("quizCourseName");
+
+        // Normalize nulls to empty strings for easier comparison
+        if (quizSpecialization == null) quizSpecialization = "";
+        if (quizSectionName == null) quizSectionName = "";
+        if (quizYearName == null) quizYearName = "";
+        if (quizCourseName == null) quizCourseName = "";
 
         setTitle("Monitoring: " + quizTitle);
         android.util.Log.d("QuizMonitor", "quizId from intent: " + quizId);
-
+        android.util.Log.d("QuizMonitor", "Filtering by spec='" + quizSpecialization + "' section='" + quizSectionName + "' year='" + quizYearName + "' course='" + quizCourseName + "'");
 
         // Show QR button (reuses same button id in layout)
         View btnShowQr = findViewById(R.id.btnShowQR);
@@ -116,22 +128,126 @@ public class QuizMonitorActivity extends AppCompatActivity {
             btnShowQr.setOnClickListener(v -> showQrDialog(quizId));
         }
 
-
+        SwitchMaterial switchPresentAll = findViewById(R.id.switchPresentAll);
+        if (switchPresentAll != null) {
+            switchPresentAll.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                if (isChecked) {
+                    markAllPresentForCurrentClass();
+                    Toast.makeText(this, "All matched students marked as present.", Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
         studentsRef = FirebaseDatabase.getInstance().getReference("Students");
         quizStudentsRef = FirebaseDatabase.getInstance().getReference("QuizStudents").child(quizId);
-
 
         // Load and cache Students snapshot and then attach realtime QuizStudents listener
         cacheStudentsAndAttachListener();
     }
-
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
         detachQuizStudentsListener();
     }
+    private void loadStudents() {
+        String quizSpecialization = getIntent().getStringExtra("quizSpecialization");
+        String quizSectionName = getIntent().getStringExtra("quizSectionName");
+        String quizYearName = getIntent().getStringExtra("quizYearName");
+        String quizCourseName = getIntent().getStringExtra("quizCourseName");
 
+        DatabaseReference studentsRef = FirebaseDatabase.getInstance().getReference("Students");
+        DatabaseReference quizStudentsRef = FirebaseDatabase.getInstance()
+                .getReference("QuizStudents")
+                .child(quizId);
+
+        studentsRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                List<StudentQuizStatus> students = new ArrayList<>();
+
+                quizStudentsRef.addListenerForSingleValueEvent(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(@NonNull DataSnapshot quizSnap) {
+                        for (DataSnapshot ds : snapshot.getChildren()) {
+                            StudentModel student = ds.getValue(StudentModel.class);
+                            if (student != null) {
+                                String studentId = student.getStudentId();
+                                if (studentId == null || studentId.trim().isEmpty()) {
+                                    studentId = ds.getKey();
+                                    student.setStudentId(studentId);
+                                    ds.getRef().child("studentId").setValue(studentId);
+                                }
+
+                                String studentSpec = student.getSpecializationName() != null ? student.getSpecializationName().trim() : "";
+                                String studentSection = student.getSectionName() != null ? student.getSectionName().trim() : "";
+                                String studentYear = student.getYearName() != null ? student.getYearName().trim() : "";
+                                String studentCourse = student.getCourseName() != null ? student.getCourseName().trim() : "";
+
+                                if (studentSpec.equalsIgnoreCase(quizSpecialization)
+                                        && studentSection.equalsIgnoreCase(quizSectionName)
+                                        && studentYear.equalsIgnoreCase(quizYearName)
+                                        && studentCourse.equalsIgnoreCase(quizCourseName)) {
+
+                                    // Check if student has an entry in QuizStudents
+                                    boolean present = false;
+                                    boolean ongoing = false;
+                                    int questionsAnswered = 0;
+
+                                    if (quizSnap.hasChild(studentId)) {
+                                        DataSnapshot studentQuizNode = quizSnap.child(studentId);
+                                        present = Boolean.TRUE.equals(studentQuizNode.child("present").getValue(Boolean.class));
+                                        ongoing = Boolean.TRUE.equals(studentQuizNode.child("ongoing").getValue(Boolean.class));
+                                        Integer answered = studentQuizNode.child("questionsAnswered").getValue(Integer.class);
+                                        if (answered != null) questionsAnswered = answered;
+                                    }
+
+                                    students.add(new StudentQuizStatus(
+                                            studentId,
+                                            student.getFullName(),
+                                            present,
+                                            ongoing,
+                                            questionsAnswered,
+                                            studentCourse,
+                                            studentSpec,
+                                            studentYear,
+                                            studentSection
+                                    ));
+                                }
+                            }
+                        }
+
+                        android.util.Log.d("QuizMonitor", "Total matched students: " + students.size());
+                        adapter = new StudentQuizAdapter(students, quizId, actionListener);
+                        recyclerView.setAdapter(adapter);
+                        // Store reference for present-all function
+                        currentStudents = students;
+                    }
+
+                    @Override
+                    public void onCancelled(@NonNull DatabaseError error) {
+                        android.util.Log.e("QuizMonitor", "QuizStudents load error: " + error.getMessage());
+                    }
+                });
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                android.util.Log.e("QuizMonitor", "Students load error: " + error.getMessage());
+            }
+        });
+    }
+
+    private void markAllPresentForCurrentClass() {
+        DatabaseReference quizStudentsRef = FirebaseDatabase.getInstance()
+                .getReference("QuizStudents")
+                .child(quizId);
+
+        for (StudentQuizStatus studentStatus : currentStudents) {
+            String studentId = studentStatus.getStudentId();
+            quizStudentsRef.child(studentId).child("present").setValue(true);
+        }
+        loadStudents(); // refresh UI after batch update
+    }
 
     private void cacheStudentsAndAttachListener() {
         // Cache Students snapshot once
@@ -159,11 +275,9 @@ public class QuizMonitorActivity extends AppCompatActivity {
         });
     }
 
-
     private void attachQuizStudentsRealtimeListener() {
         // detach previous if any
         detachQuizStudentsListener();
-
 
         quizStudentsRealtimeListener = new ValueEventListener() {
             @Override public void onDataChange(@NonNull DataSnapshot quizSnap) {
@@ -182,7 +296,6 @@ public class QuizMonitorActivity extends AppCompatActivity {
         android.util.Log.d("QuizMonitor", "Attached realtime listener to QuizStudents/" + quizId);
     }
 
-
     private void detachQuizStudentsListener() {
         try {
             if (quizStudentsRealtimeListener != null && quizStudentsRef != null) {
@@ -191,7 +304,6 @@ public class QuizMonitorActivity extends AppCompatActivity {
         } catch (Exception ignored) {}
         quizStudentsRealtimeListener = null;
     }
-
 
     private void attachExamStudentsFallbackListener() {
         DatabaseReference fallbackRef = FirebaseDatabase.getInstance().getReference("ExamStudents").child(quizId);
@@ -211,39 +323,55 @@ public class QuizMonitorActivity extends AppCompatActivity {
         android.util.Log.d("QuizMonitor", "Attached realtime listener to ExamStudents/" + quizId);
     }
 
-
     /**
      * Build the list of StudentQuizStatus items by correlating Students snapshot with QuizStudents/ExamStudents snapshot.
      * Uses setters to create StudentQuizStatus instances so it works regardless of available constructors.
+     *
+     * This version filters Students by the class/course/year/section passed in the intent. Comparison is case-insensitive
+     * and will include students only when all non-empty filter criteria match.
+     *
+     * IMPORTANT: if a StudentModel.studentId is missing, we use the DataSnapshot key locally but do NOT write it back to the DB.
      */
     private void buildStudentList(@NonNull DataSnapshot quizSnap, @Nullable DataSnapshot studentsSnap) {
         if (studentsSnap == null) {
-            // no students available, show empty list
             runOnUiThread(() -> {
                 adapter = new StudentQuizAdapter(new ArrayList<>(), quizId, actionListener);
                 recyclerView.setAdapter(adapter);
+                currentStudents = new ArrayList<>();
             });
             return;
         }
 
-
         List<StudentQuizStatus> students = new ArrayList<>();
+
         for (DataSnapshot ds : studentsSnap.getChildren()) {
             StudentModel student = ds.getValue(StudentModel.class);
             if (student == null) continue;
 
-
+            // Determine studentId locally (do NOT write back to DB if missing)
             String studentId = student.getStudentId();
             if (studentId == null || studentId.trim().isEmpty()) {
                 studentId = ds.getKey();
-                student.setStudentId(studentId);
             }
 
+            // Normalize student properties for comparison
+            String studentSpec = student.getSpecializationName() != null ? student.getSpecializationName().trim() : "";
+            String studentSection = student.getSectionName() != null ? student.getSectionName().trim() : "";
+            String studentYear = student.getYearName() != null ? student.getYearName().trim() : "";
+            String studentCourse = student.getCourseName() != null ? student.getCourseName().trim() : "";
+
+            // Apply filtering: if a filter is provided (non-empty), it must match the student's value (case-insensitive)
+            boolean matches = true;
+            if (!quizSpecialization.isEmpty() && !studentSpec.equalsIgnoreCase(quizSpecialization)) matches = false;
+            if (!quizSectionName.isEmpty() && !studentSection.equalsIgnoreCase(quizSectionName)) matches = false;
+            if (!quizYearName.isEmpty() && !studentYear.equalsIgnoreCase(quizYearName)) matches = false;
+            if (!quizCourseName.isEmpty() && !studentCourse.equalsIgnoreCase(quizCourseName)) matches = false;
+
+            if (!matches) continue;
 
             boolean present = false;
             boolean ongoing = false;
             int questionsAnswered = 0;
-
 
             if (quizSnap != null && quizSnap.hasChild(studentId)) {
                 DataSnapshot studentQuizNode = quizSnap.child(studentId);
@@ -253,7 +381,6 @@ public class QuizMonitorActivity extends AppCompatActivity {
                 if (answered != null) questionsAnswered = answered;
             }
 
-
             // Build via setters to avoid constructor mismatch
             StudentQuizStatus status = new StudentQuizStatus();
             status.setStudentId(studentId);
@@ -261,22 +388,20 @@ public class QuizMonitorActivity extends AppCompatActivity {
             status.setPresent(present);
             status.setOngoing(ongoing);
             status.setQuestionsAnswered(questionsAnswered);
-            status.setCourse(student.getCourseName());
-            status.setSpecialization(student.getSpecializationName());
-            status.setYear(student.getYearName());
-            status.setSection(student.getSectionName());
-
+            status.setCourse(studentCourse);
+            status.setSpecialization(studentSpec);
+            status.setYear(studentYear);
+            status.setSection(studentSection);
 
             students.add(status);
         }
 
-
         runOnUiThread(() -> {
             adapter = new StudentQuizAdapter(students, quizId, actionListener);
             recyclerView.setAdapter(adapter);
+            currentStudents = students; //
         });
     }
-
 
     // ---------- Teacher actions (called by adapter via the provided listener) ----------
     private final StudentQuizAdapter.ActionListener actionListener = new StudentQuizAdapter.ActionListener() {
@@ -285,25 +410,21 @@ public class QuizMonitorActivity extends AppCompatActivity {
             setStudentPresent(studentId, newValue);
         }
 
-
         @Override
         public void onToggleOngoing(String studentId, boolean newValue) {
             setStudentOngoing(studentId, newValue);
         }
-
 
         @Override
         public void onTogglePresentClicked(String studentId, boolean newStatus) {
             setStudentPresent(studentId, newStatus);
         }
 
-
         @Override
         public void onResetStudentQuiz(String studentId) {
             showResetConfirmationAlert(studentId);
         }
     };
-
 
     /**
      * Mark/unmark a student's attendance for this quiz.
@@ -317,11 +438,9 @@ public class QuizMonitorActivity extends AppCompatActivity {
     private void setStudentPresent(@NonNull String studentId, boolean present) {
         if (quizId == null || quizId.trim().isEmpty() || studentId == null) return;
 
-
         Map<String, Object> updates = new HashMap<>();
         updates.put("present", present);
         updates.put("allowed", present); // allowed==present: if absent -> not allowed
-
 
         // QuizStudents path
         DatabaseReference quizRef = FirebaseDatabase.getInstance()
@@ -329,13 +448,11 @@ public class QuizMonitorActivity extends AppCompatActivity {
                 .child(quizId)
                 .child(studentId);
 
-
         // ExamStudents path (fallback)
         DatabaseReference examRef = FirebaseDatabase.getInstance()
                 .getReference("ExamStudents")
                 .child(quizId)
                 .child(studentId);
-
 
         // Update both nodes
         quizRef.updateChildren(updates).addOnCompleteListener(task -> {
@@ -346,14 +463,12 @@ public class QuizMonitorActivity extends AppCompatActivity {
             }
         });
 
-
         examRef.updateChildren(updates).addOnCompleteListener(task -> {
             if (!task.isSuccessful()) {
                 android.util.Log.w("QuizMonitor", "Failed to update ExamStudents for " + studentId + ": " + task.getException());
             }
         });
     }
-
 
     /**
      * Mark/unmark ongoing state for a student.
@@ -371,7 +486,6 @@ public class QuizMonitorActivity extends AppCompatActivity {
         });
     }
 
-
     /**
      * Shows confirmation dialog before initiating the quiz reset.
      */
@@ -384,7 +498,6 @@ public class QuizMonitorActivity extends AppCompatActivity {
                 .show();
     }
 
-
     /**
      * Executes the actual Firebase reset operation.
      * Clears Scores and resets the status in QuizStudents node.
@@ -395,25 +508,21 @@ public class QuizMonitorActivity extends AppCompatActivity {
             return;
         }
 
-
         // 1) References to all known score/answer nodes we want to clear
         DatabaseReference quizScoresRef = FirebaseDatabase.getInstance()
                 .getReference("QuizScores")
                 .child(studentId)
                 .child(quizId);
 
-
         DatabaseReference legacyScoresRef = FirebaseDatabase.getInstance()
                 .getReference("Scores")
                 .child(studentId)
                 .child(quizId);
 
-
         DatabaseReference usersAnswersRef = FirebaseDatabase.getInstance()
                 .getReference("UsersAnswers")
                 .child(studentId)
                 .child(quizId);
-
 
         // Also clear any per-quiz-per-student score stored under QuizStudents/{quizId}/{studentId}/score
         DatabaseReference quizStudentScoreRef = FirebaseDatabase.getInstance()
@@ -422,13 +531,11 @@ public class QuizMonitorActivity extends AppCompatActivity {
                 .child(studentId)
                 .child("score");
 
-
         // And clear submitted/finished flags under QuizStudents (we'll set them false via update later)
         DatabaseReference quizStudentNodeRef = FirebaseDatabase.getInstance()
                 .getReference("QuizStudents")
                 .child(quizId)
                 .child(studentId);
-
 
         // Prepare status resets for the QuizStudents node (set to Absent/not allowed/not ongoing)
         Map<String, Object> updates = new HashMap<>();
@@ -439,13 +546,11 @@ public class QuizMonitorActivity extends AppCompatActivity {
         updates.put("submitted", false);
         updates.put("finished", false);
 
-
         // RemoveValue tasks
         Task<Void> t1 = quizScoresRef.removeValue();
         Task<Void> t2 = legacyScoresRef.removeValue();
         Task<Void> t3 = usersAnswersRef.removeValue();
         Task<Void> t4 = quizStudentScoreRef.removeValue();
-
 
         // Wait for all removals to complete
         Tasks.whenAll(t1, t2, t3, t4).addOnCompleteListener(allTask -> {
@@ -475,7 +580,6 @@ public class QuizMonitorActivity extends AppCompatActivity {
         });
     }
 
-
     // ---------- QR helper (updated) ----------
     @SuppressLint("InflateParams")
     private void showQrDialog(String id) {
@@ -484,11 +588,9 @@ public class QuizMonitorActivity extends AppCompatActivity {
             return;
         }
 
-
         // Use a deep link payload so external scanner apps can open the app if intent-filter exists.
         final String deepLink = "nextgen://quiz/" + id;
         final String plainPayload = "quiz:" + id; // fallback/plain text
-
 
         QRCodeWriter writer = new QRCodeWriter();
         try {
@@ -497,20 +599,17 @@ public class QuizMonitorActivity extends AppCompatActivity {
             BitMatrix bitMatrix = writer.encode(deepLink, BarcodeFormat.QR_CODE, size, size);
             Bitmap bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.RGB_565);
 
-
             for (int x = 0; x < size; x++) {
                 for (int y = 0; y < size; y++) {
                     bitmap.setPixel(x, y, bitMatrix.get(x, y) ? Color.BLACK : Color.WHITE);
                 }
             }
 
-
             View dialogView = getLayoutInflater().inflate(R.layout.dialog_quiz_qr, null);
             ImageView qrImageView = dialogView.findViewById(R.id.qrImageView);
             TextView tvQuizTitle = dialogView.findViewById(R.id.tvQuizTitle);
             Button btnShare = dialogView.findViewById(R.id.btnShareQr);
             Button btnClose = dialogView.findViewById(R.id.btnClose);
-
 
             // Show quiz title (if available) in the dialog
             if (quizTitle != null && !quizTitle.trim().isEmpty()) {
@@ -520,14 +619,11 @@ public class QuizMonitorActivity extends AppCompatActivity {
                 tvQuizTitle.setVisibility(View.GONE);
             }
 
-
             qrImageView.setImageBitmap(bitmap);
-
 
             AlertDialog dialog = new AlertDialog.Builder(this)
                     .setView(dialogView)
                     .create();
-
 
             // Share button: share the deep link and a human-friendly text (plainPayload included).
             btnShare.setOnClickListener(v -> {
@@ -544,17 +640,14 @@ public class QuizMonitorActivity extends AppCompatActivity {
                 }
             });
 
-
             btnClose.setOnClickListener(v -> dialog.dismiss());
             dialog.show();
-
 
         } catch (WriterException e) {
             e.printStackTrace();
             Toast.makeText(this, "Failed to generate QR", Toast.LENGTH_SHORT).show();
         }
     }
-
 
     // ---------- Presence change helpers ----------
     private void initializeLastPresenceMap(@Nullable DataSnapshot quizSnap) {
@@ -567,7 +660,6 @@ public class QuizMonitorActivity extends AppCompatActivity {
         }
     }
 
-
     private void updateLastPresenceMap(@Nullable DataSnapshot quizSnap) {
         lastPresenceMap.clear();
         if (quizSnap == null) return;
@@ -578,10 +670,8 @@ public class QuizMonitorActivity extends AppCompatActivity {
         }
     }
 
-
     private void detectAndNotifyPresenceChanges(@Nullable DataSnapshot quizSnap) {
         if (quizSnap == null) return;
-
 
         Set<String> newlyPresent = new HashSet<>();
         for (DataSnapshot child : quizSnap.getChildren()) {
@@ -592,7 +682,6 @@ public class QuizMonitorActivity extends AppCompatActivity {
                 newlyPresent.add(sid);
             }
         }
-
 
         if (!newlyPresent.isEmpty()) {
             // Build a human-friendly message and show snackbar/toast, then highlight students in the adapter if possible
@@ -611,9 +700,7 @@ public class QuizMonitorActivity extends AppCompatActivity {
                 shown++;
             }
 
-
             final String msg = "Marked present: " + names.toString();
-
 
             runOnUiThread(() -> {
                 View root = findViewById(android.R.id.content);
@@ -636,4 +723,5 @@ public class QuizMonitorActivity extends AppCompatActivity {
         }
     }
 }
+
 

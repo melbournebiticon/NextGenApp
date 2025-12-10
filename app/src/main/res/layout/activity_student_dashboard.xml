@@ -95,7 +95,7 @@
                             android:layout_marginStart="24dp"
                             android:text="Juan Dela Cruz"
                             android:textColor="?attr/colorOnPrimary"
-                            android:textSize="36sp"
+                            android:textSize="28sp"
                             android:textStyle="bold"/>
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
@@ -125,9 +125,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="24dp"
-                    android:layout_marginTop="8dp"
-                    android:layout_marginEnd="16dp"
-                    android:layout_marginBottom="16dp"
+                    android:layout_marginTop="24dp"   android:layout_marginEnd="24dp"     android:layout_marginBottom="16dp"
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
 
@@ -140,17 +138,6 @@
                         android:textSize="22sp"
                         android:textStyle="bold"/>
 
-                    <!-- NEW: Button to open quizzes -->
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnOpenQuizzes"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Quizzes"
-                        android:layout_marginEnd="24dp"
-                        app:icon="@drawable/ic_quiz"
-                        app:iconPadding="8dp"
-                        app:strokeWidth="0dp"
-                        style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
                 </LinearLayout>
 
                 <LinearLayout
@@ -246,4 +233,4 @@
         app:headerLayout="@layout/nav_header_student"
         app:menu="@menu/student_profile" />
 
-</androidx.drawerlayout.widget.DrawerLayout>
+</androidx.drawerlayout.widget.DrawerLayout> 

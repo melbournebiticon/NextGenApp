@@ -1,5 +1,6 @@
 package com.finale.nextgen.student;
 
+
 import android.content.Context;
 import android.text.TextWatcher;
 import android.view.LayoutInflater;
@@ -13,25 +14,32 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.AdapterView;
 
+
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
+
 
 import com.finale.nextgen.R;
 import com.finale.nextgen.teacher.Question;
 import com.google.android.material.button.MaterialButton;
 
+
 import java.util.ArrayList;
 import java.util.List;
 import android.util.Log;
 
+
 public class TakeQuizAdapter extends RecyclerView.Adapter<TakeQuizAdapter.QuestionViewHolder> {
+
 
     private Context context;
     private List<Question> questions;
 
+
     private int totalQuestions = 1;
     private List<String> allMatchingAnswers;
     private String buttonText;
+
 
     // Listener to pass next/submit actions to the Activity
     public interface OnActionListener {
@@ -39,9 +47,11 @@ public class TakeQuizAdapter extends RecyclerView.Adapter<TakeQuizAdapter.Questi
     }
     private OnActionListener actionListener;
 
+
     public void setOnActionListener(OnActionListener listener) {
         this.actionListener = listener;
     }
+
 
     public TakeQuizAdapter(Context context, List<Question> questions, List<String> allMatchingAnswers, String buttonText, int totalQuestions) {
         this.context = context;
@@ -51,6 +61,7 @@ public class TakeQuizAdapter extends RecyclerView.Adapter<TakeQuizAdapter.Questi
         this.totalQuestions = totalQuestions;
     }
 
+
     @NonNull
     @Override
     public QuestionViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
@@ -58,17 +69,22 @@ public class TakeQuizAdapter extends RecyclerView.Adapter<TakeQuizAdapter.Questi
         return new QuestionViewHolder(view);
     }
 
+
     @Override
     public void onBindViewHolder(@NonNull QuestionViewHolder holder, int position) {
         if (questions.isEmpty()) return;
 
+
         Question q = questions.get(position);
         int currentQuestion = q.getDisplayNumber();
+
 
         // === PROGRESS BAR ===
         holder.tvProgress.setText("Question " + currentQuestion + "/" + totalQuestions);
 
+
         holder.tvQuestion.setText(q.getDisplayNumber() + ". " + q.getQuestionText());
+
 
         // Hide all views first
         holder.radioGroupMCQ.setVisibility(View.GONE);
@@ -76,29 +92,35 @@ public class TakeQuizAdapter extends RecyclerView.Adapter<TakeQuizAdapter.Questi
         holder.etAnswer.setVisibility(View.GONE);
         holder.spinnerAnswer.setVisibility(View.GONE);
 
+
         // Clear previous state
         holder.radioGroupMCQ.clearCheck();
         holder.radioGroupTF.clearCheck();
         holder.etAnswer.setText("");
+
 
         if (holder.textWatcher != null) {
             holder.etAnswer.removeTextChangedListener(holder.textWatcher);
             holder.textWatcher = null;
         }
 
+
         holder.radioGroupMCQ.setOnCheckedChangeListener(null);
         holder.radioGroupTF.setOnCheckedChangeListener(null);
         holder.spinnerAnswer.setOnItemSelectedListener(null);
+
 
         // Logic for each question type
         switch (q.getQuestionType() != null ? q.getQuestionType().toLowerCase() : "") {
             case "multiple choice":
                 holder.radioGroupMCQ.setVisibility(View.VISIBLE);
 
+
                 holder.rbOptionA.setText(q.getOptionA());
                 holder.rbOptionB.setText(q.getOptionB());
                 holder.rbOptionC.setText(q.getOptionC());
                 holder.rbOptionD.setText(q.getOptionD());
+
 
                 if (q.getStudentAnswer() != null) {
                     String ans = q.getStudentAnswer();
@@ -107,6 +129,7 @@ public class TakeQuizAdapter extends RecyclerView.Adapter<TakeQuizAdapter.Questi
                     else if (ans.equals(q.getOptionC())) holder.rbOptionC.setChecked(true);
                     else if (ans.equals(q.getOptionD())) holder.rbOptionD.setChecked(true);
                 }
+
 
                 holder.radioGroupMCQ.setOnCheckedChangeListener((group, checkedId) -> {
                     int pos = holder.getBindingAdapterPosition();
@@ -120,16 +143,19 @@ public class TakeQuizAdapter extends RecyclerView.Adapter<TakeQuizAdapter.Questi
                 });
                 break;
 
+
             case "true/false":
                 holder.radioGroupTF.setVisibility(View.VISIBLE);
                 holder.rbTrue.setChecked(false);
                 holder.rbFalse.setChecked(false);
+
 
                 if ("True".equalsIgnoreCase(q.getStudentAnswer())) {
                     holder.rbTrue.setChecked(true);
                 } else if ("False".equalsIgnoreCase(q.getStudentAnswer())) {
                     holder.rbFalse.setChecked(true);
                 }
+
 
                 holder.radioGroupTF.setOnCheckedChangeListener((group, checkedId) -> {
                     int pos = holder.getBindingAdapterPosition();
@@ -142,13 +168,17 @@ public class TakeQuizAdapter extends RecyclerView.Adapter<TakeQuizAdapter.Questi
                 });
                 break;
 
+
             default:
                 holder.spinnerAnswer.setVisibility(View.VISIBLE);
 
+
                 List<String> matchingOptions = allMatchingAnswers;
+
 
                 Log.d("TakeQuizAdapter", "Question: " + q.getQuestionText());
                 Log.d("TakeQuizAdapter", "Matching options: " + matchingOptions);
+
 
                 ArrayAdapter<String> adapter = new ArrayAdapter<>(
                         context,
@@ -158,11 +188,13 @@ public class TakeQuizAdapter extends RecyclerView.Adapter<TakeQuizAdapter.Questi
                 adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
                 holder.spinnerAnswer.setAdapter(adapter);
 
+
                 // Restore previous answer
                 if (q.getStudentAnswer() != null) {
                     int index = matchingOptions.indexOf(q.getStudentAnswer());
                     if (index >= 0) holder.spinnerAnswer.setSelection(index);
                 }
+
 
                 holder.spinnerAnswer.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
                     @Override
@@ -177,6 +209,7 @@ public class TakeQuizAdapter extends RecyclerView.Adapter<TakeQuizAdapter.Questi
                 });
                 break;
         }
+
 
         holder.btnNextOrSubmit.setOnClickListener(v -> {
             int actualPos = holder.getBindingAdapterPosition();
@@ -195,10 +228,13 @@ public class TakeQuizAdapter extends RecyclerView.Adapter<TakeQuizAdapter.Questi
     }
 
 
+
+
     @Override
     public int getItemCount() {
         return (questions != null) ? questions.size() : 0;
     }
+
 
     public static class QuestionViewHolder extends RecyclerView.ViewHolder {
         TextView tvProgress;
@@ -212,13 +248,16 @@ public class TakeQuizAdapter extends RecyclerView.Adapter<TakeQuizAdapter.Questi
         Spinner spinnerAnswer;
         MaterialButton btnNextOrSubmit;
 
+
         public QuestionViewHolder(@NonNull View itemView) {
             super(itemView);
+
 
             tvProgress = itemView.findViewById(R.id.tvProgress);
             tvQuestion = itemView.findViewById(R.id.tvQuestion);
             etAnswer = itemView.findViewById(R.id.etAnswer);
             spinnerAnswer = itemView.findViewById(R.id.spinnerAnswer);
+
 
             radioGroupMCQ = itemView.findViewById(R.id.radioGroupMCQ);
             rbOptionA = itemView.findViewById(R.id.rbOptionA);
@@ -226,15 +265,19 @@ public class TakeQuizAdapter extends RecyclerView.Adapter<TakeQuizAdapter.Questi
             rbOptionC = itemView.findViewById(R.id.rbOptionC);
             rbOptionD = itemView.findViewById(R.id.rbOptionD);
 
+
             radioGroupTF = itemView.findViewById(R.id.radioGroupTF);
             rbTrue = itemView.findViewById(R.id.rbTrue);
             rbFalse = itemView.findViewById(R.id.rbFalse);
+
 
             btnNextOrSubmit = itemView.findViewById(R.id.btnNextOrSubmit);
         }
     }
 
+
     public List<Question> getQuestions() {
         return questions;
     }
 }
+

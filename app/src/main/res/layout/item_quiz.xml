@@ -55,53 +55,66 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"/>
 
-        <!-- Action Buttons -->
+        <!-- 2x2 Button Grid -->
         <LinearLayout
             android:orientation="horizontal"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:gravity="start"
-            android:weightSum="5">
+            android:layout_marginTop="16dp">
 
             <Button
                 android:id="@+id/btnEditQuiz"
                 android:text="Edit"
+                android:backgroundTint="@color/primary"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"/>
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"/>
 
             <Button
                 android:id="@+id/btnDeleteQuiz"
                 android:text="Delete"
+                android:backgroundTint="@color/red_500"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginStart="4dp"/>
+                android:layout_weight="1"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:orientation="horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp">
 
             <Button
                 android:id="@+id/btnViewStudentsQuiz"
                 android:text="View Students"
+                android:backgroundTint="#64748B"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:layout_marginStart="4dp"/>
-
+                android:layout_marginEnd="8dp"/>
             <Button
                 android:id="@+id/btnGenerateQuestions"
                 android:text="Generate"
+                android:backgroundTint="#1565C0"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginStart="4dp"/>
+                android:layout_weight="1"/>
+        </LinearLayout>
+
+        <!-- Activate Switch moves to its own row below button grid -->
+        <LinearLayout
+            android:orientation="horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp">
 
             <Switch
                 android:id="@+id/switchActiveQuiz"
                 android:text="Activate"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginStart="4dp"/>
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
         </LinearLayout>
     </LinearLayout>
 </androidx.cardview.widget.CardView>

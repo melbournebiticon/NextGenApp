@@ -1,17 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/nav_view_exam"
+        android:icon="@drawable/ic_home"
+        android:title="Exams" />
 
     <item
         android:id="@+id/nav_view_activities"
         android:icon="@drawable/ic_history"
         android:title="My Classes" />
 
-
-    <item
-        android:id="@+id/nav_view_exam"
-        android:icon="@drawable/ic_home"
-        android:title="Exams" />
-    <!-- NEW: Quizzes -->
     <item
         android:id="@+id/nav_quizzes"
         android:icon="@drawable/ic_quiz"

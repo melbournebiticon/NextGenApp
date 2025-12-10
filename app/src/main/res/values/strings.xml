@@ -57,6 +57,7 @@
     <string name="curriculum_icon">Curriculum count icon</string>
     <string name="exams_icon">Total Exams count icon</string>
     <string name="scan">Exam Scanner</string>
+    <string name="submit_quiz">Submit Quiz</string>
     <string-array name="main_term_options">
         <item>1st Term</item>
         <item>2nd Term</item>

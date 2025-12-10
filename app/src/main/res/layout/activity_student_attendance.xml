@@ -3,27 +3,28 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/attendanceLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="16dp"
+    android:background="#F5F5F5"
     tools:context=".teacher.StudentAttendanceActivity">
 
-    <!-- Title -->
-    <TextView
-        android:id="@+id/titleTxt"
+    <!-- Top App Bar with Back Button -->
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/topAppBar"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:text="@string/mark_attendance_title"
-        android:textSize="22sp"
-        android:textStyle="bold"
-        android:gravity="center"
-        android:contentDescription="@string/mark_attendance_title"
-        app:layout_constraintTop_toTopOf="parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/dark_blue_700"
+        android:theme="@style/ThemeOverlay.MaterialComponents.Light"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        app:layout_constraintTop_toTopOf="parent"
+        app:navigationIcon="?attr/homeAsUpIndicator"
+        app:title="Student Attendance"
+        app:titleCentered="true"
+        app:titleTextColor="@color/white"
+        app:navigationIconTint="@color/white"/>
 
-    <!-- Section Dropdown -->
+    <!-- Section Spinner -->
     <Spinner
         android:id="@+id/sectionSpinner"
         android:layout_width="0dp"
@@ -31,12 +32,12 @@
         android:spinnerMode="dropdown"
         android:prompt="@string/select_section_prompt"
         android:contentDescription="@string/section_spinner_desc"
-        app:layout_constraintTop_toBottomOf="@id/titleTxt"
+        app:layout_constraintTop_toBottomOf="@id/topAppBar"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="12dp" />
+        android:layout_marginTop="16dp" />
 
-    <!-- Debug text (kept hidden by default, enable during debugging) -->
+    <!-- Debug text -->
     <TextView
         android:id="@+id/debugTxt"
         android:layout_width="0dp"
@@ -64,7 +65,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- Empty placeholder shown when no sections or students -->
+    <!-- Empty placeholder -->
     <TextView
         android:id="@+id/emptyTxt"
         android:layout_width="0dp"
@@ -79,7 +80,7 @@
         app:layout_constraintStart_toStartOf="@id/recyclerView"
         app:layout_constraintEnd_toEndOf="@id/recyclerView" />
 
-    <!-- Progress Bar (Centered over RecyclerView) -->
+    <!-- Progress Bar -->
     <ProgressBar
         android:id="@+id/progressBar"
         android:layout_width="48dp"
@@ -102,13 +103,12 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <!-- View Report Button -->
         <Button
             android:id="@+id/viewReportBtn"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:backgroundTint="@color/teal_700"
+            android:backgroundTint="@color/dark_blue_700"
             android:elevation="4dp"
             android:padding="12dp"
             android:text="@string/viewreport"

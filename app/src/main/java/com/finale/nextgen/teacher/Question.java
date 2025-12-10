@@ -116,4 +116,8 @@ public class Question {
     public void setMatchingOptions(List<String> matchingOptions) {
         this.matchingOptions = matchingOptions;
     }
+
+    public Object getChoices() {
+        return null;
+    }
 }

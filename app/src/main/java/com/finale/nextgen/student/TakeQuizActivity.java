@@ -1,5 +1,6 @@
 package com.finale.nextgen.student;
 
+
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.AlertDialog;
@@ -21,11 +22,13 @@ import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
+
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+
 
 import com.finale.nextgen.R;
 import com.finale.nextgen.offline.QuestionEntity;
@@ -38,9 +41,11 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
+
 import org.tensorflow.lite.support.audio.TensorAudio;
 import org.tensorflow.lite.task.audio.classifier.AudioClassifier;
 import org.tensorflow.lite.task.audio.classifier.Classifications;
+
 
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import com.google.zxing.BarcodeFormat;
@@ -51,10 +56,12 @@ import com.google.zxing.qrcode.QRCodeWriter;
 import java.util.Map;
 import java.util.HashMap;
 
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+
 
 /**
  * TakeQuizActivity - updated:
@@ -70,8 +77,10 @@ import java.util.Locale;
  */
 public class TakeQuizActivity extends AppCompatActivity {
 
+
     private static final String TAG = "TakeQuiz";
     private static final long START_TOLERANCE_MS = 5_000L; // allow slight clock skew
+
 
     private TextView tvQuizTitle;
     private RecyclerView rvQuestions;
@@ -79,9 +88,11 @@ public class TakeQuizActivity extends AppCompatActivity {
     private List<Question> questionList = new ArrayList<>();
     private Button btnSubmit;
 
+
     private String quizId;
     private String quizName;
     private DatabaseReference questionsRef;
+
 
     // Navigation variables (same behavior as exam)
     private int currentIndex = 0;
@@ -91,15 +102,18 @@ public class TakeQuizActivity extends AppCompatActivity {
     private int typeIndex = 0;
     private int typeQuestionNumber = 1;
 
+
     // Duration & timer
     private int durationMinutes = 0;
     private CountDownTimer countDownTimer;
     private TextView tvTimer;
     private long timeLeftInMillis;
 
+
     // Firebase Auth
     private FirebaseAuth auth;
     private String currentStudentUid;
+
 
     // Anti-cheating
     private int switchCount = 0;
@@ -107,10 +121,12 @@ public class TakeQuizActivity extends AppCompatActivity {
     private int totalDeductions = 0;
     private final int DEDUCTION_PER_STRIKE = 1;
 
+
     // Audio cheating variables (same concept)
     private int audioCheatingCount = 0;
     private final int MAX_AUDIO_STRIKES = 5;
     private final float FINAL_HUMAN_THRESHOLD = 0.75f;
+
 
     // Audio monitoring
     private MediaRecorder mediaRecorder = null;
@@ -118,28 +134,35 @@ public class TakeQuizActivity extends AppCompatActivity {
     private static final int AUDIO_DETECTION_INTERVAL = 500; // ms
     private static final int REQUEST_RECORD_AUDIO_PERMISSION = 201;
 
+
     // TFLite audio
     private AudioClassifier classifier;
     private TensorAudio tensorAudio;
     private android.media.AudioRecord audioRecord;
 
+
     private List<String> allMatchingAnswers = new ArrayList<>();
     private boolean isShowingRules = false;
     private boolean isRequestingMicPermission = false;
 
+
     // offline loaded flag
     private volatile boolean offlineLoaded = false;
+
 
     // Intent-provided times (normalized)
     private long intentAvailableAt = 0L;
     private int intentDurationMinutes = 0;
 
+
     // cached scheduledAt from preload to avoid main-thread DB reads (optional)
     private long cachedScheduledAt = 0L;
+
 
     private String intentSubjectName = null;
     private String intentCourseCode = null;
     private String intentTeacherName = null;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -149,19 +172,23 @@ public class TakeQuizActivity extends AppCompatActivity {
                 WindowManager.LayoutParams.FLAG_SECURE
         );
 
+
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_take_exam); // reuse same layout as exam
+
 
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
             getSupportActionBar().setHomeButtonEnabled(true);
         }
 
+
         tvQuizTitle = findViewById(R.id.tvExamTitle); // layout id reused
         rvQuestions = findViewById(R.id.rvQuestions);
         rvQuestions.setLayoutManager(new LinearLayoutManager(this));
         btnSubmit = findViewById(R.id.btnSubmitExam);
         tvTimer = findViewById(R.id.tvTimer);
+
 
         // Read intent extras (quizId, quizName, optional availableAt, durationMinutes)
         quizId = getIntent().getStringExtra("quizId");
@@ -170,11 +197,13 @@ public class TakeQuizActivity extends AppCompatActivity {
             quizId = getIntent().getStringExtra("examId");
         }
 
+
         quizName = getIntent().getStringExtra("quizName");
         if (quizName == null || quizName.isEmpty()) {
             quizName = getIntent().getStringExtra("quizTitle");
         }
         if (quizName == null) quizName = "(Untitled Quiz)";
+
 
         // Normalize intent timing extras if present
         Long rawAvailableAt = null;
@@ -182,16 +211,19 @@ public class TakeQuizActivity extends AppCompatActivity {
         intentAvailableAt = normalizeTimestamp(rawAvailableAt);
         try { intentDurationMinutes = getIntent().hasExtra("durationMinutes") ? getIntent().getIntExtra("durationMinutes", 0) : 0; } catch (Exception ignored) { intentDurationMinutes = 0; }
 
+
         intentSubjectName = getIntent().getStringExtra("subjectName");
         intentCourseCode = getIntent().getStringExtra("courseCode");
         intentTeacherName = getIntent().getStringExtra("teacherName");
         Log.d(TAG, "Intent meta: subject=" + intentSubjectName + " course=" + intentCourseCode + " teacher=" + intentTeacherName);
+
 
         // If duration provided via intent and not set yet, use it
         if (intentDurationMinutes > 0 && durationMinutes == 0) {
             durationMinutes = intentDurationMinutes;
             startTimer(); // safe to start - will be cancelled/re-started later if updated from DB
         }
+
 
         // Check incoming deep link or scanned_text. If present, mark present first then continue normal flow.
         String incomingQuizId = parseQuizIdFromIntent(getIntent());
@@ -204,6 +236,7 @@ public class TakeQuizActivity extends AppCompatActivity {
             continueNormalFlowAfterMark();
         }
     }
+
 
     /**
      * Continue the original onCreate flow after marking present (or immediately if not a scanned/opened deep link).
@@ -219,6 +252,7 @@ public class TakeQuizActivity extends AppCompatActivity {
                 if (examEntity != null) {
                     // cache scheduledAt to avoid main-thread DB calls later
                     cachedScheduledAt = examEntity.scheduledAt;
+
 
                     runOnUiThread(() -> {
                         if ((quizName == null || quizName.isEmpty()) && examEntity.examTitle != null) {
@@ -238,6 +272,7 @@ public class TakeQuizActivity extends AppCompatActivity {
             }
         }).start();
 
+
         auth = FirebaseAuth.getInstance();
         FirebaseUser currentUser = auth.getCurrentUser();
         if (currentUser == null) {
@@ -249,12 +284,14 @@ public class TakeQuizActivity extends AppCompatActivity {
         }
         currentStudentUid = currentUser.getUid();
 
+
         // Preload cached questions for this quiz
         new Thread(() -> {
             try {
                 com.finale.nextgen.offline.AppDatabase db = com.finale.nextgen.offline.AppDatabase.getInstance(this);
                 List<QuestionEntity> cached = db.questionDao().getQuestionsByExamId(quizId);
                 Log.d("OfflineDebug", "TakeQuiz onCreate preload - quizId=" + quizId + ", cached size=" + cached.size());
+
 
                 if (!cached.isEmpty()) {
                     runOnUiThread(() -> {
@@ -268,10 +305,13 @@ public class TakeQuizActivity extends AppCompatActivity {
             }
         }).start();
 
+
         checkIfQuizIsAlreadyTaken();
     }
 
+
     // ---------- deep-link / scanned QR helpers ----------
+
 
     /**
      * Parse quizId from Intent data or scanned_text extra.
@@ -281,6 +321,7 @@ public class TakeQuizActivity extends AppCompatActivity {
      */
     private String parseQuizIdFromIntent(Intent intent) {
         if (intent == null) return null;
+
 
         // 1) If activity was opened via VIEW intent with data (deep link)
         try {
@@ -302,6 +343,7 @@ public class TakeQuizActivity extends AppCompatActivity {
             }
         } catch (Exception ignored) {}
 
+
         // 2) If launched by StudentQrScanResultHandler or external scanner with scanned_text extra
         String scanned = intent.getStringExtra("scanned_text");
         if (scanned == null || scanned.trim().isEmpty()) {
@@ -312,6 +354,7 @@ public class TakeQuizActivity extends AppCompatActivity {
         if (scanned.toLowerCase().startsWith("quiz:")) {
             return scanned.substring("quiz:".length());
         }
+
 
         // try parse as URI
         try {
@@ -331,8 +374,10 @@ public class TakeQuizActivity extends AppCompatActivity {
             }
         } catch (Exception ignored) {}
 
+
         return null;
     }
+
 
     /**
      * Resolve studentId (SessionManager preferred; fallback to Students node by auth uid),
@@ -345,14 +390,17 @@ public class TakeQuizActivity extends AppCompatActivity {
             return;
         }
 
+
         // Prefer saved studentId
         String stored = null;
         try { stored = new com.finale.nextgen.SessionManager(this).getStudentId(); } catch (Exception ignored) {}
+
 
         if (stored != null && !stored.isEmpty()) {
             writePresentFlag(quizId, stored, afterMarking);
             return;
         }
+
 
         // Fallback: find studentId by auth uid
         String uid = null;
@@ -361,11 +409,13 @@ public class TakeQuizActivity extends AppCompatActivity {
             if (u != null) uid = u.getUid();
         } catch (Exception ignored) {}
 
+
         if (uid == null || uid.isEmpty()) {
             // cannot resolve studentId -> just continue
             if (afterMarking != null) afterMarking.run();
             return;
         }
+
 
         DatabaseReference studentsRef = FirebaseDatabase.getInstance().getReference("Students");
         studentsRef.orderByChild("uid").equalTo(uid).limitToFirst(1)
@@ -395,6 +445,7 @@ public class TakeQuizActivity extends AppCompatActivity {
                 });
     }
 
+
     private void writePresentFlag(String quizId, String studentId, Runnable afterMarking) {
         if (quizId == null || studentId == null) {
             if (afterMarking != null) afterMarking.run();
@@ -406,6 +457,7 @@ public class TakeQuizActivity extends AppCompatActivity {
                 .child(studentId)
                 .child("present");
 
+
         presRef.get().addOnCompleteListener(task -> {
             boolean already = false;
             if (task.isSuccessful() && task.getResult() != null) {
@@ -413,11 +465,13 @@ public class TakeQuizActivity extends AppCompatActivity {
                 already = Boolean.TRUE.equals(v);
             }
 
+
             if (already) {
                 runOnUiThread(() -> Toast.makeText(TakeQuizActivity.this, "Marked present (already).", Toast.LENGTH_SHORT).show());
                 if (afterMarking != null) afterMarking.run();
                 return;
             }
+
 
             presRef.setValue(true).addOnCompleteListener(writeTask -> {
                 if (writeTask.isSuccessful()) {
@@ -430,16 +484,19 @@ public class TakeQuizActivity extends AppCompatActivity {
         });
     }
 
+
     // ============ The rest of your original methods (unchanged) ============
     // All remaining methods from your original file are kept as-is below.
     // I paste them to produce a complete file exactly as you requested.
     // (They were present earlier in the file you supplied and are reproduced here.)
+
 
     private long normalizeTimestamp(Long ts) {
         if (ts == null) return 0L;
         if (ts > 0 && ts < 1_000_000_000_000L) return ts * 1000L;
         return ts;
     }
+
 
     private void checkIfQuizIsAlreadyTaken() {
         // Try local pending submissions (offline-safe)
@@ -449,6 +506,7 @@ public class TakeQuizActivity extends AppCompatActivity {
                 com.finale.nextgen.offline.AppDatabase db = com.finale.nextgen.offline.AppDatabase.getInstance(TakeQuizActivity.this);
                 com.finale.nextgen.offline.PendingSubmission pending =
                         db.pendingSubmissionDao().findPendingByExamAndStudent(quizId, localStudentId);
+
 
                 runOnUiThread(() -> {
                     if (pending != null) {
@@ -464,11 +522,13 @@ public class TakeQuizActivity extends AppCompatActivity {
         }
     }
 
+
     private void checkIfTakenOnServer() {
         DatabaseReference scoreRef = FirebaseDatabase.getInstance()
                 .getReference("QuizScores") // changed from "Scores"
                 .child(currentStudentUid)
                 .child(quizId);
+
 
         scoreRef.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
@@ -506,6 +566,7 @@ public class TakeQuizActivity extends AppCompatActivity {
                 }
             }
 
+
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
                 Log.e(TAG, "Database error: " + error.getMessage());
@@ -515,16 +576,20 @@ public class TakeQuizActivity extends AppCompatActivity {
         });
     }
 
+
     private long getComputedAvailableAt() {
         // priority: intentAvailableAt > cachedScheduledAt (from cached DB) > quiz node availableAt
         if (intentAvailableAt > 0) return intentAvailableAt;
 
+
         // use cached value populated during preload (non-blocking)
         if (cachedScheduledAt > 0) return cachedScheduledAt;
+
 
         // fallback: 0 (immediately available)
         return 0L;
     }
+
 
     private long getComputedEndAt() {
         long avail = getComputedAvailableAt();
@@ -533,22 +598,27 @@ public class TakeQuizActivity extends AppCompatActivity {
         return Long.MAX_VALUE; // treat as no end
     }
 
+
     private boolean isQuizStartAllowed() {
         long now = System.currentTimeMillis();
         long avail = getComputedAvailableAt();
         long endAt = getComputedEndAt();
+
 
         if (avail > 0 && now + START_TOLERANCE_MS < avail) return false; // not yet
         if (endAt < now) return false; // expired
         return true;
     }
 
+
     private boolean isActivityAlive() {
         return !isFinishing() && !isDestroyed();
     }
 
+
     private void showQuizRulesAlert() {
         if (!isActivityAlive()) return;
+
 
         runOnUiThread(() -> {
             if (!isActivityAlive()) return;
@@ -583,6 +653,7 @@ public class TakeQuizActivity extends AppCompatActivity {
         });
     }
 
+
     private void startQuizLoadingProcessContinued() {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N && isInMultiWindowMode()) {
             Toast.makeText(this, "Split-screen detected. Auto-submitting.", Toast.LENGTH_LONG).show();
@@ -590,17 +661,22 @@ public class TakeQuizActivity extends AppCompatActivity {
             return;
         }
 
+
         tvQuizTitle.setText("Quiz: " + quizName);
+
 
         // If duration wasn't set already, use intentDurationMinutes if provided
         if (durationMinutes == 0 && intentDurationMinutes > 0) {
             durationMinutes = intentDurationMinutes;
         }
 
+
         // Fetch quiz details from Firebase to override/correct duration if available
         fetchQuizDetailsFromFirebase();
 
+
         questionsRef = FirebaseDatabase.getInstance().getReference("Questions").child(quizId);
+
 
         if (!offlineLoaded) {
             loadQuestions();
@@ -609,6 +685,7 @@ public class TakeQuizActivity extends AppCompatActivity {
             checkAndRequestAudioPermission();
             btnSubmit.setOnClickListener(v -> handleNextOrSubmit());
         }
+
 
         // Listen for quiz reset using QuizStudents node then fallback to ExamStudents
         DatabaseReference studentsRef = FirebaseDatabase.getInstance().getReference("Students");
@@ -623,9 +700,11 @@ public class TakeQuizActivity extends AppCompatActivity {
                         }
                     }
 
+
                     @Override public void onCancelled(@NonNull DatabaseError error) { }
                 });
     }
+
 
     private void checkAndRequestAudioPermission() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
@@ -635,6 +714,7 @@ public class TakeQuizActivity extends AppCompatActivity {
             startAudioMonitoring();
         }
     }
+
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
@@ -649,6 +729,7 @@ public class TakeQuizActivity extends AppCompatActivity {
         }
     }
 
+
     @Override
     protected void onStop() {
         super.onStop();
@@ -656,15 +737,18 @@ public class TakeQuizActivity extends AppCompatActivity {
         stopAudioMonitoring();
     }
 
+
     @Override
     protected void onPause() {
         super.onPause();
         if (isFinishing()) return;
         if (isShowingRules || isRequestingMicPermission) return;
 
+
         switchCount++;
         totalDeductions += DEDUCTION_PER_STRIKE;
         stopAudioMonitoring();
+
 
         if (switchCount >= MAX_SWITCHES) {
             Toast.makeText(this, "Cheating detected! Auto-submitting quiz.", Toast.LENGTH_LONG).show();
@@ -685,11 +769,13 @@ public class TakeQuizActivity extends AppCompatActivity {
         }
     }
 
+
     @Override
     protected void onResume() {
         super.onResume();
         if (isFinishing()) return;
         startAudioMonitoring();
+
 
         if (switchCount >= MAX_SWITCHES) {
             Toast.makeText(this, "Cheating detected! Auto-submitting quiz.", Toast.LENGTH_LONG).show();
@@ -708,6 +794,7 @@ public class TakeQuizActivity extends AppCompatActivity {
             return;
         }
 
+
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N && isInMultiWindowMode()) {
             if (countDownTimer != null) countDownTimer.cancel();
             stopAudioMonitoring();
@@ -717,6 +804,7 @@ public class TakeQuizActivity extends AppCompatActivity {
         }
     }
 
+
     @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
         if (item.getItemId() == android.R.id.home) {
@@ -725,8 +813,10 @@ public class TakeQuizActivity extends AppCompatActivity {
                 return true;
             }
 
+
             switchCount++;
             totalDeductions += DEDUCTION_PER_STRIKE;
+
 
             if (switchCount >= MAX_SWITCHES) {
                 Toast.makeText(this, "CHEATING DETECTED: Auto-submitting.", Toast.LENGTH_LONG).show();
@@ -750,10 +840,12 @@ public class TakeQuizActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
+
     @Override
     public void onBackPressed() {
         Toast.makeText(this, "Back button disabled during quiz.", Toast.LENGTH_LONG).show();
     }
+
 
     private void startTimer() {
         if (durationMinutes <= 0) return;
@@ -773,12 +865,14 @@ public class TakeQuizActivity extends AppCompatActivity {
         }.start();
     }
 
+
     private void updateCountDownText() {
         int minutes = (int) (timeLeftInMillis / 1000) / 60;
         int seconds = (int) (timeLeftInMillis / 1000) % 60;
         String timeLeftFormatted = String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds);
         tvTimer.setText(timeLeftFormatted);
     }
+
 
     private void fetchQuizDetailsFromFirebase() {
         DatabaseReference quizzesRootRef = FirebaseDatabase.getInstance().getReference("Quizzes");
@@ -793,6 +887,7 @@ public class TakeQuizActivity extends AppCompatActivity {
                         Long availableAtNode = quizSnap.child("availableAt").getValue(Long.class);
                         Integer availableAfter = quizSnap.child("availableAfterMinutes").getValue(Integer.class);
 
+
                         if (durationLong != null) {
                             durationMinutes = durationLong.intValue();
                             startTimer();
@@ -800,6 +895,7 @@ public class TakeQuizActivity extends AppCompatActivity {
                             durationMinutes = intentDurationMinutes;
                             startTimer();
                         }
+
 
                         // If availableAt present in DB, normalize and use it (helps when intent didn't include)
                         if (availableAtNode != null && availableAtNode > 0) {
@@ -820,12 +916,15 @@ public class TakeQuizActivity extends AppCompatActivity {
         });
     }
 
+
     private void loadQuestions() {
         new Thread(() -> {
             com.finale.nextgen.offline.AppDatabase db = com.finale.nextgen.offline.AppDatabase.getInstance(this);
             List<QuestionEntity> cachedQuestions = db.questionDao().getQuestionsByExamId(quizId);
 
+
             Log.d("OfflineDebug", "quizId=" + quizId + ", cached size=" + cachedQuestions.size());
+
 
             runOnUiThread(() -> {
                 if (!cachedQuestions.isEmpty()) {
@@ -841,6 +940,7 @@ public class TakeQuizActivity extends AppCompatActivity {
         }).start();
     }
 
+
     private boolean hasNextNonEmptySection() {
         for (int i = typeIndex + 1; i < questionTypeOrder.length; i++) {
             String futureType = questionTypeOrder[i];
@@ -853,6 +953,7 @@ public class TakeQuizActivity extends AppCompatActivity {
         return false;
     }
 
+
     private boolean allQuestionsAnswered() {
         for (Question q : questionList) {
             String ans = q.getStudentAnswer();
@@ -860,6 +961,7 @@ public class TakeQuizActivity extends AppCompatActivity {
         }
         return true;
     }
+
 
     private void maybeConfirmSubmit() {
         if (!isActivityAlive()) return;
@@ -879,6 +981,7 @@ public class TakeQuizActivity extends AppCompatActivity {
         });
     }
 
+
     private boolean isNetworkAvailable() {
         android.net.ConnectivityManager cm = (android.net.ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
         if (cm == null) return false;
@@ -886,11 +989,14 @@ public class TakeQuizActivity extends AppCompatActivity {
         return netInfo != null && netInfo.isConnected();
     }
 
+
     private void mapEntitiesToQuestionsAndShow(List<QuestionEntity> list) {
         questionList.clear();
         allMatchingAnswers.clear();
 
+
         Log.d("OfflineDebug", "Mapping cached quiz questions. Total: " + list.size());
+
 
         for (QuestionEntity qe : list) {
             Log.d("OfflineDebug", "Question text: " + qe.questionText + " type: " + qe.questionType);
@@ -906,7 +1012,9 @@ public class TakeQuizActivity extends AppCompatActivity {
             q.setDisplayNumber(qe.displayNumber);
             q.setMatchingOptions(qe.matchingOptions);
 
+
             questionList.add(q);
+
 
             if ("Matching Type".equalsIgnoreCase(q.getQuestionType())) {
                 String answer = q.getCorrectAnswer();
@@ -914,16 +1022,20 @@ public class TakeQuizActivity extends AppCompatActivity {
             }
         }
 
+
         typeIndex = 0;
         filterQuestionsByType(questionTypeOrder[typeIndex]);
 
+
         Log.d("OfflineDebug", "Questions for first section (" + questionTypeOrder[typeIndex] + "): " + currentTypeQuestions.size());
         showNextQuestion();
+
 
         offlineLoaded = true;
         checkAndRequestAudioPermission();
         btnSubmit.setOnClickListener(v -> handleNextOrSubmit());
     }
+
 
     private void fetchQuestionsFromFirebaseAndCache(String id) {
         DatabaseReference questionsRef = FirebaseDatabase.getInstance().getReference("Questions").child(id);
@@ -935,6 +1047,7 @@ public class TakeQuizActivity extends AppCompatActivity {
                     if (qe == null) qe = new QuestionEntity();
                     qe.examId = id;
                     qe.firebaseKey = snap.getKey();
+
 
                     if (snap.child("questionText").exists()) qe.questionText = snap.child("questionText").getValue(String.class);
                     if (snap.child("questionType").exists()) qe.questionType = snap.child("questionType").getValue(String.class);
@@ -954,6 +1067,7 @@ public class TakeQuizActivity extends AppCompatActivity {
                     toCache.add(qe);
                 }
 
+
                 new Thread(() -> {
                     com.finale.nextgen.offline.OfflineExamManager mgr = new com.finale.nextgen.offline.OfflineExamManager(TakeQuizActivity.this);
                     mgr.saveQuestions(id, toCache);
@@ -972,6 +1086,7 @@ public class TakeQuizActivity extends AppCompatActivity {
         });
     }
 
+
     private void filterQuestionsByType(String type) {
         currentQuestionType = type;
         currentTypeQuestions.clear();
@@ -983,11 +1098,13 @@ public class TakeQuizActivity extends AppCompatActivity {
         currentIndex = 0;
     }
 
+
     private void showNextQuestion() {
         if (currentTypeQuestions.isEmpty()) {
             goToNextType();
             return;
         }
+
 
         if (currentIndex < currentTypeQuestions.size()) {
             List<Question> singleQuestion = new ArrayList<>();
@@ -995,10 +1112,12 @@ public class TakeQuizActivity extends AppCompatActivity {
             currentQ.setDisplayNumber(typeQuestionNumber);
             singleQuestion.add(currentQ);
 
+
             questionAdapter = new TakeExamAdapter(TakeQuizActivity.this, singleQuestion, allMatchingAnswers,
                     currentQuestionType,    // pass the current section/type
                     typeQuestionNumber  );
             rvQuestions.setAdapter(questionAdapter);
+
 
             if (currentIndex == currentTypeQuestions.size() - 1 && !hasNextNonEmptySection()) {
                 btnSubmit.setText("Submit Quiz");
@@ -1012,6 +1131,7 @@ public class TakeQuizActivity extends AppCompatActivity {
         }
     }
 
+
     private void goToNextType() {
         typeIndex++;
         if (typeIndex < questionTypeOrder.length) {
@@ -1023,15 +1143,19 @@ public class TakeQuizActivity extends AppCompatActivity {
         }
     }
 
+
     private void submitQuiz() {
         stopAudioMonitoring();
+
 
         if (questionList.isEmpty()) {
             Toast.makeText(this, "No questions to submit", Toast.LENGTH_SHORT).show();
             return;
         }
 
+
         btnSubmit.setEnabled(false);
+
 
         int totalQuestions = questionList.size();
         int correctAnswers = 0;
@@ -1044,8 +1168,10 @@ public class TakeQuizActivity extends AppCompatActivity {
             }
         }
 
+
         int finalCalculatedScore = Math.max(correctAnswers - totalDeductions, 0);
         String localStudentId = com.finale.nextgen.SessionManager.getStudentId(this);
+
 
         if (localStudentId != null && !localStudentId.isEmpty()) {
             com.finale.nextgen.sync.SubmissionHelper.saveQuizSubmissionLocallyAndEnqueue(
@@ -1057,8 +1183,10 @@ public class TakeQuizActivity extends AppCompatActivity {
                     totalQuestions
             );
 
+
             // if online, also write QuizScores immediately for faster UI update
             if (isNetworkAvailable()) saveScoreToFirebase(localStudentId, finalCalculatedScore, totalQuestions);
+
 
             Toast.makeText(TakeQuizActivity.this, "Submission saved locally; will sync when online.", Toast.LENGTH_LONG).show();
             // --- ADD THIS BROADCAST ---
@@ -1066,9 +1194,11 @@ public class TakeQuizActivity extends AppCompatActivity {
             intent.putExtra("quizId", quizId);
             LocalBroadcastManager.getInstance(TakeQuizActivity.this).sendBroadcast(intent);
 
+
             redirectToResultActivity(finalCalculatedScore, totalQuestions);
             return;
         }
+
 
         DatabaseReference studentsRef = FirebaseDatabase.getInstance().getReference("Students");
         studentsRef.orderByChild("uid").equalTo(currentStudentUid)
@@ -1091,14 +1221,17 @@ public class TakeQuizActivity extends AppCompatActivity {
                                         totalQuestions
                                 );
 
+
                                 // if online, also write QuizScores immediately for faster UI update
                                 if (isNetworkAvailable()) saveScoreToFirebase(studentId, finalCalculatedScore, totalQuestions);
+
 
                                 Toast.makeText(TakeQuizActivity.this, "Submission saved and will sync when online.", Toast.LENGTH_LONG).show();
                                 // --- ADD THIS BROADCAST ---
                                 Intent intent = new Intent("com.finale.nextgen.QUIZ_SUBMITTED");
                                 intent.putExtra("quizId", quizId);
                                 LocalBroadcastManager.getInstance(TakeQuizActivity.this).sendBroadcast(intent);
+
 
                                 redirectToResultActivity(finalCalculatedScore, totalQuestions);
                                 break;
@@ -1115,10 +1248,12 @@ public class TakeQuizActivity extends AppCompatActivity {
                 });
     }
 
+
     private void submitQuizWithZeroScore() {
         stopAudioMonitoring();
         int maxScore = questionList.size();
         btnSubmit.setEnabled(false);
+
 
         String localStudentId = com.finale.nextgen.SessionManager.getStudentId(this);
         if (localStudentId != null && !localStudentId.isEmpty()) {
@@ -1136,9 +1271,11 @@ public class TakeQuizActivity extends AppCompatActivity {
             intent.putExtra("quizId", quizId);
             LocalBroadcastManager.getInstance(TakeQuizActivity.this).sendBroadcast(intent);
 
+
             redirectToResultActivity(0, maxScore);
             return;
         }
+
 
         DatabaseReference studentsRef = FirebaseDatabase.getInstance().getReference("Students");
         studentsRef.orderByChild("uid").equalTo(currentStudentUid)
@@ -1153,6 +1290,7 @@ public class TakeQuizActivity extends AppCompatActivity {
                                     return;
                                 }
 
+
                                 com.finale.nextgen.sync.SubmissionHelper.saveQuizSubmissionLocallyAndEnqueue(
                                         getApplicationContext(),
                                         quizId,
@@ -1166,6 +1304,7 @@ public class TakeQuizActivity extends AppCompatActivity {
                                 Intent intent = new Intent("com.finale.nextgen.QUIZ_SUBMITTED");
                                 intent.putExtra("quizId", quizId);
                                 LocalBroadcastManager.getInstance(TakeQuizActivity.this).sendBroadcast(intent);
+
 
                                 redirectToResultActivity(0, maxScore);
                                 break;
@@ -1182,6 +1321,7 @@ public class TakeQuizActivity extends AppCompatActivity {
                 });
     }
 
+
     /**
      * Save score under QuizScores/{studentId}/{quizId}/...
      */
@@ -1191,6 +1331,7 @@ public class TakeQuizActivity extends AppCompatActivity {
                 .child(studentId)
                 .child(quizId);
 
+
         // Prepare atomic update so we can reliably know when it's done
         Map<String, Object> updates = new HashMap<>();
         updates.put("score", score);
@@ -1198,12 +1339,15 @@ public class TakeQuizActivity extends AppCompatActivity {
         updates.put("timestamp", System.currentTimeMillis());
         updates.put("deductions", totalDeductions);
 
+
         Log.d(TAG, "Writing QuizScores/" + studentId + "/" + quizId + " -> " + updates);
         scoreEntryRef.updateChildren(updates).addOnCompleteListener(task -> {
             Log.d(TAG, "QuizScores write complete for " + quizId + " success=" + task.isSuccessful()
                     + (task.isSuccessful() ? "" : " err=" + (task.getException() != null ? task.getException().getMessage() : "null")));
 
+
             if (task.isSuccessful()) {
+
 
                 // 🔥 MARK QUIZ AS COMPLETED (THIS FIXES YOUR ISSUE)
                 DatabaseReference takenRef = FirebaseDatabase.getInstance()
@@ -1211,18 +1355,22 @@ public class TakeQuizActivity extends AppCompatActivity {
                         .child(quizId)
                         .child(studentId);
 
+
                 Map<String, Object> takenMap = new HashMap<>();
                 takenMap.put("present", true);            // or "taken": true (depende sa ginagamit mo)
                 takenMap.put("finished", true);
                 takenMap.put("submitted", true);
                 takenMap.put("score", score);
 
+
                 takenRef.updateChildren(takenMap);
+
 
                 // Notify UI immediately
                 notifyLocalTaken(quizId);
             }
         });
+
 
     }
     private void notifyLocalTaken(String quizId) {
@@ -1236,14 +1384,17 @@ public class TakeQuizActivity extends AppCompatActivity {
         }
     }
 
+
     private void redirectToResultActivity(int score, int maxScore) {
         if (!isNetworkAvailable()) {
             if (countDownTimer != null) countDownTimer.cancel();
             stopAudioMonitoring();
 
+
             Toast.makeText(TakeQuizActivity.this,
                     "Submission saved locally and will sync when online. Returning to dashboard.",
                     Toast.LENGTH_LONG).show();
+
 
             Intent intent = new Intent(TakeQuizActivity.this, StudentDashboardActivity.class);
             intent.putExtra("fromSubmitPending", true);
@@ -1254,6 +1405,7 @@ public class TakeQuizActivity extends AppCompatActivity {
             return;
         }
 
+
         // Resolve student info and quiz info similar to exam flow, then open QuizResultActivity
         DatabaseReference studentsRef = FirebaseDatabase.getInstance().getReference("Students");
         studentsRef.orderByChild("uid").equalTo(currentStudentUid).addListenerForSingleValueEvent(new ValueEventListener() {
@@ -1263,10 +1415,12 @@ public class TakeQuizActivity extends AppCompatActivity {
                     return;
                 }
 
+
                 for (DataSnapshot studentData : studentSnap.getChildren()) {
                     final String studentId = studentData.child("studentId").getValue(String.class);
                     final String fullName = studentData.child("fullName").getValue(String.class);
                     final String profileImage = studentData.child("profileImage").getValue(String.class);
+
 
                     // Get quiz info from Quizzes node
                     DatabaseReference quizzesRef = FirebaseDatabase.getInstance().getReference("Quizzes");
@@ -1280,6 +1434,7 @@ public class TakeQuizActivity extends AppCompatActivity {
                                     final String subjectName = quizSnap.child("subjectName").getValue(String.class);
                                     final String teacherName = quizSnap.child("teacherName").getValue(String.class);
 
+
                                     DatabaseReference subjectsRef = FirebaseDatabase.getInstance().getReference("Subjects");
                                     subjectsRef.addListenerForSingleValueEvent(new ValueEventListener() {
                                         @Override public void onDataChange(@NonNull DataSnapshot subjectSnap) {
@@ -1292,12 +1447,14 @@ public class TakeQuizActivity extends AppCompatActivity {
                                                 }
                                             }
 
+
                                             Intent intent = new Intent(TakeQuizActivity.this, QuizResultActivity.class); // changed
                                             // 🔥 Mark quiz completion
                                             DatabaseReference completionRef = FirebaseDatabase.getInstance()
                                                     .getReference("UsersAnswers")
                                                     .child(studentId)
                                                     .child(quizId);
+
 
                                             Map<String, Object> comp = new HashMap<>();
                                             comp.put("hasFinished", 1);
@@ -1307,7 +1464,9 @@ public class TakeQuizActivity extends AppCompatActivity {
                                             comp.put("maxScore", maxScore);
                                             comp.put("timestamp", System.currentTimeMillis());
 
+
                                             completionRef.updateChildren(comp);
+
 
                                             final String resolvedSubjectName = (intentSubjectName != null && !intentSubjectName.trim().isEmpty())
                                                     ? intentSubjectName : (subjectName != null ? subjectName : "");
@@ -1316,28 +1475,34 @@ public class TakeQuizActivity extends AppCompatActivity {
                                             final String resolvedCourseCode = (intentCourseCode != null && !intentCourseCode.trim().isEmpty())
                                                     ? intentCourseCode : (subjectCode != null ? subjectCode : "");
 
+
 // Put them into the result intent (always provide keys, even if empty)
                                             intent.putExtra("subjectName", resolvedSubjectName);
                                             intent.putExtra("teacherName", resolvedTeacherName);
                                             intent.putExtra("courseCode", resolvedCourseCode);
+
 
 // existing extras
                                             intent.putExtra("studentName", fullName);
                                             intent.putExtra("studentId", studentId);
                                             intent.putExtra("profileImage", profileImage);
 
+
                                             intent.putExtra("quizTitle", quizName);
                                             intent.putExtra("totalScore", score);
                                             intent.putExtra("maxScore", maxScore);
                                             intent.putExtra("deductions", totalDeductions);
 
+
                                             intent.putExtra("quizId", quizId);
+
 
 // optional debug log to confirm values
                                             Log.d(TAG, "Launching QuizResultActivity: quizId=" + quizId
                                                     + " subject=" + resolvedSubjectName
                                                     + " course=" + resolvedCourseCode
                                                     + " teacher=" + resolvedTeacherName);
+
 
                                             startActivity(intent);
                                             finish();
@@ -1365,6 +1530,7 @@ public class TakeQuizActivity extends AppCompatActivity {
         });
     }
 
+
     // ---------- AUDIO MONITORING ----------
     private void startAudioMonitoring() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
@@ -1373,11 +1539,13 @@ public class TakeQuizActivity extends AppCompatActivity {
         startAudioClassification();
     }
 
+
     private void stopAudioMonitoring() {
         // remove audio handler callbacks
         try {
             if (audioHandler != null) audioHandler.removeCallbacksAndMessages(null);
         } catch (Exception ignored) {}
+
 
         // stop and release AudioRecord if created
         try {
@@ -1388,8 +1556,10 @@ public class TakeQuizActivity extends AppCompatActivity {
         } catch (Exception ignored) {}
         audioRecord = null;
 
+
         // null tensorAudio
         tensorAudio = null;
+
 
         // close classifier if open
         try {
@@ -1398,6 +1568,7 @@ public class TakeQuizActivity extends AppCompatActivity {
             }
         } catch (Exception ignored) {}
         classifier = null;
+
 
         // stop/release mediaRecorder if used
         try {
@@ -1408,12 +1579,15 @@ public class TakeQuizActivity extends AppCompatActivity {
         } catch (Exception ignored) {}
         mediaRecorder = null;
 
+
         audioCheatingCount = 0;
     }
+
 
     private void startAudioClassification() {
         final float NEW_HIGH_CONFIDENCE_THRESHOLD = 0.6f;
         final float MIC_LOUDNESS_THRESHOLD = 0.15f;
+
 
         try {
             AudioClassifier.AudioClassifierOptions options =
@@ -1422,10 +1596,12 @@ public class TakeQuizActivity extends AppCompatActivity {
                             .setScoreThreshold(NEW_HIGH_CONFIDENCE_THRESHOLD)
                             .build();
 
+
             classifier = AudioClassifier.createFromFileAndOptions(this, "model.tflite", options);
             tensorAudio = classifier.createInputTensorAudio();
             audioRecord = classifier.createAudioRecord();
             audioRecord.startRecording();
+
 
             audioHandler.post(new Runnable() {
                 @Override public void run() {
@@ -1433,9 +1609,11 @@ public class TakeQuizActivity extends AppCompatActivity {
                         tensorAudio.load(audioRecord);
                         List<Classifications> results = classifier.classify(tensorAudio);
 
+
                         float[] audioData = tensorAudio.getTensorBuffer().getFloatArray();
                         float maxAmplitude = 0f;
                         for (float v : audioData) maxAmplitude = Math.max(maxAmplitude, Math.abs(v));
+
 
                         if (!results.isEmpty()) {
                             Classifications classification = results.get(0);
@@ -1443,20 +1621,25 @@ public class TakeQuizActivity extends AppCompatActivity {
                                 String label = classification.getCategories().get(0).getLabel();
                                 float confidence = classification.getCategories().get(0).getScore();
 
+
                                 Log.d("AUDIO_DEBUG", "Label=" + label + " Conf=" + confidence + " Loud=" + maxAmplitude);
+
 
                                 if ((label.equalsIgnoreCase("human") || label.equalsIgnoreCase("speech"))
                                         && confidence >= NEW_HIGH_CONFIDENCE_THRESHOLD
                                         && maxAmplitude >= MIC_LOUDNESS_THRESHOLD) {
 
+
                                     audioCheatingCount++;
                                     Log.w("AUDIO_TFLITE", "CHEATING STRIKE " + audioCheatingCount);
+
 
                                     if (audioCheatingCount < MAX_AUDIO_STRIKES) {
                                         runOnUiThread(() -> Toast.makeText(TakeQuizActivity.this,
                                                 "WARNING: Loud human voice detected! (" + audioCheatingCount + "/" + MAX_AUDIO_STRIKES + ")",
                                                 Toast.LENGTH_SHORT).show());
                                     }
+
 
                                     if (audioCheatingCount >= MAX_AUDIO_STRIKES) {
                                         Log.e("AUDIO_TFLITE", "MAJOR CHEATING: Auto-submitting quiz!");
@@ -1479,6 +1662,7 @@ public class TakeQuizActivity extends AppCompatActivity {
         }
     }
 
+
     // ---------- Reset listener ----------
     private void listenForQuizReset(String studentId) {
         // primary: QuizStudents/{quizId}/{studentId}/reset
@@ -1487,6 +1671,7 @@ public class TakeQuizActivity extends AppCompatActivity {
                 .child(quizId)
                 .child(studentId)
                 .child("reset");
+
 
         resetRef.addValueEventListener(new ValueEventListener() {
             @Override public void onDataChange(@NonNull DataSnapshot snapshot) {
@@ -1503,22 +1688,28 @@ public class TakeQuizActivity extends AppCompatActivity {
         });
     }
 
+
     private void handleQuizReset() {
         if (countDownTimer != null) countDownTimer.cancel();
         stopAudioMonitoring();
 
+
         for (Question q : questionList) q.setStudentAnswer(null);
+
 
         currentIndex = 0;
         typeIndex = 0;
         typeQuestionNumber = 1;
 
+
         filterQuestionsByType(questionTypeOrder[typeIndex]);
         showNextQuestion();
         startTimer();
 
+
         Toast.makeText(this, "Quiz has been reset by your teacher.", Toast.LENGTH_LONG).show();
     }
+
 
     private void handleNextOrSubmit() {
         if (currentTypeQuestions.isEmpty()) {
@@ -1526,8 +1717,10 @@ public class TakeQuizActivity extends AppCompatActivity {
             return;
         }
 
+
         Question current = currentTypeQuestions.get(currentIndex);
         String answer = (current == null) ? null : current.getStudentAnswer();
+
 
         if (answer == null || answer.trim().isEmpty()) {
             if (!isActivityAlive()) return;
@@ -1549,6 +1742,7 @@ public class TakeQuizActivity extends AppCompatActivity {
         }
     }
 
+
     private void moveToNext() {
         if (currentIndex < currentTypeQuestions.size() - 1) {
             currentIndex++;
@@ -1559,6 +1753,7 @@ public class TakeQuizActivity extends AppCompatActivity {
             goToNextTypeOrSubmit();
         }
     }
+
 
     private void goToNextTypeOrSubmit() {
         typeIndex++;
@@ -1576,10 +1771,12 @@ public class TakeQuizActivity extends AppCompatActivity {
         }
     }
 
+
     private void showQuestion(Question question) {
         question.setDisplayNumber(typeQuestionNumber);
         List<Question> singleQuestion = new ArrayList<>();
         singleQuestion.add(question);
+
 
         questionAdapter = new TakeExamAdapter(this, singleQuestion, allMatchingAnswers,
                 currentQuestionType,    // pass the current section/type
@@ -1587,11 +1784,13 @@ public class TakeQuizActivity extends AppCompatActivity {
         rvQuestions.setAdapter(questionAdapter);
     }
 
+
     private void updateButtonText() {
         if (currentIndex < currentTypeQuestions.size() - 1) btnSubmit.setText("Next");
         else if (hasNextNonEmptySection()) btnSubmit.setText("Next Section");
         else btnSubmit.setText("Submit Quiz");
     }
+
 
     @Override
     protected void onDestroy() {
@@ -1600,3 +1799,4 @@ public class TakeQuizActivity extends AppCompatActivity {
         super.onDestroy();
     }
 }
+

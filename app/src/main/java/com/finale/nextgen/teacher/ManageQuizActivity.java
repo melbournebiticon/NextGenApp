@@ -22,6 +22,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.finale.nextgen.R;
 import com.finale.nextgen.SessionManager;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.timepicker.MaterialTimePicker;
 import com.google.android.material.timepicker.TimeFormat;
 import com.google.firebase.FirebaseApp;
@@ -137,10 +138,13 @@ public class ManageQuizActivity extends AppCompatActivity {
 
         if (teacherId != null) fetchTeacherData(teacherId);
 
-        findViewById(R.id.btnAddQuiz).setOnClickListener(v -> {
+        FloatingActionButton btnAddQuiz = findViewById(R.id.btnAddQuiz);
+        btnAddQuiz.setOnClickListener(v -> {
             if (assignedSubjects.isEmpty()) {
                 Toast.makeText(this, "No assigned subjects to create a quiz.", Toast.LENGTH_SHORT).show();
-            } else showAddQuizDialog();
+            } else {
+                showAddQuizDialog();
+            }
         });
 
         loadQuizzes();

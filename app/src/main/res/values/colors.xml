@@ -50,18 +50,15 @@
         <color name="tertiary">#64748B</color> <!-- Muted gray-blue -->
         <color name="error">#E53935</color> <!-- Modern red for delete -->
 
-        <!-- Theme References -->
-        <color name="primary">@color/dark_blue_700</color>
-        <color name="on_primary">@color/white</color>
 
-        <color name="primary_container">@color/blue_300</color>
-        <color name="on_primary_container">@color/black</color>
-
-        <color name="surface">@color/surface_dark</color>
-        <color name="on_surface">@color/black</color>
-
-        <color name="secondary">@color/teal_700</color>
-        <color name="on_secondary">@color/white</color>
+    <color name="primary">#1B263B</color>              <!-- dark_blue_700 -->
+    <color name="on_primary">#FFFFFF</color>           <!-- white -->
+    <color name="primary_container">#778DA9</color>    <!-- blue_300 -->
+    <color name="on_primary_container">#000000</color> <!-- black -->
+    <color name="surface">#FFFFFF</color>              <!-- surface_dark -->
+    <color name="on_surface">#000000</color>           <!-- black -->
+    <color name="secondary">#1565C0</color>            <!-- teal_700 -->
+    <color name="on_secondary">#FFFFFF</color>         <!-- white -->
 
     <color name="md_theme_primary">#6750A4</color>
     <color name="md_theme_onPrimary">#FFFFFF</color>

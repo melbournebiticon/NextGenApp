@@ -1,5 +1,6 @@
 package com.finale.nextgen.teacher;
 
+
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
@@ -10,11 +11,13 @@ import android.widget.Button;
 import android.widget.Spinner;
 import android.widget.Toast;
 
+
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+
 
 import com.finale.nextgen.R;
 import com.finale.nextgen.SessionManager;
@@ -30,6 +33,7 @@ import com.google.firebase.database.MutableData;
 import com.google.firebase.database.ServerValue;
 import com.google.firebase.database.Transaction;
 
+
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -39,6 +43,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+
 
 /**
  * StudentAttendanceActivity
@@ -54,7 +59,9 @@ import java.util.Map;
  */
 public class StudentAttendanceActivity extends AppCompatActivity {
 
+
     private static final String TAG = "StudentAttendanceAct";
+
 
     private RecyclerView recyclerView;
     private AttendanceAdapter adapter;
@@ -62,13 +69,16 @@ public class StudentAttendanceActivity extends AppCompatActivity {
     private Button viewReportBtn;
     private Spinner sectionSpinner;
 
+
     private String term = "Prelim";
     private DatabaseReference studentsRef;
     private SessionManager sessionManager;
     private SectionItem selectedSection;
 
+
     // default weights used for summary calculations
     private static final Map<String, Integer> WEIGHTS = new HashMap<>();
+
 
     static {
         WEIGHTS.put("Present", 100);
@@ -77,29 +87,36 @@ public class StudentAttendanceActivity extends AppCompatActivity {
         WEIGHTS.put("Absent", 0);
     }
 
+
     private interface SectionsCallback {
         void onResult(List<SectionItem> items);
     }
 
+
     private final List<SectionItem> sectionItems = new ArrayList<>();
     private final List<String> sectionDisplayList = new ArrayList<>();
     private ArrayAdapter<String> spinnerAdapter;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_student_attendance);
 
+
         // Views
         recyclerView = findViewById(R.id.recyclerView);
         viewReportBtn = findViewById(R.id.viewReportBtn);
         sectionSpinner = findViewById(R.id.sectionSpinner);
 
+
         // Session manager
         sessionManager = new SessionManager(this);
 
+
         // Firebase refs
         studentsRef = FirebaseDatabase.getInstance().getReference("Students");
+
 
         // Adapter + RecyclerView
         adapter = new AttendanceAdapter(this, studentList);
@@ -107,6 +124,7 @@ public class StudentAttendanceActivity extends AppCompatActivity {
         recyclerView.setHasFixedSize(true);
         recyclerView.setItemViewCacheSize(20);
         recyclerView.setAdapter(adapter);
+
 
         // Persist changes immediately when adapter notifies, but show confirmation dialog first.
         adapter.setOnAttendanceChangedListener((student, position, previousStatus) -> {
@@ -121,8 +139,10 @@ public class StudentAttendanceActivity extends AppCompatActivity {
             }
             if (student == null) return;
 
+
             final String newStatus = student.getAttendanceStatus();
             final String previous = previousStatus == null ? "" : previousStatus;
+
 
             // Confirm with teacher before saving
             String message = "Mark " + student.getFullName() + " as " + newStatus + "?\n\nPrevious: " + (previous.isEmpty() ? "Not marked" : previous);
@@ -161,6 +181,7 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                             }
                         }
 
+
                         // 2) Persist the attendance entry and update summary (per-teacher)
                         persistAttendanceChange(selectedSection, student, previous);
                     })
@@ -173,9 +194,11 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                     .show();
         });
 
+
         // Spinner adapter
         spinnerAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, sectionDisplayList);
         sectionSpinner.setAdapter(spinnerAdapter);
+
 
         // Load sections for teacher (use session userId if available)
         String sessionTeacherId = sessionManager.getUserId();
@@ -186,6 +209,7 @@ public class StudentAttendanceActivity extends AppCompatActivity {
             resolveTeacherKeyAndLoadSections();
         }
 
+
         // View Report button — pass teacherId so report reads per-teacher nodes
         if (viewReportBtn != null) {
             viewReportBtn.setOnClickListener(v -> {
@@ -194,12 +218,14 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                     return;
                 }
 
+
                 // Use actual ID or build fallback key
                 String sectionKey = selectedSection.getId();
                 if (isNullOrEmpty(sectionKey)) {
                     sectionKey = buildFallbackSectionKey(selectedSection);
                     Log.d(TAG, "Using fallback key for report: " + sectionKey);
                 }
+
 
                 // Determine teacher key to pass (prefer SessionManager, else FirebaseAuth UID)
                 String teacherKeyForReport = sessionManager.getUserId();
@@ -208,7 +234,9 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                     if (cur != null && !isNullOrEmpty(cur.getUid())) teacherKeyForReport = cur.getUid();
                 }
 
+
                 Log.d(TAG, "ViewReport clicked: sectionKey=" + sectionKey + " display=" + selectedSection.getDisplay() + " teacherKey=" + teacherKeyForReport);
+
 
                 Intent i = new Intent(StudentAttendanceActivity.this, AttendanceReportActivity.class);
                 i.putExtra("sectionId", sectionKey);
@@ -219,6 +247,7 @@ public class StudentAttendanceActivity extends AppCompatActivity {
             viewReportBtn.setEnabled(false); // Will be enabled on section selection
         }
 
+
         // Spinner selection -> load students via adapter
         sectionSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
@@ -226,12 +255,15 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                 if (position >= 0 && position < sectionItems.size()) {
                     selectedSection = sectionItems.get(position);
 
+
                     String selDisplay = selectedSection == null ? "null" : selectedSection.getDisplay();
                     String selId = (selectedSection == null ? null : selectedSection.getId());
                     Log.d(TAG, "Spinner selected: " + selDisplay + " id=" + selId);
 
+
                     // Enable viewReport button whenever a section is selected (we will pass fallback key if id missing)
                     if (viewReportBtn != null) viewReportBtn.setEnabled(selectedSection != null);
+
 
                     adapter.loadStudentsForSection(selectedSection,
                             FirebaseDatabase.getInstance().getReference("Students"),
@@ -241,12 +273,14 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                                     Log.d(TAG, "Loading students...");
                                 }
 
+
                                 @Override
                                 public void onLoadFinished(int count) {
                                     Log.d(TAG, "Students loaded: " + count);
                                     if (count == 0)
                                         Toast.makeText(StudentAttendanceActivity.this, "No students found for this section.", Toast.LENGTH_SHORT).show();
                                 }
+
 
                                 @Override
                                 public void onLoadFailed(String errorMessage) {
@@ -262,6 +296,7 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                 }
             }
 
+
             @Override
             public void onNothingSelected(AdapterView<?> parent) {
                 selectedSection = null;
@@ -272,12 +307,15 @@ public class StudentAttendanceActivity extends AppCompatActivity {
         });
     }
 
-    /* -------------------------
-       Attendance persistence (per-teacher)
-       ------------------------- */
+
+   /* -------------------------
+      Attendance persistence (per-teacher)
+      ------------------------- */
+
 
     private void persistAttendanceChange(SectionItem section, StudentModel student, String previousStatus) {
         if (section == null || student == null) return;
+
 
         // Use real sectionId if available; otherwise create fallback key so marking still works.
         String realSectionId = section.getId();
@@ -292,6 +330,7 @@ public class StudentAttendanceActivity extends AppCompatActivity {
             usingFallback = false;
         }
 
+
         // teacherId for per-teacher records (use SessionManager teacher key first)
         String teacherId = sessionManager.getUserId();
         if (isNullOrEmpty(teacherId)) {
@@ -299,6 +338,7 @@ public class StudentAttendanceActivity extends AppCompatActivity {
             if (current != null) teacherId = current.getUid();
             else teacherId = "unknown-teacher";
         }
+
 
         // Resolve teacher profile to get full name and assigned subject (if available)
         DatabaseReference teachersRef = FirebaseDatabase.getInstance().getReference("Teachers").child(teacherId);
@@ -309,10 +349,12 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                 String teacherFullName = "";
                 String assignedSubjectName = "";
 
+
                 if (teacherSnap != null && teacherSnap.exists()) {
                     Object fn = teacherSnap.child("fullName").getValue();
                     if (fn == null) fn = teacherSnap.child("displayName").getValue();
                     if (fn != null) teacherFullName = String.valueOf(fn);
+
 
                     // If teacher has assignedSubjects (ids), take the first and resolve its display name
                     if (teacherSnap.hasChild("assignedSubjects")) {
@@ -338,15 +380,18 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                     }
                 }
 
+
                 // fallback: use FirebaseAuth displayName if teacher node lacked fullName or assignedSubject
                 if (isNullOrEmpty(teacherFullName)) {
                     FirebaseUser cu = FirebaseAuth.getInstance().getCurrentUser();
                     if (cu != null && cu.getDisplayName() != null) teacherFullName = cu.getDisplayName();
                 }
 
+
                 // write attendance immediately if no assignedSubject to resolve
                 writeAttendanceWithTeacherInfo(writeSectionId, finalTeacherId1, teacherFullName, assignedSubjectName, section, student, previousStatus, usingFallback);
             }
+
 
             @Override public void onCancelled(@NonNull DatabaseError error) {
                 Log.w(TAG, "Failed to read teacher profile: " + error.getMessage());
@@ -358,6 +403,7 @@ public class StudentAttendanceActivity extends AppCompatActivity {
             }
         });
     }
+
 
     /**
      * Centralized write that uses provided teacherFullName and assignedSubjectName.
@@ -378,8 +424,10 @@ public class StudentAttendanceActivity extends AppCompatActivity {
             return;
         }
 
+
         final String newStatus = !isNullOrEmpty(student.getAttendanceStatus()) ? student.getAttendanceStatus() : "Absent";
         final String date = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
+
 
         DatabaseReference attendanceNode = FirebaseDatabase.getInstance()
                 .getReference("Attendance")
@@ -387,6 +435,7 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                 .child(teacherId)
                 .child(date)
                 .child(sid);
+
 
         Map<String, Object> data = new HashMap<>();
         data.put("studentId", sid);
@@ -405,8 +454,10 @@ public class StudentAttendanceActivity extends AppCompatActivity {
         if (!isNullOrEmpty(assignedSubjectName)) data.put("assignedSubject", assignedSubjectName); // assigned subject
         data.put("timestamp", ServerValue.TIMESTAMP);
 
+
         String finalWriteSectionId = writeSectionId;
         String finalTeacherId = teacherId;
+
 
         attendanceNode.setValue(data, (error, ref) -> {
             if (error != null) {
@@ -417,6 +468,7 @@ public class StudentAttendanceActivity extends AppCompatActivity {
             Log.d(TAG, "Attendance written for " + sid + " status=" + newStatus + " under sectionNode=" + finalWriteSectionId + " teacher=" + finalTeacherId);
             updateSummaryTransaction(finalWriteSectionId, finalTeacherId, sid, previousStatus, newStatus);
             Toast.makeText(StudentAttendanceActivity.this, "Saved: " + student.getFullName() + " → " + newStatus, Toast.LENGTH_SHORT).show();
+
 
             // Student-facing copy (includes teacherFullName and assignedSubject)
             Map<String, Object> studentCopy = new HashMap<>();
@@ -430,6 +482,7 @@ public class StudentAttendanceActivity extends AppCompatActivity {
             if (!isNullOrEmpty(assignedSubjectName)) studentCopy.put("assignedSubject", assignedSubjectName);
             studentCopy.put("timestamp", ServerValue.TIMESTAMP);
 
+
             // Teacher-facing preview copy (so teacher can later "compute all" and view saved previews)
             Map<String, Object> teacherCopy = new HashMap<>();
             teacherCopy.put("studentId", sid);
@@ -442,6 +495,7 @@ public class StudentAttendanceActivity extends AppCompatActivity {
             teacherCopy.put("assignedSubject", assignedSubjectName != null ? assignedSubjectName : "");
             teacherCopy.put("teacherFullName", teacherFullName);
             teacherCopy.put("timestamp", ServerValue.TIMESTAMP);
+
 
             // Try direct path Students/{sid} for student copy
             DatabaseReference possibleStudentNode = studentsRef.child(sid);
@@ -484,6 +538,7 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                 }
             });
 
+
             // Write teacher-facing preview copy under Teachers/{teacherId}/attendanceHistory/{date}/{studentId}
             DatabaseReference teacherHistoryRef = FirebaseDatabase.getInstance()
                     .getReference("Teachers")
@@ -491,6 +546,7 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                     .child("attendanceHistory")
                     .child(date)
                     .child(sid);
+
 
             teacherHistoryRef.setValue(teacherCopy, (errT, rT) -> {
                 if (errT != null) {
@@ -502,6 +558,7 @@ public class StudentAttendanceActivity extends AppCompatActivity {
         });
     }
 
+
     private String buildFallbackSectionKey(SectionItem s) {
         String parts = (safe(s.getCourseName()) + "-" + safe(s.getSpecializationName()) + "-" + safe(s.getYearName()) + "-" + safe(s.getSectionName()));
         String normalized = parts.trim().toLowerCase(Locale.ROOT)
@@ -511,14 +568,17 @@ public class StudentAttendanceActivity extends AppCompatActivity {
         return "fallback:" + normalized;
     }
 
+
     // helper
     private boolean isNullOrEmpty(String s) {
         return s == null || s.trim().isEmpty();
     }
 
+
     private String safe(String v) {
         return v == null ? "" : v;
     }
+
 
     /**
      * Update the per-teacher summary under AttendanceSummary/{sectionId}/{teacherId}/{studentId}
@@ -531,6 +591,7 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                 .child(teacherId)
                 .child(studentId);
 
+
         summaryRef.runTransaction(new Transaction.Handler() {
             @NonNull
             @Override
@@ -538,11 +599,13 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                 Map<String, Object> summary = (currentData.getValue() instanceof Map) ? (Map<String, Object>) currentData.getValue() : new HashMap<>();
                 Map<String, Object> counts = (summary.get("counts") instanceof Map) ? (Map<String, Object>) summary.get("counts") : new HashMap<>();
 
+
                 int present = toInt(counts.get("Present"));
                 int late = toInt(counts.get("Late"));
                 int excused = toInt(counts.get("Excused"));
                 int absent = toInt(counts.get("Absent"));
                 int totalDays = toInt(summary.get("totalDays"));
+
 
                 if ((previousStatus == null || previousStatus.isEmpty()) && (newStatus != null && !newStatus.isEmpty())) {
                     totalDays++;
@@ -555,15 +618,18 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                     incrementByStatus(newStatus, counts);
                 }
 
+
                 present = toInt(counts.get("Present"));
                 late = toInt(counts.get("Late"));
                 excused = toInt(counts.get("Excused"));
                 absent = toInt(counts.get("Absent"));
 
+
                 long weightedScore = (long) present * WEIGHTS.get("Present")
                         + (long) late * WEIGHTS.get("Late")
                         + (long) excused * WEIGHTS.get("Excused")
                         + (long) absent * WEIGHTS.get("Absent");
+
 
                 int attendancePercentage = 0;
                 if (totalDays > 0) {
@@ -573,8 +639,10 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                     attendancePercentage = Math.max(0, Math.min(100, attendancePercentage));
                 }
 
+
                 Map<String, Object> newSummary = new HashMap<>();
                 newSummary.put("totalDays", totalDays);
+
 
                 Map<String, Object> countsOut = new HashMap<>();
                 countsOut.put("Present", present);
@@ -583,15 +651,18 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                 countsOut.put("Absent", absent);
                 newSummary.put("counts", countsOut);
 
+
                 newSummary.put("weightedScore", weightedScore);
                 newSummary.put("attendancePercentage", attendancePercentage);
                 newSummary.put("lastUpdated", ServerValue.TIMESTAMP);
                 // keep studentName if present in currentData
                 if (summary.containsKey("studentName")) newSummary.put("studentName", summary.get("studentName"));
 
+
                 currentData.setValue(newSummary);
                 return Transaction.success(currentData);
             }
+
 
             @Override
             public void onComplete(DatabaseError error, boolean committed, DataSnapshot snapshot) {
@@ -600,6 +671,7 @@ public class StudentAttendanceActivity extends AppCompatActivity {
             }
         });
     }
+
 
     private static int toInt(Object o) {
         if (o == null) return 0;
@@ -611,11 +683,13 @@ public class StudentAttendanceActivity extends AppCompatActivity {
         }
     }
 
+
     private static void incrementByStatus(String status, Map<String, Object> counts) {
         if (status == null) return;
         int cur = toInt(counts.get(status));
         counts.put(status, cur + 1);
     }
+
 
     private static void decrementByStatus(String status, Map<String, Object> counts) {
         if (status == null) return;
@@ -623,9 +697,11 @@ public class StudentAttendanceActivity extends AppCompatActivity {
         counts.put(status, Math.max(0, cur - 1));
     }
 
-    /* -------------------------
-       Section loading & spinner population (unchanged)
-       ------------------------- */
+
+   /* -------------------------
+      Section loading & spinner population (unchanged)
+      ------------------------- */
+
 
     private void resolveTeacherKeyAndLoadSections() {
         FirebaseUser current = FirebaseAuth.getInstance().getCurrentUser();
@@ -634,11 +710,14 @@ public class StudentAttendanceActivity extends AppCompatActivity {
             return;
         }
 
+
         final String authUid = current.getUid();
         final String authEmail = current.getEmail();
         final String authDisplay = current.getDisplayName();
 
+
         DatabaseReference teachersRef = FirebaseDatabase.getInstance().getReference("Teachers");
+
 
         // Try a few strategies to find the teacher node key
         Query byUid = teachersRef.orderByChild("uid").equalTo(authUid);
@@ -715,11 +794,13 @@ public class StudentAttendanceActivity extends AppCompatActivity {
         });
     }
 
+
     private void loadSectionsForTeacher(String teacherKey) {
         DatabaseReference teachersRef = FirebaseDatabase.getInstance().getReference("Teachers").child(teacherKey);
         teachersRef.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override public void onDataChange(@NonNull DataSnapshot teacherSnap) {
                 if (!teacherSnap.exists()) { loadSectionsByTeacherIdFallback(teacherKey); return; }
+
 
                 // 1) assignedSections (section IDs)
                 List<String> assignedSectionIds = new ArrayList<>();
@@ -731,6 +812,7 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                 }
                 if (!assignedSectionIds.isEmpty()) { loadSectionsByIds(assignedSectionIds); return; }
 
+
                 // 2) assignedSubjects
                 List<String> assignedSubjectIds = new ArrayList<>();
                 if (teacherSnap.hasChild("assignedSubjects")) {
@@ -739,6 +821,7 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                         if (!isNullOrEmpty(subjId)) assignedSubjectIds.add(subjId);
                     }
                 }
+
 
                 // 3) courseIds
                 List<String> courseIds = new ArrayList<>();
@@ -749,6 +832,7 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                     }
                 }
 
+
                 // 4) courseDisplays
                 List<String> courseDisplays = new ArrayList<>();
                 if (teacherSnap.hasChild("courseDisplays")) {
@@ -757,6 +841,7 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                         if (v != null) courseDisplays.add(v);
                     }
                 }
+
 
                 // Decision tree similar to your original logic
                 if (!assignedSubjectIds.isEmpty()) {
@@ -778,6 +863,7 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                     return;
                 }
 
+
                 if (!courseIds.isEmpty()) {
                     loadSectionsByCourseIds(courseIds, foundByCourseIds -> {
                         if (foundByCourseIds != null && !foundByCourseIds.isEmpty())
@@ -788,17 +874,21 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                     return;
                 }
 
+
                 if (!courseDisplays.isEmpty()) {
                     applySectionsFromDisplays(courseDisplays);
                     return;
                 }
 
+
                 loadSectionsByTeacherIdFallback(teacherKey);
             }
+
 
             @Override public void onCancelled(@NonNull DatabaseError error) { loadSectionsByTeacherIdFallback(teacherKey); }
         });
     }
+
 
     private void applySectionsFromDisplays(List<String> courseDisplays) {
         List<SectionItem> items = new ArrayList<>();
@@ -813,15 +903,18 @@ public class StudentAttendanceActivity extends AppCompatActivity {
         applySectionsToSpinner(items);
     }
 
+
     private void loadSectionsByIds(List<String> sectionIds) {
         DatabaseReference sectionsRef = FirebaseDatabase.getInstance().getReference("Sections");
         Map<String, SectionItem> found = new LinkedHashMap<>();
         final int[] remaining = {sectionIds.size()};
 
+
         if (sectionIds.isEmpty()) {
             applySectionsToSpinner(new ArrayList<>());
             return;
         }
+
 
         for (String sid : sectionIds) {
             if (sid == null) {
@@ -829,15 +922,18 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                 continue;
             }
 
+
             sectionsRef.child(sid).addListenerForSingleValueEvent(new ValueEventListener() {
                 @Override
                 public void onDataChange(@NonNull DataSnapshot secSnap) {
+
 
                     if (secSnap.exists()) {
                         String courseName = secSnap.child("courseName").getValue(String.class);
                         String specializationName = secSnap.child("specializationName").getValue(String.class);
                         String yearName = secSnap.child("yearName").getValue(String.class);
                         String sectionName = secSnap.child("sectionName").getValue(String.class);
+
 
                         SectionItem item = new SectionItem(
                                 secSnap.getKey(),
@@ -847,14 +943,17 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                                 sectionName
                         );
 
+
                         found.put(sid, item);
                     }
+
 
                     remaining[0]--;
                     if (remaining[0] == 0) {
                         applySectionsToSpinner(new ArrayList<>(found.values()));
                     }
                 }
+
 
                 @Override
                 public void onCancelled(@NonNull DatabaseError error) {
@@ -868,11 +967,13 @@ public class StudentAttendanceActivity extends AppCompatActivity {
         }
     }
 
+
     private void loadSectionsBySubjectIds(List<String> subjectIds, SectionsCallback callback) {
         DatabaseReference sectionsRef = FirebaseDatabase.getInstance().getReference("Sections");
         Map<String, SectionItem> found = new LinkedHashMap<>();
         final int[] remaining = {subjectIds.size()};
         if (subjectIds.isEmpty()) { callback.onResult(new ArrayList<>()); return; }
+
 
         for (String sid : subjectIds) {
             if (sid == null) { remaining[0]--; continue; }
@@ -900,11 +1001,13 @@ public class StudentAttendanceActivity extends AppCompatActivity {
         }
     }
 
+
     private void loadSectionsByCourseIds(List<String> courseIds, SectionsCallback callback) {
         DatabaseReference sectionsRef = FirebaseDatabase.getInstance().getReference("Sections");
         Map<String, SectionItem> found = new LinkedHashMap<>();
         final int[] remaining = {courseIds.size()};
         if (courseIds.isEmpty()) { callback.onResult(new ArrayList<>()); return; }
+
 
         for (String cid : courseIds) {
             if (cid == null) { remaining[0]--; continue; }
@@ -932,6 +1035,7 @@ public class StudentAttendanceActivity extends AppCompatActivity {
         }
     }
 
+
     private void loadSectionsByTeacherIdFallback(String teacherId) {
         DatabaseReference sectionsRef = FirebaseDatabase.getInstance().getReference("Sections");
         sectionsRef.orderByChild("teacherId").equalTo(teacherId)
@@ -954,19 +1058,24 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                 });
     }
 
+
     private void applySectionsToSpinner(List<SectionItem> items) {
         sectionItems.clear();
         sectionItems.addAll(items);
 
+
         sectionDisplayList.clear();
         for (SectionItem s : sectionItems) sectionDisplayList.add(s.getDisplay());
+
 
         if (!sectionDisplayList.isEmpty()) {
             Map<String, SectionItem> displayToItem = new HashMap<>();
             for (SectionItem s : sectionItems) displayToItem.put(s.getDisplay(), s);
 
+
             List<String> sortedDisplays = new ArrayList<>(sectionDisplayList);
             Collections.sort(sortedDisplays);
+
 
             sectionItems.clear();
             sectionDisplayList.clear();
@@ -978,6 +1087,7 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                 }
             }
         }
+
 
         runOnUiThread(() -> {
             spinnerAdapter.notifyDataSetChanged();
@@ -995,6 +1105,7 @@ public class StudentAttendanceActivity extends AppCompatActivity {
         });
     }
 
+
     private void resolveMissingSectionIds() {
         boolean needResolve = false;
         for (SectionItem s : sectionItems) {
@@ -1005,6 +1116,7 @@ public class StudentAttendanceActivity extends AppCompatActivity {
         }
         if (!needResolve) return;
 
+
         DatabaseReference sectionsRef = FirebaseDatabase.getInstance().getReference("Sections");
         for (int idx = 0; idx < sectionItems.size(); idx++) {
             SectionItem item = sectionItems.get(idx);
@@ -1012,6 +1124,7 @@ public class StudentAttendanceActivity extends AppCompatActivity {
             final int position = idx;
             final String wantSectionName = item.getSectionName();
             if (isNullOrEmpty(wantSectionName)) continue;
+
 
             sectionsRef.orderByChild("sectionName").equalTo(wantSectionName)
                     .addListenerForSingleValueEvent(new ValueEventListener() {
@@ -1022,9 +1135,11 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                                 String spec = ds.child("specializationName").getValue(String.class);
                                 String year = ds.child("yearName").getValue(String.class);
 
+
                                 boolean matchCourse = isNullOrEmpty(item.getCourseName()) || item.getCourseName().trim().equalsIgnoreCase(safe(courseName));
                                 boolean matchSpec = isNullOrEmpty(item.getSpecializationName()) || item.getSpecializationName().trim().equalsIgnoreCase(safe(spec));
                                 boolean matchYear = isNullOrEmpty(item.getYearName()) || item.getYearName().trim().equalsIgnoreCase(safe(year));
+
 
                                 if (matchCourse && matchSpec && matchYear) {
                                     try { item.setId(ds.getKey()); } catch (Exception ignore) {}
@@ -1043,6 +1158,7 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                             }
                         }
 
+
                         @Override
                         public void onCancelled(@NonNull DatabaseError error) {
                             Log.w(TAG, "Failed resolving section ids: " + error.getMessage());
@@ -1051,3 +1167,4 @@ public class StudentAttendanceActivity extends AppCompatActivity {
         }
     }
 }
+

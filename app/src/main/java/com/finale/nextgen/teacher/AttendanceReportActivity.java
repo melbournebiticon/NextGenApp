@@ -1,6 +1,8 @@
 package com.finale.nextgen.teacher;
 
+
 import static com.finale.nextgen.teacher.StudentRecordActivity.formatDate;
+
 
 import android.annotation.SuppressLint;
 import android.app.AlertDialog;
@@ -14,10 +16,12 @@ import android.widget.CalendarView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+
 
 import com.finale.nextgen.R;
 import com.google.firebase.auth.FirebaseAuth;
@@ -26,6 +30,7 @@ import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
+
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -38,6 +43,7 @@ import java.util.Map;
 import java.util.StringJoiner;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
+
 
 /**
  * AttendanceReportActivity (updated - full)
@@ -54,9 +60,6 @@ public class AttendanceReportActivity extends AppCompatActivity {
     private RecyclerView recyclerView;
     private SummaryAdapter adapter;
     private final List<AttendanceSummaryModel> items = new ArrayList<>();
-    private TextView tvReportTitle;
-    private TextView tvLastUpdated;
-    private TextView btnExport;
     private TextView btnToggleCalendar;
     private TextView tvDateInfo;
     private TextView btnComputeClassAverage;
@@ -73,8 +76,10 @@ public class AttendanceReportActivity extends AppCompatActivity {
     }
     private String teacherId;
 
+
     private static final Pattern DATE_KEY = Pattern.compile("^\\d{4}-\\d{2}-\\d{2}$");
     private static final int MAX_RECURSIVE_DEPTH = 8;
+
 
     @SuppressLint("MissingInflatedId")
     @Override
@@ -82,25 +87,20 @@ public class AttendanceReportActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_attendance_report);
 
+
         // bind views
-        tvReportTitle = findViewById(R.id.tvReportTitle);
         recyclerView = findViewById(R.id.attendanceRecyclerView);
-        tvLastUpdated = findViewById(R.id.tvLastUpdated);
-        btnExport = findViewById(R.id.btnExport);
         headerScroll = findViewById(R.id.header_hsv);
         btnToggleCalendar = findViewById(R.id.btnToggleCalendar);
         tvDateInfo = findViewById(R.id.tvDateInfo);
         btnComputeClassAverage = findViewById(R.id.btnComputeClassAverage);
 
+
         sectionId = getIntent().getStringExtra("sectionId");
         sectionFallbackKey = getIntent().getStringExtra("sectionFallbackKey");
 
-        String sectionDisplay = getIntent().getStringExtra("sectionDisplay");
-        if (!TextUtils.isEmpty(sectionDisplay)) tvReportTitle.setText("Attendance Report — " + sectionDisplay);
-        if (sectionId == null || sectionId.trim().isEmpty()) {
-            tvReportTitle.setText("Attendance Report (section not provided)");
-            return;
-        }
+
+
 
         String teacherIdFromIntent = getIntent().getStringExtra("teacherId");
         if (!TextUtils.isEmpty(teacherIdFromIntent)) {
@@ -110,19 +110,23 @@ public class AttendanceReportActivity extends AppCompatActivity {
             teacherId = (cur != null && !TextUtils.isEmpty(cur.getUid())) ? cur.getUid() : null;
         }
 
+
         studentsRef = FirebaseDatabase.getInstance().getReference("Students");
+
 
         String attendanceChildKey = !TextUtils.isEmpty(sectionFallbackKey) ? sectionFallbackKey : sectionId;
         attendanceRoot = FirebaseDatabase.getInstance().getReference("Attendance").child(attendanceChildKey);
 
+
         // NOTE: AttendanceSummary usage removed per request (we always compute from Attendance/...).
         // summaryRef was intentionally dropped.
+
 
         adapter = new SummaryAdapter(items, this::registerRowScroll);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         recyclerView.setAdapter(adapter);
 
-        if (btnExport != null) btnExport.setOnClickListener(v -> exportCsv());
+
 
         if (headerScroll != null) {
             headerScroll.setOnScrollChangedListener((src, x, y, oldx, oldy) -> {
@@ -133,11 +137,14 @@ public class AttendanceReportActivity extends AppCompatActivity {
             });
         }
 
+
         if (btnToggleCalendar != null) btnToggleCalendar.setOnClickListener(v -> showCalendarDialog());
         if (btnComputeClassAverage != null) btnComputeClassAverage.setOnClickListener(v -> showPerStudentTotalsDialog());
 
+
         loadTodaySnapshot();
     }
+
 
     private void registerRowScroll(ObservableHorizontalScrollView row) {
         if (row == null) return;
@@ -153,6 +160,7 @@ public class AttendanceReportActivity extends AppCompatActivity {
             isSyncing = false;
         });
     }
+
 
     // ---------- Percentage helpers ----------
     private static int computePercentage(long present, long late, long excused, long absent, int totalDays) {
@@ -171,6 +179,7 @@ public class AttendanceReportActivity extends AppCompatActivity {
         return Math.max(0, Math.min(100, pct));
     }
 
+
     private static int computePercentageFromCounts(Map<String, Long> counts, int totalDays) {
         if (counts == null) return 0;
         long present = counts.getOrDefault("Present", 0L);
@@ -180,6 +189,7 @@ public class AttendanceReportActivity extends AppCompatActivity {
         return computePercentage(present, late, excused, absent, totalDays);
     }
 
+
     // ---------- Calendar + day snapshot ----------
     private void showCalendarDialog() {
         View dlgView = LayoutInflater.from(this).inflate(R.layout.dialog_calendar, null);
@@ -187,9 +197,11 @@ public class AttendanceReportActivity extends AppCompatActivity {
         RecyclerView dlgRv = dlgView.findViewById(R.id.dialogRvDayRecords);
         TextView dlgTvInfo = dlgView.findViewById(R.id.dialogTvDateInfo);
 
+
         dlgRv.setLayoutManager(new LinearLayoutManager(this));
         final DayAdapter dayAdapter = new DayAdapter(new ArrayList<>());
         dlgRv.setAdapter(dayAdapter);
+
 
         long todayMillis = System.currentTimeMillis();
         dlgCalendar.setDate(todayMillis, false, true);
@@ -197,11 +209,13 @@ public class AttendanceReportActivity extends AppCompatActivity {
         dlgTvInfo.setText("Selected: " + todayKey);
         loadSingleDaySnapshotIntoAdapter(todayKey, dayAdapter, dlgTvInfo);
 
+
         AlertDialog dialog = new AlertDialog.Builder(this)
                 .setTitle("Pick a date to preview")
                 .setView(dlgView)
                 .setNegativeButton("Close", null)
                 .create();
+
 
         dlgCalendar.setOnDateChangeListener((view, year, month, dayOfMonth) -> {
             String dateKey = formatDate(year, month, dayOfMonth);
@@ -209,11 +223,14 @@ public class AttendanceReportActivity extends AppCompatActivity {
             loadSingleDaySnapshotIntoAdapter(dateKey, dayAdapter, dlgTvInfo);
         });
 
+
         dialog.show();
     }
 
+
     private void resolveDateNode(final String dateKey, final ValueEventListener listener) {
         if (attendanceRoot == null) return;
+
 
         attendanceRoot.get().addOnCompleteListener(task -> {
             if (!task.isSuccessful() || task.getResult() == null) {
@@ -221,12 +238,14 @@ public class AttendanceReportActivity extends AppCompatActivity {
                 return;
             }
 
+
             DataSnapshot rootSnap = task.getResult();
             DataSnapshot directDate = rootSnap.child(dateKey);
             if (directDate != null && directDate.exists()) {
                 listener.onDataChange(directDate);
                 return;
             }
+
 
             if (teacherId != null && !teacherId.isEmpty()) {
                 DataSnapshot teacherDate = rootSnap.child(teacherId).child(dateKey);
@@ -236,9 +255,11 @@ public class AttendanceReportActivity extends AppCompatActivity {
                 }
             }
 
+
             scanAttendanceTopLevelForDate(dateKey, listener);
         }).addOnFailureListener(e -> scanAttendanceTopLevelForDate(dateKey, listener));
     }
+
 
     private void scanAttendanceTopLevelForDate(final String dateKey, final ValueEventListener listener) {
         DatabaseReference attendanceTop = FirebaseDatabase.getInstance().getReference("Attendance");
@@ -250,6 +271,7 @@ public class AttendanceReportActivity extends AppCompatActivity {
                 });
                 return;
             }
+
 
             DataSnapshot all = allTask.getResult();
             DataSnapshot found = null;
@@ -268,6 +290,7 @@ public class AttendanceReportActivity extends AppCompatActivity {
                 }
             }
 
+
             if (found != null) {
                 Toast.makeText(this, "Found date node under a different section key (using fallback scan).", Toast.LENGTH_SHORT).show();
                 listener.onDataChange(found);
@@ -282,6 +305,7 @@ public class AttendanceReportActivity extends AppCompatActivity {
             @Override public void onCancelled(@NonNull com.google.firebase.database.DatabaseError error) { listener.onCancelled(error); }
         }));
     }
+
 
     private void loadSingleDaySnapshotIntoAdapter(final String dateKey, final DayAdapter dayAdapter, final TextView infoView) {
         if (attendanceRoot == null) return;
@@ -342,6 +366,7 @@ public class AttendanceReportActivity extends AppCompatActivity {
                 if (tvDateInfo != null) tvDateInfo.setText(String.format(Locale.getDefault(), "%s — %d record(s)", dateKey, finalList.size()));
             }
 
+
             @Override
             public void onCancelled(@NonNull com.google.firebase.database.DatabaseError error) {
                 Toast.makeText(AttendanceReportActivity.this, "Failed to load attendance for " + dateKey, Toast.LENGTH_SHORT).show();
@@ -349,11 +374,13 @@ public class AttendanceReportActivity extends AppCompatActivity {
         });
     }
 
+
     private void loadTodaySnapshot() {
         String today = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
         if (tvDateInfo != null) tvDateInfo.setText("Selected: " + today);
         loadSingleDaySnapshotIntoMain(today);
     }
+
 
     private void loadSingleDaySnapshotIntoMain(final String dateKey) {
         if (attendanceRoot == null) return;
@@ -420,12 +447,14 @@ public class AttendanceReportActivity extends AppCompatActivity {
                 if (tvDateInfo != null) tvDateInfo.setText(String.format(Locale.getDefault(), "%s — %d record(s)", dateKey, dayItems.size()));
             }
 
+
             @Override
             public void onCancelled(@NonNull com.google.firebase.database.DatabaseError error) {
                 Toast.makeText(AttendanceReportActivity.this, "Failed to load attendance for " + dateKey, Toast.LENGTH_SHORT).show();
             }
         });
     }
+
 
     // ---------- Totals dialog ----------
     private void showPerStudentTotalsDialog() {
@@ -442,7 +471,9 @@ public class AttendanceReportActivity extends AppCompatActivity {
             return;
         }
 
+
         Toast.makeText(this, "Loading attendance data...", Toast.LENGTH_SHORT).show();
+
 
         attendanceRoot.get().addOnCompleteListener(task -> {
             if (!task.isSuccessful() || task.getResult() == null) {
@@ -450,16 +481,20 @@ public class AttendanceReportActivity extends AppCompatActivity {
                 return;
             }
 
+
             DataSnapshot sectionSnap = task.getResult();
+
 
             if (!sectionSnap.exists()) {
                 Toast.makeText(this, "No attendance data found.", Toast.LENGTH_SHORT).show();
                 return;
             }
 
+
             final Map<String, TotalsAccumulator> acc = new HashMap<>();
             final Map<String, java.util.Set<String>> seenByDate = new HashMap<>();
             int dateNodesFound = 0;
+
 
             // DEBUG: Log what teacherId we're filtering by
             String filterMsg = (teacherId != null && !teacherId.isEmpty())
@@ -467,12 +502,15 @@ public class AttendanceReportActivity extends AppCompatActivity {
                     : "No teacher filter (showing all)";
             android.util.Log.d("AttendanceDebug", filterMsg);
 
+
             // Process all children under the section node
             for (DataSnapshot childNode : sectionSnap.getChildren()) {
                 String childKey = childNode.getKey();
                 if (childKey == null) continue;
 
+
                 android.util.Log.d("AttendanceDebug", "Found child node: " + childKey);
+
 
                 // Check if this child is a date node directly
                 if (DATE_KEY.matcher(childKey).matches()) {
@@ -484,17 +522,21 @@ public class AttendanceReportActivity extends AppCompatActivity {
                     // Assume this is a teacher node: Attendance/fallback/TCHR-xxxx/2025-12-07/STD-xxxx
                     String teacherKey = childKey;
 
+
                     // If we have a teacher filter, check if this matches
                     if (teacherId != null && !teacherId.isEmpty() && !teacherKey.equals(teacherId)) {
                         android.util.Log.d("AttendanceDebug", "Skipping teacher node (doesn't match filter): " + teacherKey);
                         continue;
                     }
 
+
                     android.util.Log.d("AttendanceDebug", "Processing teacher node: " + teacherKey);
+
 
                     // Look for date nodes under this teacher
                     for (DataSnapshot dateNode : childNode.getChildren()) {
                         String dateKey = dateNode.getKey();
+
 
                         if (dateKey != null && DATE_KEY.matcher(dateKey).matches()) {
                             android.util.Log.d("AttendanceDebug", "Found date under teacher: " + dateKey);
@@ -505,17 +547,22 @@ public class AttendanceReportActivity extends AppCompatActivity {
                 }
             }
 
+
             android.util.Log.d("AttendanceDebug", "Total date nodes found: " + dateNodesFound);
             android.util.Log.d("AttendanceDebug", "Total students in accumulator: " + acc.size());
 
+
             Toast.makeText(this, "Scanned " + dateNodesFound + " date node(s), " + acc.size() + " student(s)", Toast.LENGTH_LONG).show();
+
 
             // Build TotalsRow list
             final List<TotalsRow> rows = new ArrayList<>();
             final List<String> idsToResolve = new ArrayList<>();
 
+
             for (TotalsAccumulator t : acc.values()) {
                 android.util.Log.d("AttendanceDebug", "Student " + t.id + ": P=" + t.present + " L=" + t.late + " E=" + t.excused + " A=" + t.absent + " Days=" + t.totalDays);
+
 
                 int totalDays = t.totalDays;
                 long sum = t.present + t.late + t.excused + t.absent;
@@ -523,35 +570,43 @@ public class AttendanceReportActivity extends AppCompatActivity {
                     totalDays = (int) Math.min(Integer.MAX_VALUE, sum);
                 }
 
+
                 int pct = computePercentage(t.present, t.late, t.excused, t.absent, totalDays);
                 TotalsRow r = new TotalsRow(t.id, t.name, t.present, t.late, t.excused, t.absent, totalDays, pct);
                 rows.add(r);
+
 
                 if (t.name == null || t.name.trim().isEmpty() || "(Unknown)".equals(t.name.trim())) {
                     idsToResolve.add(t.id);
                 }
             }
 
+
             if (rows.isEmpty()) {
                 Toast.makeText(this, "No student attendance records found.", Toast.LENGTH_SHORT).show();
                 return;
             }
 
+
             resolveNamesAndShow(rows, idsToResolve);
         });
     }
+
 
     // Helper method to process students under a date node
     private void processStudentsUnderDate(DataSnapshot dateNode, String dateKey,
                                           Map<String, TotalsAccumulator> acc,
                                           Map<String, java.util.Set<String>> seenByDate) {
 
+
         java.util.Set<String> seenThisDate = seenByDate.computeIfAbsent(dateKey, d -> new java.util.HashSet<>());
+
 
         for (DataSnapshot studentNode : dateNode.getChildren()) {
             if (studentNode == null) continue;
             String studentKey = studentNode.getKey();
             if (studentKey == null) continue;
+
 
             // Avoid double counting
             if (seenThisDate.contains(studentKey)) {
@@ -560,6 +615,7 @@ public class AttendanceReportActivity extends AppCompatActivity {
             }
             seenThisDate.add(studentKey);
 
+
             // Get or create accumulator
             TotalsAccumulator t = acc.get(studentKey);
             if (t == null) {
@@ -567,6 +623,7 @@ public class AttendanceReportActivity extends AppCompatActivity {
                 t.id = studentKey;
                 acc.put(studentKey, t);
             }
+
 
             // Get student name
             String studentName = safeString(studentNode.child("studentName").getValue(String.class));
@@ -577,8 +634,10 @@ public class AttendanceReportActivity extends AppCompatActivity {
                 t.name = studentName;
             }
 
+
             // Get status
             String status = safeString(studentNode.child("status").getValue(String.class));
+
 
             if ("Present".equalsIgnoreCase(status)) {
                 t.present++;
@@ -592,11 +651,14 @@ public class AttendanceReportActivity extends AppCompatActivity {
                 t.present++; // Default to present
             }
 
+
             t.totalDays++;
+
 
             android.util.Log.d("AttendanceDebug", "Processed " + studentKey + " on " + dateKey + " status=" + status);
         }
     }
+
 
     // helper to decide if a snapshot looks like a student node by heuristics (some nodes may be nested variably)
     private static boolean looksLikeStudentNode(DataSnapshot snap) {
@@ -613,6 +675,7 @@ public class AttendanceReportActivity extends AppCompatActivity {
         return childCount <= 6;
     }
 
+
     // handle a student node snapshot and update accumulator (ensures seenThisDate prevents double count)
     private void handleStudentNode(DataSnapshot studentNode, java.util.Set<String> seenThisDate, Map<String, TotalsAccumulator> acc) {
         if (studentNode == null || !studentNode.exists()) return;
@@ -624,6 +687,7 @@ public class AttendanceReportActivity extends AppCompatActivity {
         if (seenThisDate.contains(sid)) return;
         seenThisDate.add(sid);
 
+
         TotalsAccumulator t = acc.get(sid);
         if (t == null) {
             t = new TotalsAccumulator();
@@ -631,10 +695,12 @@ public class AttendanceReportActivity extends AppCompatActivity {
             acc.put(sid, t);
         }
 
+
         // try to populate name if present
         String sName = safeString(studentNode.child("studentName").getValue(String.class));
         if (sName.isEmpty()) sName = safeString(studentNode.child("studentFullName").getValue(String.class));
         if (!sName.isEmpty()) t.name = sName;
+
 
         // prefer explicit counts if present
         DataSnapshot countsNode = studentNode.child("counts");
@@ -647,6 +713,7 @@ public class AttendanceReportActivity extends AppCompatActivity {
             // explicit per-date status (preferred)
             String status = safeString(studentNode.child("status").getValue(String.class));
             if (status.isEmpty()) status = safeString(studentNode.child("attendanceStatus").getValue(String.class));
+
 
             if (!status.isEmpty()) {
                 if ("Present".equalsIgnoreCase(status)) t.present++;
@@ -667,9 +734,11 @@ public class AttendanceReportActivity extends AppCompatActivity {
             }
         }
 
+
         // increment totalDays for this date (one per date)
         t.totalDays += 1;
     }
+
 
     // Build totals from AttendanceSummary student-level snapshot
     // (kept for potential future usage, but not invoked since AttendanceSummary usage was removed)
@@ -688,9 +757,11 @@ public class AttendanceReportActivity extends AppCompatActivity {
             long absent = safeLong(s.child("counts").child("Absent").getValue());
             int totalDays = safeInt(s.child("totalDays").getValue());
 
+
             long sum = present + late + excused + absent;
             // If totalDays missing but counts exist, fallback to sum of counts so percentage and display make sense
             if (totalDays <= 0 && sum > 0) totalDays = (int) Math.min(Integer.MAX_VALUE, sum);
+
 
             int pct = computePercentage(present, late, excused, absent, totalDays);
             TotalsRow r = new TotalsRow(sid, name, present, late, excused, absent, totalDays, pct);
@@ -699,6 +770,7 @@ public class AttendanceReportActivity extends AppCompatActivity {
         }
         resolveNamesAndShow(rows, idsToResolve);
     }
+
 
     private void aggregateTotalsAcrossTeachers(DataSnapshot snap) {
         Map<String, TotalsAccumulator> acc = new HashMap<>();
@@ -735,6 +807,7 @@ public class AttendanceReportActivity extends AppCompatActivity {
                     }
                 }
 
+
                 // totalDays handling: prefer explicit totalDays; otherwise increment by 1 for single-date nodes
                 int nodeTotalDays = safeInt(s.child("totalDays").getValue());
                 if (nodeTotalDays > 0) {
@@ -747,6 +820,7 @@ public class AttendanceReportActivity extends AppCompatActivity {
                 }
             }
         }
+
 
         final List<TotalsRow> rows = new ArrayList<>();
         final List<String> idsToResolve = new ArrayList<>();
@@ -766,12 +840,14 @@ public class AttendanceReportActivity extends AppCompatActivity {
         resolveNamesAndShow(rows, idsToResolve);
     }
 
+
     private void resolveNamesAndShow(final List<TotalsRow> rows, final List<String> idsToResolve) {
         if (idsToResolve.isEmpty()) {
             Collections.sort(rows, (a, b) -> a.name.compareToIgnoreCase(b.name));
             showTotalsDialog(rows);
             return;
         }
+
 
         final AtomicInteger remaining = new AtomicInteger(idsToResolve.size());
         for (String sid : idsToResolve) {
@@ -803,6 +879,7 @@ public class AttendanceReportActivity extends AppCompatActivity {
         }
     }
 
+
     private void showTotalsDialog(List<TotalsRow> rows) {
         View dlg = LayoutInflater.from(this).inflate(R.layout.dialog_totals, null);
         RecyclerView rv = dlg.findViewById(R.id.dialogTotalsRv);
@@ -817,6 +894,7 @@ public class AttendanceReportActivity extends AppCompatActivity {
                 .show();
     }
 
+
     // ---------- CSV export ----------
     private void exportCsv() {
         if (items.isEmpty()) {
@@ -827,6 +905,7 @@ public class AttendanceReportActivity extends AppCompatActivity {
             startActivity(Intent.createChooser(share, "Share CSV"));
             return;
         }
+
 
         StringJoiner sj = new StringJoiner("\n");
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
@@ -846,6 +925,7 @@ public class AttendanceReportActivity extends AppCompatActivity {
             idx++;
         }
 
+
         String subject = "Attendance CSV: " + sectionId + (teacherId != null ? " (teacher: " + teacherId + ")" : " (combined)");
         String csv = sj.toString();
         Intent share = new Intent(Intent.ACTION_SEND);
@@ -854,6 +934,7 @@ public class AttendanceReportActivity extends AppCompatActivity {
         share.putExtra(Intent.EXTRA_TEXT, csv);
         startActivity(Intent.createChooser(share, "Share CSV"));
     }
+
 
     // ---------- Utilities ----------
     private static int safeInt(Object o) {
@@ -866,6 +947,7 @@ public class AttendanceReportActivity extends AppCompatActivity {
         }
     }
 
+
     private static long safeLong(Object o) {
         if (o == null) return 0L;
         if (o instanceof Number) return ((Number) o).longValue();
@@ -876,9 +958,11 @@ public class AttendanceReportActivity extends AppCompatActivity {
         }
     }
 
+
     static String safeString(String s) {
         return s == null ? "" : s;
     }
+
 
     // ---------- Internal models / adapters ----------
     private static class AttendanceSummaryModel {
@@ -889,6 +973,7 @@ public class AttendanceReportActivity extends AppCompatActivity {
         final Map<String, Long> counts;
         final long lastUpdated;
         final String lastStatus;
+
 
         AttendanceSummaryModel(String studentId, String studentName, int attendancePercentage, int totalDays, Map<String, Long> counts, long lastUpdated, String lastStatus) {
             this.studentId = studentId;
@@ -901,10 +986,12 @@ public class AttendanceReportActivity extends AppCompatActivity {
         }
     }
 
+
     private static class DayRecord {
         final String id;
         final String name;
         final String status;
+
 
         DayRecord(String id, String name, String status) {
             this.id = id;
@@ -913,11 +1000,13 @@ public class AttendanceReportActivity extends AppCompatActivity {
         }
     }
 
+
     private static class TotalsRow {
         final String id;
         String name;
         final long present, late, excused, absent;
         final int days, pct;
+
 
         TotalsRow(String id, String name, long present, long late, long excused, long absent, int days, int pct) {
             this.id = id;
@@ -931,12 +1020,14 @@ public class AttendanceReportActivity extends AppCompatActivity {
         }
     }
 
+
     private static class TotalsAccumulator {
         String id;
         String name;
         long present = 0, late = 0, excused = 0, absent = 0;
         int totalDays = 0;
     }
+
 
     // DayAdapter / DayVH
     private static class DayAdapter extends RecyclerView.Adapter<DayVH> {
@@ -956,6 +1047,7 @@ public class AttendanceReportActivity extends AppCompatActivity {
         void bind(DayRecord r) { tvName.setText(r.name); tvId.setText(r.id); tvStatus.setText(r.status == null || r.status.isEmpty() ? "Not Marked" : r.status); }
     }
 
+
     private static class TotalsAdapter extends RecyclerView.Adapter<TotalsVH> {
         private final List<TotalsRow> data;
         TotalsAdapter(List<TotalsRow> items) { data = items != null ? new ArrayList<>(items) : new ArrayList<>(); }
@@ -971,6 +1063,7 @@ public class AttendanceReportActivity extends AppCompatActivity {
         TotalsVH(@NonNull View itemView) { super(itemView); tvName = itemView.findViewById(R.id.tvTotalsName); tvCounts = itemView.findViewById(R.id.tvTotalsCounts); }
         void bind(TotalsRow r) { tvName.setText(r.name + " (" + r.id + ")"); tvCounts.setText(String.format(Locale.getDefault(), "P:%d L:%d E:%d A:%d Days:%d %d%%", r.present, r.late, r.excused, r.absent, r.days, r.pct)); }
     }
+
 
     private static class SummaryAdapter extends RecyclerView.Adapter<SummaryVH> {
         private final List<AttendanceSummaryModel> data;
@@ -1011,3 +1104,5 @@ public class AttendanceReportActivity extends AppCompatActivity {
         }
     }
 }
+
+

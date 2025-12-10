@@ -30,6 +30,8 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.finale.nextgen.R;
 import com.finale.nextgen.admin.StudentModel;
 import com.finale.nextgen.SessionManager;
+import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.snackbar.Snackbar;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.ChildEventListener;
@@ -181,6 +183,22 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
         sessionManager = new SessionManager(this);
 
 
+        MaterialToolbar topBar = findViewById(R.id.topBar);
+        setSupportActionBar(topBar);
+
+        // Optional: set title in code to match XML
+        // getSupportActionBar().setTitle("Take Quiz");
+
+        // Enable the up button (shows back arrow)
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        }
+
+        // Handle up (back arrow) button tap
+        topBar.setNavigationOnClickListener(v -> {
+            finish(); // Go back to previous activity
+        });
+
 
 
         debugReadServerPresenceOnce( "-OfwYDC8ZXUPI6uNLcc6");
@@ -191,7 +209,8 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
         rvQuizzes = findViewById(R.id.rvQuizzes);
         progress = findViewById(R.id.progressQuizzes);
         tvEmpty = findViewById(R.id.tvNoQuizzes);
-        btnScanQr = findViewById(R.id.btnScanQr);
+        FloatingActionButton btnScanQr = findViewById(R.id.btnScanQr);
+
 
 
 

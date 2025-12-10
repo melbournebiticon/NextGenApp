@@ -13,10 +13,13 @@
         android:id="@+id/tvViewerTitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="My Attendance"
-        android:textAppearance="@style/TextAppearance.AppCompat.Large"
+        android:text="Exam Monitoring Dashboard"
+        android:textSize="24sp"
         android:textStyle="bold"
-        android:paddingBottom="8dp" />
+        android:textColor="@color/dark_blue_900"
+        android:layout_marginBottom="24dp"
+        android:gravity="center"
+        android:textAlignment="center"/>
 
     <!-- Calendar for selecting a date to preview -->
     <CalendarView
