@@ -15,6 +15,7 @@
     import android.widget.ListView;
     import android.widget.TextView;
     import android.widget.Toast;
+    import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
     import com.finale.nextgen.offline.QuestionDao; // <--- must be offline DAO
     import com.finale.nextgen.offline.QuestionEntity;
@@ -331,12 +332,18 @@
         protected void onResume() {
             super.onResume();
 
-            // Register receiver so dashboard refreshes immediately after an offline QR scan
+            // Register LocalBroadcastManager receiver so dashboard refreshes after offline QR scan
             try {
-                @SuppressLint("UnspecifiedRegisterReceiverFlag") Intent intent = registerReceiver(presenceSavedReceiver, new IntentFilter(PresenceHelper.ACTION_PRESENCE_SAVED));
-            } catch (Exception ignored) { }
+                LocalBroadcastManager.getInstance(this).registerReceiver(
+                        presenceSavedReceiver,
+                        new IntentFilter(PresenceHelper.ACTION_PRESENCE_SAVED)
+                );
+            } catch (Exception ignored) {}
 
-            // Existing resume logic: start periodic exam fetch if user exists
+            // Also reload local cache to ensure any pending presence saved while scanning is reflected
+            loadExamsFromLocalDb();
+
+            // Existing resume logic: ensure periodic fetch continues
             FirebaseUser currentUser = auth.getCurrentUser();
             if (currentUser != null && studentsRef != null) {
                 studentsRef.orderByChild("uid").equalTo(currentUser.getUid())
@@ -357,11 +364,12 @@
             }
         }
 
+        // in onPause(), replace unregisterReceiver(...) with LocalBroadcastManager
         @Override
         protected void onPause() {
             // Unregister receiver to avoid leaks
             try {
-                unregisterReceiver(presenceSavedReceiver);
+                LocalBroadcastManager.getInstance(this).unregisterReceiver(presenceSavedReceiver);
             } catch (Exception ignored) { }
 
             // Keep existing handler cleanup

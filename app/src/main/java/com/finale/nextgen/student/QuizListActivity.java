@@ -35,25 +35,23 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-
 // add these imports near the top of QuizListActivity.java (with the other imports)
 import java.util.Map;
 import java.util.HashMap;
 
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
+import androidx.core.content.ContextCompat;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.IntentFilter;
+
 /**
- * QuizListActivity
+ * Patched QuizListActivity with offline caching integration (uses QuizCacheManager + Room).
  *
- * Simplified: removed presence-confirmation flow.
- * - After an in-app scan returns, the activity marks the quiz present immediately (optimistic)
- *   and does NOT attach any presence listener that waits for teacher confirmation.
- * - Presence listeners and duplicated listener logic removed to avoid "waiting for teacher" behavior.
- * - The adapter still supports optimistic placeholders so the Take Quiz button appears instantly.
- *
- * This makes "scan -> Take Quiz visible" immediate and permanent (until DB/scores update).
+ * Integration points:
+ * - Saves Firebase AvailableQuizzes snapshot to local Room cache after successful read.
+ * - At startup if network unavailable, loads cached quizzes and shows them.
+ * - Persists optimistic present when student scans a quiz.
  */
 public class QuizListActivity extends AppCompatActivity implements QuizListAdapter.OnQuizClickListener {
 
@@ -94,9 +92,8 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
     private DatabaseReference legacyScoresRefForStudent;
     private ChildEventListener quizScoresChildListener;
     private ChildEventListener legacyScoresChildListener;
-
-    // Insert or replace the onCreate (and add helper) in your existing QuizListActivity.
-// Only the relevant changed parts are shown — keep the rest of your file as-is.
+    private static final int REQ_CODE_PICK_IMAGE = 0x1003;
+    private static final int REQ_CODE_READ_STORAGE = 0x2001;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -118,6 +115,10 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
         rvQuizzes.setLayoutManager(new LinearLayoutManager(this));
         adapter = new QuizListAdapter(quizList, this);
         rvQuizzes.setAdapter(adapter);
+
+        // after: rvQuizzes.setLayoutManager(...) and rvQuizzes.setAdapter(adapter);
+        dumpSpecificCachedQuiz("" +
+                "-Oft2XaEk5EN_3l0WK2Y");
 
         LocalBroadcastManager.getInstance(this).registerReceiver(presenceReceiver,
                 new IntentFilter("com.finale.nextgen.PRESENCE_UPDATED"));
@@ -174,6 +175,44 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
         autoOpenQuizId = getIntent().getStringExtra("autoOpenQuizId");
         publicRef = FirebaseDatabase.getInstance().getReference("AvailableQuizzes");
 
+        // offline fallback: if no network, try load cached quizzes
+        // offline fallback: if no network, try load cached quizzes
+        // Replace the existing offline fallback block in onCreate with this snippet:
+        if (!isNetworkAvailable()) {
+            // load cached quizzes off the main thread to avoid Room's "no DB on main thread" error
+            new Thread(() -> {
+                List<QuizModel> cached = com.finale.nextgen.offline.QuizCacheManager.loadCachedQuizzes(QuizListActivity.this);
+                if (cached != null && !cached.isEmpty()) {
+                    runOnUiThread(() -> {
+                        adapter.updateData(cached);
+                        progress.setVisibility(View.GONE);
+                        tvEmpty.setVisibility(cached.isEmpty() ? View.VISIBLE : View.GONE);
+
+                        // debug: show a toast/log so you know the cached branch ran
+                        Log.d(TAG_DEBUG, "Offline: loaded " + cached.size() + " quizzes from local cache");
+                        try { Toast.makeText(QuizListActivity.this, "Offline: loaded " + cached.size() + " cached quizzes", Toast.LENGTH_LONG).show(); } catch (Exception ignored) {}
+
+                        attachScoresRealtimeListenerIfNeeded();
+                    });
+                    return;
+                } else {
+                    Log.d(TAG_DEBUG, "Offline: no cached quizzes found");
+                }
+                // If cached empty, continue to try the online listener (falls through)
+                runOnUiThread(() -> {
+                    // show spinner while online fetch will happen
+                    progress.setVisibility(View.VISIBLE);
+                    // fallback: start realtime listener (will run when network is available)
+                    startRealtimeListener();
+                    startChildNotifications();
+                });
+            }).start();
+
+            // Important: return here so onCreate doesn't continue to call startRealtimeListener()
+            // (we started it in the background branch above).
+            return;
+        }
+
         // If we don't have course/section info yet but we do have a saved studentId,
         // fetch the student's profile from the DB to populate session and local student
         // BEFORE starting realtime listeners so filtering works immediately.
@@ -191,47 +230,63 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
         if (!hasStudentFields && storedStudentId != null && !storedStudentId.isEmpty()) {
             fetchStudentProfileByStudentIdAndStart(storedStudentId);
         } else {
-            // we either have student fields already or no studentId to look up - proceed
             debugFetchAndLog();
             startRealtimeListener();
             startChildNotifications();
         }
     }
 
-    /**
-     * Query "Students" for the given studentId, populate sessionManager and local `student`,
-     * then start the listeners (debugFetch/startRealtime/startChildNotifications).
-     */
-    // Replace your fetchStudentProfileByStudentIdAndStart implementation with this version
-// (or update the body where you read the student's DB node).
+    private boolean isNetworkAvailable() {
+        try {
+            android.net.ConnectivityManager cm = (android.net.ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+            if (cm == null) return false;
+            android.net.NetworkInfo netInfo = cm.getActiveNetworkInfo();
+            return netInfo != null && netInfo.isConnected();
+        } catch (Exception e) {
+            return false;
+        }
+    }
 
-
+    // inside QuizListActivity: update the BroadcastReceiver logic
+    // inside QuizListActivity
     private final BroadcastReceiver presenceReceiver = new BroadcastReceiver() {
         @Override public void onReceive(Context context, Intent intent) {
             if (intent == null) return;
             String quizId = intent.getStringExtra("quizId");
             String studentId = intent.getStringExtra("studentId");
-            boolean present = intent.getBooleanExtra("present", true); // default true if omitted
+            boolean present = intent.getBooleanExtra("present", true); // default true
 
-            // Defensive checks
             if (quizId == null || quizId.trim().isEmpty()) return;
-            if (sessionManager == null) return; // safety
+            if (sessionManager == null) return;
             String myStudentId = sessionManager.getStudentId();
 
-            // Only act if broadcast targets this student (or if studentId omitted)
             if (studentId == null || studentId.equals(myStudentId)) {
-                if (adapter != null) {
-                    if (present) {
-                        adapter.setStudentPresent(quizId, true);
-                    } else {
-                        adapter.setStudentPresent(quizId, false);
+                // update UI
+                if (adapter != null) adapter.setStudentPresent(quizId, present);
+
+                // Persist presence into local cache so offline shows same state
+                new Thread(() -> {
+                    try {
+                        com.finale.nextgen.offline.AppDatabase db = com.finale.nextgen.offline.AppDatabase.getInstance(context);
+                        com.finale.nextgen.offline.QuizEntity qe = db.quizDao().getById(quizId);
+                        if (qe == null) {
+                            qe = new com.finale.nextgen.offline.QuizEntity();
+                            qe.quizId = quizId;
+                            // optionally set a minimal name so row exists
+                            qe.quizName = intent.getStringExtra("quizName");
+                            qe.cachedAt = System.currentTimeMillis();
+                        }
+                        qe.present = present;
+                        qe.cachedAt = System.currentTimeMillis();
+                        db.quizDao().insert(qe); // REPLACE semantics
+                        Log.d("QuizListDebug", "Persisted presence for quizId=" + quizId + " present=" + present);
+                    } catch (Exception e) {
+                        Log.w("QuizListDebug", "Failed to persist presence: " + e.getMessage());
                     }
-                }
+                }).start();
             }
         }
     };
-
-
 
     private void fetchStudentProfileByStudentIdAndStart(@NonNull String studentId) {
         try {
@@ -250,7 +305,6 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                                     String fullName = ds.child("fullName").getValue(String.class);
                                     String profileImage = ds.child("profileImage").getValue(String.class);
 
-                                    // Build StudentModel and persist it into SessionManager
                                     StudentModel saved = new StudentModel();
                                     saved.setStudentId(studentId);
                                     if (uid != null) saved.setUid(uid);
@@ -261,20 +315,14 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                                     if (fullName != null) saved.setFullName(fullName);
                                     if (profileImage != null) saved.setProfileImage(profileImage);
 
-                                    try {
-                                        sessionManager.saveStudentModel(saved);
-                                    } catch (Exception ignored) {}
-
-                                    // Update local `student` reference used by buildListFromPublicSnapshot
+                                    try { sessionManager.saveStudentModel(saved); } catch (Exception ignored) {}
                                     student = saved;
-
-                                    break; // use first matching node
+                                    break;
                                 }
                             } else {
                                 Log.w(TAG_DEBUG, "Student profile not found for studentId=" + studentId);
                             }
 
-                            // Start the listeners after populating student info
                             debugFetchAndLog();
                             startRealtimeListener();
                             startChildNotifications();
@@ -294,25 +342,33 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
             startChildNotifications();
         }
     }
-
-    private void startChildNotifications() {
+    // Add inside QuizListActivity
+    private void dumpSpecificCachedQuiz(final String quizId) {
+        new Thread(() -> {
+            try {
+                com.finale.nextgen.offline.AppDatabase db = com.finale.nextgen.offline.AppDatabase.getInstance(this);
+                com.finale.nextgen.offline.QuizEntity qe = db.quizDao().getById(quizId);
+                if (qe == null) {
+                    Log.d("QuizListDebug", "No cached row for quizId=" + quizId);
+                } else {
+                    Log.d("QuizListDebug", "Cached quiz: id=" + qe.quizId + " name=" + qe.quizName
+                            + " present=" + qe.present + " active=" + qe.active
+                            + " availableAt=" + qe.availableAt + " duration=" + qe.durationMinutes
+                            + " course=" + qe.courseName + " section=" + qe.sectionName
+                            + " cachedAt=" + qe.cachedAt);
+                }
+            } catch (Exception e) {
+                Log.e("QuizListDebug", "dumpSpecificCachedQuiz failed: " + e.getMessage(), e);
+            }
+        }).start();
     }
 
-    // Inside QuizListActivity
+    private void startChildNotifications() { /* no-op for now */ }
 
     @Override
     protected void onResume() {
         super.onResume();
-
-        // ensure realtime listeners for scores are attached (so markQuizTakenLocally will run)
         attachScoresRealtimeListenerIfNeeded();
-
-        // Optional: force a single full refresh when returning from result to be extra-safe.
-        // This is a cheap single-value read and only runs when the activity becomes visible.
-        try {
-            // If you want a full refresh uncomment the next line:
-            // startRealtimeListener();
-        } catch (Exception ignored) {}
     }
 
     @Override
@@ -331,10 +387,7 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
         LocalBroadcastManager.getInstance(this).unregisterReceiver(quizSubmittedReceiver);
     }
 
-    private void stopChildNotifications() {
-    }
-
-    // ---------- Scanner launch helpers ----------
+    private void stopChildNotifications() { /* no-op */ }
 
     private void launchInAppScanner() {
         try {
@@ -380,11 +433,6 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
         return null;
     }
 
-    /**
-     * Simplified scanner result handling:
-     * - Immediately mark optimistic present and show Take Quiz (no presence-confirmation listeners).
-     * - Do not attach realtime presence listeners that wait for teacher confirmation.
-     */
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
@@ -404,11 +452,9 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                     final String quizIdToUse = matchedQuizId != null ? matchedQuizId : candidate;
 
                     if (!quizIdToUse.isEmpty()) {
-                        // Immediately show Take Quiz — no confirmation wait
                         adapter.markOptimisticPresent(quizIdToUse);
                         adapter.setStudentPresent(quizIdToUse, true);
 
-                        // Apply metadata if provided
                         if (quizNameMeta != null && !quizNameMeta.trim().isEmpty()) {
                             synchronized (quizList) {
                                 int pos = adapter.getPositionForQuizId(quizIdToUse);
@@ -429,21 +475,33 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                             }
                         }
 
-                        // Highlight and scroll into view
+                        // persist optimistic present into cache
+                        new Thread(() -> {
+                            try {
+                                com.finale.nextgen.offline.AppDatabase db = com.finale.nextgen.offline.AppDatabase.getInstance(QuizListActivity.this);
+                                com.finale.nextgen.offline.QuizEntity qe = db.quizDao().getById(quizIdToUse);
+                                if (qe == null) {
+                                    qe = new com.finale.nextgen.offline.QuizEntity();
+                                    qe.quizId = quizIdToUse;
+                                }
+                                qe.present = true;
+                                qe.cachedAt = System.currentTimeMillis();
+                                db.quizDao().insert(qe);
+                            } catch (Exception e) {
+                                Log.w(TAG_DEBUG, "persist optimistic present failed: " + e.getMessage());
+                            }
+                        }).start();
+
                         autoOpenQuizId = quizIdToUse;
                         adapter.setHighlightQuizId(quizIdToUse);
                         int pos = adapter.getPositionForQuizId(quizIdToUse);
                         if (pos >= 0) rvQuizzes.scrollToPosition(pos);
 
-                        // show snackbar (optional)
                         View root = findViewById(android.R.id.content);
                         if (root != null) {
                             Snackbar.make(root, "Marked present locally. Tap 'Take Quiz' to start.", Snackbar.LENGTH_LONG)
                                     .setAction("Open", v -> {
-                                        // Resolve latest position from adapter (adapter owns its own list)
                                         int idx = adapter.getPositionForQuizId(quizIdToUse);
-
-                                        // Best-effort: check adapter index and local quizList bounds before accessing
                                         if (idx >= 0) {
                                             synchronized (quizList) {
                                                 if (idx < quizList.size()) {
@@ -452,9 +510,6 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                                                 }
                                             }
                                         }
-
-                                        // If we couldn't get a valid item, try a safer fallback:
-                                        // 1) Try to find by id in quizList in a safe loop
                                         synchronized (quizList) {
                                             for (QuizModel qm : quizList) {
                                                 if (qm != null && quizIdToUse.equalsIgnoreCase(qm.getQuizId())) {
@@ -463,10 +518,8 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                                                 }
                                             }
                                         }
-
-                                        // 2) If still not found, refresh list and show a friendly message
                                         Snackbar.make(findViewById(android.R.id.content), "Quiz not available yet. Refreshing list...", Snackbar.LENGTH_SHORT).show();
-                                        startRealtimeListener(); // cheap single-read refresh already implemented
+                                        startRealtimeListener();
                                     })
                                     .show();
                         }
@@ -476,7 +529,72 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
             return;
         }
 
-        // External ZXing scanner fallback
+        // NEW: handle gallery image pick that may contain a QR code
+        if (requestCode == REQ_CODE_PICK_IMAGE) {
+            if (resultCode == Activity.RESULT_OK && data != null) {
+                Uri imageUri = data.getData();
+                if (imageUri != null) {
+                    try {
+                        android.graphics.BitmapFactory.Options opts = new android.graphics.BitmapFactory.Options();
+                        opts.inPreferredConfig = android.graphics.Bitmap.Config.ARGB_8888;
+                        java.io.InputStream is = getContentResolver().openInputStream(imageUri);
+                        android.graphics.Bitmap bmp = android.graphics.BitmapFactory.decodeStream(is, null, opts);
+                        if (is != null) try { is.close(); } catch (Exception ignored) {}
+
+                        if (bmp != null) {
+                            String decoded = decodeQRCodeFromBitmap(bmp); // add helper decodeQRCodeFromBitmap(Bitmap) to the activity
+                            if (decoded != null && !decoded.trim().isEmpty()) {
+                                String candidate = decoded.trim();
+                                if (candidate.toLowerCase().startsWith("quiz:")) candidate = candidate.substring("quiz:".length()).trim();
+                                String matched = findMatchingQuizId(candidate);
+                                final String quizIdToUse = matched != null ? matched : candidate;
+
+                                if (!quizIdToUse.isEmpty()) {
+                                    adapter.markOptimisticPresent(quizIdToUse);
+                                    adapter.setStudentPresent(quizIdToUse, true);
+
+                                    // persist optimistic present
+                                    new Thread(() -> {
+                                        try {
+                                            com.finale.nextgen.offline.AppDatabase db = com.finale.nextgen.offline.AppDatabase.getInstance(QuizListActivity.this);
+                                            com.finale.nextgen.offline.QuizEntity qe = db.quizDao().getById(quizIdToUse);
+                                            if (qe == null) {
+                                                qe = new com.finale.nextgen.offline.QuizEntity();
+                                                qe.quizId = quizIdToUse;
+                                            }
+                                            qe.present = true;
+                                            qe.cachedAt = System.currentTimeMillis();
+                                            db.quizDao().insert(qe);
+                                        } catch (Exception e) {
+                                            Log.w(TAG_DEBUG, "persist optimistic present failed: " + e.getMessage());
+                                        }
+                                    }).start();
+
+                                    autoOpenQuizId = quizIdToUse;
+                                    adapter.setHighlightQuizId(quizIdToUse);
+                                    int pos = adapter.getPositionForQuizId(quizIdToUse);
+                                    if (pos >= 0) rvQuizzes.scrollToPosition(pos);
+
+                                    View root = findViewById(android.R.id.content);
+                                    if (root != null) Snackbar.make(root, "Marked present locally. Tap 'Take Quiz' to start.", Snackbar.LENGTH_LONG).show();
+                                } else {
+                                    Toast.makeText(this, "QR decoded but no matching quiz found: " + decoded, Toast.LENGTH_LONG).show();
+                                }
+                            } else {
+                                Toast.makeText(this, "No QR code detected in selected image.", Toast.LENGTH_LONG).show();
+                            }
+                        } else {
+                            Toast.makeText(this, "Failed to decode image.", Toast.LENGTH_SHORT).show();
+                        }
+                    } catch (Exception e) {
+                        Log.e(TAG_DEBUG, "gallery pick decode failed: " + e.getMessage(), e);
+                        Toast.makeText(this, "Failed to read image: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    }
+                }
+            }
+            return;
+        }
+
         if (requestCode == REQ_CODE_ZXING_SCAN) {
             if (resultCode == Activity.RESULT_OK && data != null) {
                 String scanContents = data.getStringExtra("SCAN_RESULT");
@@ -487,6 +605,23 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
 
                     adapter.markOptimisticPresent(quizIdToUse);
                     adapter.setStudentPresent(quizIdToUse, true);
+
+                    // persist optimistic present
+                    new Thread(() -> {
+                        try {
+                            com.finale.nextgen.offline.AppDatabase db = com.finale.nextgen.offline.AppDatabase.getInstance(QuizListActivity.this);
+                            com.finale.nextgen.offline.QuizEntity qe = db.quizDao().getById(quizIdToUse);
+                            if (qe == null) {
+                                qe = new com.finale.nextgen.offline.QuizEntity();
+                                qe.quizId = quizIdToUse;
+                            }
+                            qe.present = true;
+                            qe.cachedAt = System.currentTimeMillis();
+                            db.quizDao().insert(qe);
+                        } catch (Exception e) {
+                            Log.w(TAG_DEBUG, "persist optimistic present failed: " + e.getMessage());
+                        }
+                    }).start();
 
                     autoOpenQuizId = quizIdToUse;
                     adapter.setHighlightQuizId(quizIdToUse);
@@ -500,15 +635,46 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
         }
     }
 
-    // Presence-listener methods removed intentionally — no teacher-confirmation flow
+    // Add this method inside QuizListActivity (class body)
+    private @Nullable String decodeQRCodeFromBitmap(android.graphics.Bitmap bitmap) {
+        if (bitmap == null) return null;
+        try {
+            int width = bitmap.getWidth();
+            int height = bitmap.getHeight();
+            int[] pixels = new int[width * height];
+            bitmap.getPixels(pixels, 0, width, 0, 0, width, height);
 
-    // ---------- Firebase list / scores / builder ----------
-    // (rest of file left mostly unchanged; buildListFromPublicSnapshot no longer attaches presence listeners)
+            com.google.zxing.RGBLuminanceSource source =
+                    new com.google.zxing.RGBLuminanceSource(width, height, pixels);
+            com.google.zxing.common.HybridBinarizer binarizer =
+                    new com.google.zxing.common.HybridBinarizer(source);
+            com.google.zxing.BinaryBitmap binaryBitmap = new com.google.zxing.BinaryBitmap(binarizer);
 
+            com.google.zxing.Reader reader = new com.google.zxing.MultiFormatReader();
+            com.google.zxing.Result result = reader.decode(binaryBitmap);
+            return result != null ? result.getText() : null;
+        } catch (com.google.zxing.NotFoundException nfe) {
+            // No QR code found in image
+            return null;
+        } catch (Exception e) {
+            Log.w(TAG_DEBUG, "decodeQRCodeFromBitmap failed: " + e.getMessage(), e);
+            return null;
+        }
+    }
     private void startRealtimeListener() {
         progress.setVisibility(View.VISIBLE);
         publicRef.addListenerForSingleValueEvent(new ValueEventListener() {
-            @Override public void onDataChange(@NonNull DataSnapshot snapshot) { resolveStudentIdAndFetchScores(snapshot); }
+            @Override // Replace the onDataChange body in startRealtimeListener() with this:
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                // DEBUG: log the size returned from Firebase
+                Log.d("QuizListActivity", "AvailableQuizzes snapshot size=" + (snapshot == null ? 0 : snapshot.getChildrenCount()));
+
+                // save snapshot to local cache for offline fallback
+                com.finale.nextgen.offline.QuizCacheManager.saveSnapshot(QuizListActivity.this, snapshot);
+
+                // existing logic
+                resolveStudentIdAndFetchScores(snapshot);
+            }
             @Override public void onCancelled(@NonNull DatabaseError error) {
                 Log.e(TAG, "AvailableQuizzes listener cancelled: " + error.getMessage());
                 progress.setVisibility(View.GONE);
@@ -558,13 +724,10 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
         });
     }
 
-    // Replace your existing fetchScoresAndBuildList(...) with this:
     private void fetchScoresAndBuildList(@Nullable DataSnapshot publicSnapshot, @NonNull String studentId) {
-        // References for both possible nodes
         DatabaseReference quizScoresRef = FirebaseDatabase.getInstance().getReference("QuizScores").child(studentId);
         DatabaseReference legacyScoresRef = FirebaseDatabase.getInstance().getReference("Scores").child(studentId);
 
-        // First read QuizScores, then read legacy Scores and merge
         Set<String> takenQuizIds = new HashSet<>();
 
         quizScoresRef.get().addOnCompleteListener(task -> {
@@ -575,7 +738,6 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                 }
             }
 
-            // Now read legacy Scores and merge any keys
             legacyScoresRef.get().addOnCompleteListener(task2 -> {
                 if (task2.isSuccessful() && task2.getResult() != null) {
                     for (DataSnapshot snap : task2.getResult().getChildren()) {
@@ -584,23 +746,19 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                     }
                 }
 
-                // Now we have the union of quiz IDs in takenQuizIds
                 scoresStudentId = studentId;
                 buildListFromPublicSnapshot(publicSnapshot, takenQuizIds, studentId);
-                attachScoresRealtimeListenerIfNeeded(); // ensure realtime updates are attached
+                attachScoresRealtimeListenerIfNeeded();
             });
         });
     }
 
-    // Replace the existing buildListFromPublicSnapshot(...) method in your QuizListActivity with this version.
-    // Replace only the buildListFromPublicSnapshot(...) method in your QuizListActivity with this version.
+    // Replace the existing buildListFromPublicSnapshot(...) method with this version.
     private void buildListFromPublicSnapshot(@Nullable DataSnapshot snapshot, @NonNull Set<String> takenQuizIds, @Nullable String studentId) {
-        // Prepare output list
         List<QuizModel> newList = new ArrayList<>();
         quizIds.clear();
         adapter.setHighlightQuizId(null);
 
-        // normalize student fields used for matching
         String stuCourse = normalize(student != null ? student.getCourseName() : null);
         String stuSpec = normalize(student != null ? student.getSpecializationName() : null);
         String stuYear = normalize(student != null ? student.getYearName() : null);
@@ -615,7 +773,7 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                 try {
                     String quizId = child.getKey();
                     if (quizId == null) continue;
-                    if (quizIds.contains(quizId)) continue; // safety guard
+                    if (quizIds.contains(quizId)) continue;
 
                     Boolean activeObj = child.child("active").getValue(Boolean.class);
                     boolean active = activeObj != null && activeObj;
@@ -641,7 +799,6 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                         availableAtFromDb = availableAtFromDb * 1000L;
                     }
 
-                    // parse section field which may contain "Course - Spec - Year - Section"
                     String parsedCourse = "";
                     String parsedSpec = "";
                     String parsedYear = "";
@@ -655,24 +812,18 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                             if (parts.length > 2) parsedYear = parts[2].trim();
                             if (parts.length > 3) parsedSection = parts[3].trim();
                         } else {
-                            // if the DB stored only the section name, treat it as parsedSection
                             parsedSection = sectionValue.trim();
                         }
                     }
 
-                    // normalize parsed fields and course display fallback
                     String nCourse = normalize(!parsedCourse.isEmpty() ? parsedCourse : courseNameRaw);
                     String nSpec = normalize(parsedSpec);
                     String nYear = normalize(parsedYear);
                     String nSection = normalize(parsedSection);
                     String nCourseDisplay = normalize(child.child("courseDisplay").getValue(String.class));
 
-                    // Strict matching rules:
-                    // - Always require course to match when student has course (prevents showing other-course quizzes)
-                    // - If student has specialization/year/section populated, require equality on those fields as well.
                     boolean match = true;
 
-                    // course matching (use courseDisplay fallback)
                     if (!stuCourse.isEmpty()) {
                         boolean courseMatches = false;
                         if (!nCourse.isEmpty() && nCourse.equals(stuCourse)) courseMatches = true;
@@ -680,17 +831,14 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                         if (!courseMatches) match = false;
                     }
 
-                    // specialization match if student provided it
                     if (match && !stuSpec.isEmpty()) {
                         if (nSpec.isEmpty() || !nSpec.equals(stuSpec)) match = false;
                     }
 
-                    // year match if student provided it
                     if (match && !stuYear.isEmpty()) {
                         if (nYear.isEmpty() || !nYear.equals(stuYear)) match = false;
                     }
 
-                    // SECTION: if student has section set, require section equality
                     if (match && !stuSection.isEmpty()) {
                         if (nSection.isEmpty() || !nSection.equals(stuSection)) {
                             match = false;
@@ -699,7 +847,6 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
 
                     if (!match) continue;
 
-                    // If not already taken (or debug flag), add to list
                     if (!takenQuizIds.contains(quizId) || SHOW_ALL_ACTIVE_FOR_DEBUG) {
                         QuizModel qm = new QuizModel();
                         qm.setQuizId(quizId);
@@ -712,7 +859,6 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                         qm.setDurationMinutes(duration != null ? duration : 0);
                         qm.setActive(active);
 
-                        // compute availableAt as before
                         long computedAvailableAt = 0L;
                         if (availableAtFromDb != null && availableAtFromDb > 0) {
                             computedAvailableAt = availableAtFromDb;
@@ -728,18 +874,28 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                         qm.setSectionName(parsedSection != null ? parsedSection : "");
 
                         boolean alreadyTaken = takenQuizIds.contains(quizId);
-                        try { qm.setPresent(alreadyTaken); } catch (Exception ignored) {}
+                        try {
+                            if (alreadyTaken) {
+                                // Mark the model as taken; do NOT mark 'present' just because it's taken.
+                                qm.setStatus("TAKEN");
+                                qm.setAvailable(false);
+                                qm.setPresent(false);
+                                // If QuizModel exposes setTaken(boolean), set it (reflection fallback used for safety)
+                                try {
+                                    java.lang.reflect.Method m = qm.getClass().getMethod("setTaken", boolean.class);
+                                    if (m != null) m.invoke(qm, true);
+                                } catch (NoSuchMethodException ignored) {}
+                            } else {
+                                qm.setStatus("QUIZ");
+                                qm.setAvailable(true);
+                                qm.setPresent(false); // default; presence will be updated by realtime listeners
+                            }
+                        } catch (Exception ignored) {}
 
-                        qm.setStatus("QUIZ");
-                        qm.setAvailable(true);
-
-                        // <-- add model to UI list
                         newList.add(qm);
 
-                        // <-- ATTACH PRESENCE LISTENER FOR THIS QUIZ (exact insertion point)
                         attachPresenceListenerForQuiz(quizId);
 
-                        // bookkeeping
                         quizIds.add(quizId);
                     }
                 } catch (Exception e) {
@@ -748,7 +904,6 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
             }
         }
 
-        // apply to UI on main thread
         runOnUiThread(() -> {
             synchronized (quizList) {
                 quizList.clear();
@@ -773,16 +928,13 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
             }
         });
     }
-
     private void attachScoresRealtimeListenerIfNeeded() {
         try {
             String studentId = scoresStudentId != null && !scoresStudentId.isEmpty() ? scoresStudentId : sessionManager.getStudentId();
             if (studentId == null || studentId.isEmpty()) return;
 
-            // If listeners already attached for same student, do nothing
             if (quizScoresRefForStudent != null && quizScoresChildListener != null && studentId.equals(scoresStudentId)) return;
 
-            // detach existing if any
             try {
                 if (quizScoresRefForStudent != null && quizScoresChildListener != null) quizScoresRefForStudent.removeEventListener(quizScoresChildListener);
             } catch (Exception ignored) {}
@@ -790,7 +942,6 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                 if (legacyScoresRefForStudent != null && legacyScoresChildListener != null) legacyScoresRefForStudent.removeEventListener(legacyScoresChildListener);
             } catch (Exception ignored) {}
 
-            // Attach to QuizScores (preferred)
             quizScoresRefForStudent = FirebaseDatabase.getInstance().getReference("QuizScores").child(studentId);
             quizScoresChildListener = new ChildEventListener() {
                 @Override public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
@@ -800,7 +951,6 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                     markQuizTakenLocally(snapshot.getKey());
                 }
                 @Override public void onChildRemoved(@NonNull DataSnapshot snapshot) {
-                    // If score removed, refresh list fully
                     startRealtimeListener();
                 }
                 @Override public void onChildMoved(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {}
@@ -808,7 +958,6 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
             };
             quizScoresRefForStudent.addChildEventListener(quizScoresChildListener);
 
-            // Also attach to legacy Scores for backward compatibility
             legacyScoresRefForStudent = FirebaseDatabase.getInstance().getReference("Scores").child(studentId);
             legacyScoresChildListener = new ChildEventListener() {
                 @Override public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
@@ -850,19 +999,16 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
         scoresStudentId = null;
     }
 
-    // Replace your existing markQuizTakenLocally(...) with this version
     private void markQuizTakenLocally(String quizId) {
         if (quizId == null) return;
 
         Log.d(TAG_DEBUG, "markQuizTakenLocally called for quizId=" + quizId);
 
-        // Let the adapter handle marking the item as taken (it will update its model & UI)
         if (adapter != null) {
             adapter.setQuizTaken(quizId);
             return;
         }
 
-        // Fallback (shouldn't happen since adapter should exist) — keep for resilience
         int pos = findIndexById(quizId);
         if (pos >= 0) {
             synchronized (quizList) {
@@ -917,20 +1063,14 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
         return s.trim().toLowerCase();
     }
 
-    // Replace the existing onQuizClick(...) method in your QuizListActivity with this version.
-// This prevents launching TakeQuizActivity when the quiz is already taken/present.
-
-    // onQuizClick(...) replacement — put this into your QuizListActivity (replace existing method)
     @Override
     public void onQuizClick(QuizModel quiz) {
         if (quiz == null || quiz.getQuizId() == null) return;
 
-        // If the adapter or model marks this quiz as present/taken, block re-taking
         boolean isPresent = false;
         try { isPresent = Boolean.TRUE.equals(quiz.getPresent()); } catch (Exception ignored) {}
 
         if (isPresent || "TAKEN".equalsIgnoreCase(quiz.getStatus())) {
-            // Optionally show a message to the student
             Toast.makeText(this, "You have already taken this quiz.", Toast.LENGTH_SHORT).show();
             return;
         }
@@ -941,23 +1081,17 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
         intent.putExtra("availableAt", quiz.getAvailableAt() != null ? quiz.getAvailableAt() : 0L);
         intent.putExtra("durationMinutes", quiz.getDurationMinutes() != null ? quiz.getDurationMinutes() : 0);
 
-        // Pass subject/teacher metadata so TakeQuizActivity & QuizResultActivity don't need DB lookups.
-        // Prefer passing subjectId if your QuizModel stores it (most robust).
         try {
             java.lang.reflect.Method m = quiz.getClass().getMethod("getSubjectId");
             Object sid = m.invoke(quiz);
             if (sid instanceof String && !((String) sid).trim().isEmpty()) {
                 intent.putExtra("subjectId", (String) sid);
             }
-        } catch (Exception ignored) {
-            // no subjectId method — ignore
-        }
+        } catch (Exception ignored) {}
 
-        // always pass subjectName and teacherName if present
         if (quiz.getSubjectName() != null) intent.putExtra("subjectName", quiz.getSubjectName());
         if (quiz.getTeacherName() != null) intent.putExtra("teacherName", quiz.getTeacherName());
 
-        // subjectCode: if you have a dedicated subjectCode/courseCode field pass it; otherwise pass courseName as fallback
         String courseCodeOrName = null;
         try {
             java.lang.reflect.Method m = quiz.getClass().getMethod("getSubjectCode");
@@ -969,7 +1103,6 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
         }
         if (courseCodeOrName != null) intent.putExtra("courseCode", courseCodeOrName);
 
-        // Debug log to confirm what's being passed
         Log.d("QuizListActivity", "Launching TakeQuizActivity: quizId=" + quiz.getQuizId()
                 + " subjectId=" + intent.getStringExtra("subjectId")
                 + " subjectName=" + intent.getStringExtra("subjectName")
@@ -979,46 +1112,56 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
         startActivity(intent);
     }
 
-    // Add this helper method inside the activity (best placed after startRealtimeListener / fetch methods):
-
-    /**
-     * Attach a realtime listener on QuizStudents/{quizId}/{studentId} and fallback ExamStudents/{quizId}/{studentId}.
-     * When allowed or present becomes true, update adapter so the "Take Quiz" button shows immediately.
-     */
+    // Replace the existing attachPresenceListenerForQuiz(...) method in QuizListActivity with this code.
     private void attachPresenceListenerForQuiz(@NonNull final String quizId) {
         if (quizId == null || quizId.trim().isEmpty()) return;
         final String key = quizId.trim();
 
-        // already attached?
         if (quizPresenceListeners.containsKey(key)) return;
 
-        // Determine studentId (scoresStudentId if explicit, otherwise stored studentId)
         final String studentId = (scoresStudentId != null && !scoresStudentId.isEmpty())
                 ? scoresStudentId
                 : sessionManager.getStudentId();
 
         if (studentId == null || studentId.isEmpty()) {
-            // cannot attach until we know studentId
             android.util.Log.d(TAG_DEBUG, "attachPresenceListenerForQuiz: no studentId yet, skipping for quiz=" + key);
             return;
         }
 
-        // QuizStudents ref + listener
         DatabaseReference qRef = FirebaseDatabase.getInstance()
                 .getReference("QuizStudents").child(key).child(studentId);
 
         ValueEventListener qListener = new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
-                // if node missing, snapshot.exists() == false
                 boolean allowed = Boolean.TRUE.equals(snapshot.child("allowed").getValue(Boolean.class));
                 boolean present = Boolean.TRUE.equals(snapshot.child("present").getValue(Boolean.class));
                 boolean allowStudent = allowed || present;
                 android.util.Log.d(TAG_DEBUG, "QuizStudents presence change: quiz=" + key + " student=" + studentId + " allowed=" + allowed + " present=" + present);
-                // Update adapter on UI thread
+
+                // update UI
                 runOnUiThread(() -> {
                     if (adapter != null) adapter.setStudentPresent(key, allowStudent);
                 });
+
+                // persist allowStudent into local cache so offline shows same state
+                new Thread(() -> {
+                    try {
+                        com.finale.nextgen.offline.AppDatabase db = com.finale.nextgen.offline.AppDatabase.getInstance(QuizListActivity.this);
+                        com.finale.nextgen.offline.QuizEntity qe = db.quizDao().getById(key);
+                        if (qe == null) {
+                            qe = new com.finale.nextgen.offline.QuizEntity();
+                            qe.quizId = key;
+                        }
+                        qe.present = allowStudent;
+                        qe.cachedAt = System.currentTimeMillis();
+                        // NOTE: we DO NOT attempt to read quizName synchronously here (DatabaseReference has no getValue).
+                        db.quizDao().insert(qe);
+                        android.util.Log.d(TAG_DEBUG, "Persisted QuizStudents presence for quiz=" + key + " present=" + allowStudent);
+                    } catch (Exception e) {
+                        android.util.Log.w(TAG_DEBUG, "Failed to persist QuizStudents presence for quiz=" + key + ": " + e.getMessage());
+                    }
+                }).start();
             }
 
             @Override
@@ -1031,7 +1174,6 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
         quizPresenceListeners.put(key, qListener);
         quizPresenceRefs.put(key, qRef);
 
-        // Also attach fallback listener under ExamStudents so either write is picked up
         DatabaseReference eRef = FirebaseDatabase.getInstance()
                 .getReference("ExamStudents").child(key).child(studentId);
 
@@ -1042,10 +1184,32 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                 boolean present = Boolean.TRUE.equals(snapshot.child("present").getValue(Boolean.class));
                 boolean allowStudent = allowed || present;
                 android.util.Log.d(TAG_DEBUG, "ExamStudents presence change: quiz=" + key + " student=" + studentId + " allowed=" + allowed + " present=" + present);
+
+                // update UI
                 runOnUiThread(() -> {
                     if (adapter != null) adapter.setStudentPresent(key, allowStudent);
                 });
+
+                // persist allowStudent into local cache so offline shows same state
+                new Thread(() -> {
+                    try {
+                        com.finale.nextgen.offline.AppDatabase db = com.finale.nextgen.offline.AppDatabase.getInstance(QuizListActivity.this);
+                        com.finale.nextgen.offline.QuizEntity qe = db.quizDao().getById(key);
+                        if (qe == null) {
+                            qe = new com.finale.nextgen.offline.QuizEntity();
+                            qe.quizId = key;
+                        }
+                        qe.present = allowStudent;
+                        qe.cachedAt = System.currentTimeMillis();
+                        // NOTE: we DO NOT attempt to read quizName synchronously here.
+                        db.quizDao().insert(qe);
+                        android.util.Log.d(TAG_DEBUG, "Persisted ExamStudents presence for quiz=" + key + " present=" + allowStudent);
+                    } catch (Exception e) {
+                        android.util.Log.w(TAG_DEBUG, "Failed to persist ExamStudents presence for quiz=" + key + ": " + e.getMessage());
+                    }
+                }).start();
             }
+
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
                 android.util.Log.w(TAG_DEBUG, "ExamStudents listener cancelled for quiz=" + key + ": " + error.getMessage());
@@ -1057,7 +1221,6 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
         examPresenceRefs.put(key, eRef);
     }
 
-    // Add this helper to remove all presence listeners (call from onDestroy)
     private void detachAllPresenceListeners() {
         try {
             for (Map.Entry<String, DatabaseReference> en : quizPresenceRefs.entrySet()) {
@@ -1077,17 +1240,50 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
         examPresenceRefs.clear();
     }
 
-    // Replace your existing quizSubmittedReceiver with this block
     private final BroadcastReceiver quizSubmittedReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
             String quizId = intent.getStringExtra("quizId");
             if (quizId != null && adapter != null) {
                 Log.d(TAG_DEBUG, "quizSubmittedReceiver: marking quiz taken: " + quizId);
-                // mark the quiz as completed/taken in the adapter (hides Take button)
                 adapter.setQuizTaken(quizId);
+                Log.d("QUIZ_DEBUG", "About to setQuizTaken for " + quizId + " from " + Thread.currentThread().getName());
             }
         }
     };
+    private void launchGalleryPicker() {
+        // Runtime permission: for Android 13+ use READ_MEDIA_IMAGES; for older, READ_EXTERNAL_STORAGE
+        String perm;
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            perm = android.Manifest.permission.READ_MEDIA_IMAGES;
+        } else {
+            perm = android.Manifest.permission.READ_EXTERNAL_STORAGE;
+        }
 
+        if (ContextCompat.checkSelfPermission(this, perm) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{perm}, REQ_CODE_READ_STORAGE);
+            return;
+        }
+
+        try {
+            Intent intent = new Intent(Intent.ACTION_PICK);
+            intent.setType("image/*");
+            startActivityForResult(intent, REQ_CODE_PICK_IMAGE);
+        } catch (Exception e) {
+            Toast.makeText(this, "Unable to open gallery: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    // Handle permission result for gallery access
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQ_CODE_READ_STORAGE) {
+            if (grantResults.length > 0 && grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                launchGalleryPicker();
+            } else {
+                Toast.makeText(this, "Permission required to pick images.", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
 }
