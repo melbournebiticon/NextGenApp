@@ -8,7 +8,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.CalendarView;
-import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -33,25 +32,10 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 
-/**
- * StudentAttendanceViewerActivity
- *
- * Updated so teacher full name and subject (if present) are shown in:
- * - date preview (loadStatusForDate) and
- * - history rows (dialog + inline RecyclerView).
- *
- * The code prefers the fields written by teacher-side:
- * - teacherFullName (preferred) / teacherName (fallback)
- * - assignedSubject (optional)
- *
- * Everything else remains as before (attendance cache, prompting to save school id, Students history preference).
- */
 public class StudentAttendanceViewerActivity extends AppCompatActivity {
 
     private static final String TAG = "StuAttViewer";
@@ -65,17 +49,14 @@ public class StudentAttendanceViewerActivity extends AppCompatActivity {
     private DatabaseReference studentsRef;
     private DatabaseReference attendanceRootRef;
 
-    private String authNodeKey;    // node key used for Students (usually FirebaseAuth UID)
-    private String schoolId;       // school id like "STD-0007" (studentId field)
+    private String authNodeKey;    // Firebase Auth UID
+    private String schoolId;       // school id like "STD-0003" (studentId field)
     private String studentFullName;
 
     private final SimpleDateFormat dateKeyFmt = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
 
     // in-memory cache of attendance entries for this student keyed by date -> list
     private final Map<String, List<HistoryEntry>> attendanceByDate = new HashMap<>();
-
-    // flags to prompt user once
-    private boolean promptedToSaveSchoolId = false;
 
     // attendance root listener
     private ValueEventListener attendanceListener;
@@ -95,17 +76,14 @@ public class StudentAttendanceViewerActivity extends AppCompatActivity {
         studentsRef = FirebaseDatabase.getInstance().getReference("Students");
         attendanceRootRef = FirebaseDatabase.getInstance().getReference("Attendance");
 
-        // Determine authNodeKey (prefer Intent extra else FirebaseAuth uid)
-        String fromIntent = getIntent().getStringExtra("studentId");
-        if (fromIntent != null && !fromIntent.trim().isEmpty()) {
-            authNodeKey = fromIntent.trim();
-        } else {
-            FirebaseUser cur = FirebaseAuth.getInstance().getCurrentUser();
-            if (cur != null) authNodeKey = cur.getUid();
+        // Get Firebase Auth UID
+        FirebaseUser cur = FirebaseAuth.getInstance().getCurrentUser();
+        if (cur != null) {
+            authNodeKey = cur.getUid();
         }
 
         if (authNodeKey == null || authNodeKey.trim().isEmpty()) {
-            Toast.makeText(this, "Student ID not available", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "Please login first", Toast.LENGTH_LONG).show();
             finish();
             return;
         }
@@ -121,12 +99,21 @@ public class StudentAttendanceViewerActivity extends AppCompatActivity {
 
         // load student profile then attach attendance listener
         fetchStudentProfile(() -> {
-            attachAttendanceRealtimeListener();
-            // initial UI load
-            loadStatusForDate(todayKey);
-            if (rvHistory != null) {
-                rvHistory.setLayoutManager(new LinearLayoutManager(this));
-                loadRecentHistoryIntoRv(60);
+            // Only proceed if we have a school ID
+            if (schoolId != null && !schoolId.isEmpty()) {
+                attachAttendanceRealtimeListener();
+                // initial UI load
+                loadStatusForDate(todayKey);
+                if (rvHistory != null) {
+                    rvHistory.setLayoutManager(new LinearLayoutManager(this));
+                    loadRecentHistoryIntoRv(60);
+                }
+            } else {
+                // Show message that school ID is needed
+                runOnUiThread(() -> {
+                    tvDateStatus.setText("Please set your School ID in your profile to view attendance.");
+                    Toast.makeText(this, "School ID is required to view attendance", Toast.LENGTH_LONG).show();
+                });
             }
         });
 
@@ -152,31 +139,56 @@ public class StudentAttendanceViewerActivity extends AppCompatActivity {
     }
 
     /**
-     * Read Students/{authNodeKey} to get studentId (school id) and fullName.
-     * If not found, we leave schoolId null (we will detect candidate from Attendance scanning).
+     * FIXED: Always search by uid field to find correct student data.
+     * This ensures we get the right studentId even if there are duplicate/wrong entries.
      */
     private void fetchStudentProfile(Runnable onComplete) {
-        studentsRef.child(authNodeKey).addListenerForSingleValueEvent(new ValueEventListener() {
+        Log.d(TAG, "Searching for student with Firebase UID: " + authNodeKey);
+
+        studentsRef.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override public void onDataChange(@NonNull DataSnapshot snapshot) {
                 if (snapshot != null && snapshot.exists()) {
-                    Object sid = snapshot.child("studentId").getValue();
-                    if (sid == null) sid = snapshot.child("student_number").getValue();
-                    if (sid != null) schoolId = String.valueOf(sid).trim();
-                    Object fn = snapshot.child("fullName").getValue();
-                    if (fn == null) fn = snapshot.child("name").getValue();
-                    if (fn != null) studentFullName = String.valueOf(fn).trim();
-                    Log.d(TAG, "fetchStudentProfile -> schoolId=" + schoolId + " fullName=" + studentFullName);
-                } else {
-                    Log.d(TAG, "fetchStudentProfile: Students/" + authNodeKey + " not found or empty");
-                    // try to use auth displayName as fullName fallback
-                    FirebaseUser cur = FirebaseAuth.getInstance().getCurrentUser();
-                    if (cur != null && (studentFullName == null || studentFullName.isEmpty())) {
-                        String d = cur.getDisplayName();
-                        if (d != null && !d.trim().isEmpty()) studentFullName = d.trim();
+                    boolean foundMatch = false;
+
+                    // Search all Students nodes to find where uid field matches authNodeKey
+                    for (DataSnapshot child : snapshot.getChildren()) {
+                        String uidField = safeString(child.child("uid").getValue(String.class));
+
+                        if (!uidField.isEmpty() && uidField.equals(authNodeKey)) {
+                            // Found the correct student by uid field match
+                            extractStudentData(child);
+                            Log.d(TAG, "✓ Found student by uid field match");
+                            Log.d(TAG, "  Student Key: " + child.getKey());
+                            Log.d(TAG, "  School ID: " + schoolId);
+                            Log.d(TAG, "  Full Name: " + studentFullName);
+                            foundMatch = true;
+                            break;
+                        }
                     }
+
+                    if (!foundMatch) {
+                        // Fallback: try direct lookup by Firebase UID as key
+                        Log.d(TAG, "No uid field match found, trying direct lookup...");
+                        DataSnapshot directLookup = snapshot.child(authNodeKey);
+                        if (directLookup.exists()) {
+                            extractStudentData(directLookup);
+                            Log.d(TAG, "✓ Found student by direct key lookup");
+                            Log.d(TAG, "  School ID: " + schoolId);
+                            Log.d(TAG, "  Full Name: " + studentFullName);
+                        } else {
+                            Log.w(TAG, "✗ Student profile not found anywhere!");
+                            Toast.makeText(StudentAttendanceViewerActivity.this,
+                                    "Student profile not found. Please complete your profile.",
+                                    Toast.LENGTH_LONG).show();
+                        }
+                    }
+                } else {
+                    Log.w(TAG, "Students node is empty");
                 }
+
                 if (onComplete != null) onComplete.run();
             }
+
             @Override public void onCancelled(@NonNull DatabaseError error) {
                 Log.w(TAG, "fetchStudentProfile cancelled: " + error.getMessage());
                 if (onComplete != null) onComplete.run();
@@ -185,13 +197,38 @@ public class StudentAttendanceViewerActivity extends AppCompatActivity {
     }
 
     /**
-     * Attach a realtime listener on Attendance root and filter entries for THIS student's identifiers
-     * (schoolId and fullName). When scanning, if we see a studentId in attendance and local Students node
-     * does not have schoolId, we prompt the user once to save it.
-     *
-     * This version reads teacherFullName and assignedSubject when present.
+     * Extract student data from snapshot
+     */
+    private void extractStudentData(DataSnapshot snapshot) {
+        Object sid = snapshot.child("studentId").getValue();
+        if (sid == null) sid = snapshot.child("student_number").getValue();
+        if (sid != null) schoolId = String.valueOf(sid).trim();
+
+        Object fn = snapshot.child("fullName").getValue();
+        if (fn == null) fn = snapshot.child("name").getValue();
+        if (fn != null) studentFullName = String.valueOf(fn).trim();
+
+        // Fallback to Firebase Auth displayName if needed
+        if ((studentFullName == null || studentFullName.isEmpty())) {
+            FirebaseUser cur = FirebaseAuth.getInstance().getCurrentUser();
+            if (cur != null) {
+                String d = cur.getDisplayName();
+                if (d != null && !d.trim().isEmpty()) studentFullName = d.trim();
+            }
+        }
+    }
+
+    /**
+     * FIXED: Now strictly matches ONLY by school ID (studentId field).
+     * This prevents showing other students' attendance records.
      */
     private void attachAttendanceRealtimeListener() {
+        // Don't attach listener if no school ID
+        if (schoolId == null || schoolId.isEmpty()) {
+            Log.w(TAG, "No school ID available, cannot attach attendance listener");
+            return;
+        }
+
         attendanceListener = new ValueEventListener() {
             @Override public void onDataChange(@NonNull DataSnapshot rootSnap) {
                 attendanceByDate.clear();
@@ -205,14 +242,11 @@ public class StudentAttendanceViewerActivity extends AppCompatActivity {
                     return;
                 }
 
-                // candidate identifiers
-                Set<String> candidates = new HashSet<>();
-                if (schoolId != null && !schoolId.isEmpty()) candidates.add(normalize(schoolId));
-                if (studentFullName != null && !studentFullName.isEmpty()) candidates.add(normalize(studentFullName));
+                // FIXED: Only match by exact school ID
+                String normalizedSchoolId = normalize(schoolId);
+                Log.d(TAG, "Filtering attendance for school ID: " + schoolId);
 
-                // we'll capture first studentId seen in attendance to offer saving it
-                String firstStudentIdSeen = null;
-
+                int matchCount = 0;
                 for (DataSnapshot sectionSnap : rootSnap.getChildren()) {
                     // section key (e.g. fallback:bsit-ba-1-a)
                     for (DataSnapshot teacherSnap : sectionSnap.getChildren()) {
@@ -220,33 +254,41 @@ public class StudentAttendanceViewerActivity extends AppCompatActivity {
                             String dateKey = dateSnap.getKey();
                             for (DataSnapshot studentSnap : dateSnap.getChildren()) {
                                 String childKey = safeString(studentSnap.getKey()); // e.g. STD-0007
-                                String status = safeString(studentSnap.child("status").getValue(String.class));
-                                String sectionDisplay = safeString(studentSnap.child("section").getValue(String.class));
-                                if (sectionDisplay.isEmpty()) sectionDisplay = safeString(studentSnap.child("sectionDisplay").getValue(String.class));
 
-                                // Prefer teacherFullName then teacherName
-                                String teacherFullName = safeString(studentSnap.child("teacherFullName").getValue(String.class));
-                                if (teacherFullName.isEmpty()) teacherFullName = safeString(studentSnap.child("teacherName").getValue(String.class));
-
-                                String assignedSubject = safeString(studentSnap.child("assignedSubject").getValue(String.class));
-
-                                String sidField = safeString(studentSnap.child("studentId").getValue(String.class));
-                                String studNameField = safeString(studentSnap.child("studentName").getValue(String.class));
-                                if (studNameField.isEmpty()) studNameField = safeString(studentSnap.child("fullName").getValue(String.class));
-
-                                if (firstStudentIdSeen == null && !sidField.isEmpty()) firstStudentIdSeen = sidField;
-
-                                // match checks: childKey equals schoolId OR studentId field equals schoolId OR name contains full name
+                                // STRICT MATCH: Only match if childKey OR studentId field EXACTLY equals this student's schoolId
                                 boolean matched = false;
-                                if (!childKey.isEmpty() && schoolId != null && normalize(childKey).equals(normalize(schoolId))) matched = true;
-                                if (!matched && !sidField.isEmpty() && schoolId != null && normalize(sidField).equals(normalize(schoolId))) matched = true;
-                                if (!matched && studentFullName != null && !studentFullName.isEmpty() && !studNameField.isEmpty()) {
-                                    String nName = normalize(studNameField);
-                                    if (nName.contains(normalize(studentFullName)) || normalize(studentFullName).contains(nName)) matched = true;
+
+                                // Match 1: Check if the child key equals school ID
+                                if (!childKey.isEmpty() && normalize(childKey).equals(normalizedSchoolId)) {
+                                    matched = true;
                                 }
 
+                                // Match 2: Check if studentId field equals school ID
+                                if (!matched) {
+                                    String sidField = safeString(studentSnap.child("studentId").getValue(String.class));
+                                    if (!sidField.isEmpty() && normalize(sidField).equals(normalizedSchoolId)) {
+                                        matched = true;
+                                    }
+                                }
+
+                                // REMOVED: Name-based matching (this was causing the bug)
+                                // We now ONLY match by exact student ID
+
                                 if (matched) {
-                                    // store into attendanceByDate (include teacherFullName and assignedSubject to show)
+                                    matchCount++;
+                                    String status = safeString(studentSnap.child("status").getValue(String.class));
+                                    String sectionDisplay = safeString(studentSnap.child("section").getValue(String.class));
+                                    if (sectionDisplay.isEmpty()) sectionDisplay = safeString(studentSnap.child("sectionDisplay").getValue(String.class));
+
+                                    // Prefer teacherFullName then teacherName
+                                    String teacherFullName = safeString(studentSnap.child("teacherFullName").getValue(String.class));
+                                    if (teacherFullName.isEmpty()) teacherFullName = safeString(studentSnap.child("teacherName").getValue(String.class));
+
+                                    String assignedSubject = safeString(studentSnap.child("assignedSubject").getValue(String.class));
+                                    String studNameField = safeString(studentSnap.child("studentName").getValue(String.class));
+                                    if (studNameField.isEmpty()) studNameField = safeString(studentSnap.child("fullName").getValue(String.class));
+
+                                    // Store into attendanceByDate
                                     HistoryEntry he = new HistoryEntry(dateKey, status, sectionDisplay, teacherFullName, assignedSubject, studNameField, childKey);
                                     List<HistoryEntry> list = attendanceByDate.get(dateKey);
                                     if (list == null) {
@@ -260,14 +302,9 @@ public class StudentAttendanceViewerActivity extends AppCompatActivity {
                     }
                 }
 
-                // if we don't have a saved schoolId and we saw one in attendance records, prompt the user once
-                if ((schoolId == null || schoolId.isEmpty()) && !promptedToSaveSchoolId && firstStudentIdSeen != null) {
-                    promptedToSaveSchoolId = true;
-                    String finalFirstStudentIdSeen = firstStudentIdSeen;
-                    runOnUiThread(() -> promptToSaveSchoolId(finalFirstStudentIdSeen));
-                }
+                Log.d(TAG, "Found " + matchCount + " attendance records for school ID: " + schoolId);
 
-                // sort entries per date (optional) and update UI
+                // sort entries per date
                 for (List<HistoryEntry> list : attendanceByDate.values()) {
                     Collections.sort(list, new Comparator<HistoryEntry>() {
                         @Override public int compare(HistoryEntry a, HistoryEntry b) {
@@ -294,108 +331,90 @@ public class StudentAttendanceViewerActivity extends AppCompatActivity {
         attendanceRootRef.addValueEventListener(attendanceListener);
     }
 
-    /**
-     * If the app detects a likely school id in Attendance but Students/{authNodeKey}.studentId is empty,
-     * prompt the user once to save it into their Students node.
-     */
-    private void promptToSaveSchoolId(String discoveredSchoolId) {
-        if (discoveredSchoolId == null || discoveredSchoolId.isEmpty()) return;
-        EditText et = new EditText(this);
-        et.setText(discoveredSchoolId);
-
-        new AlertDialog.Builder(this)
-                .setTitle("Save your school ID?")
-                .setMessage("We found a school ID in teacher attendance records: " + discoveredSchoolId +
-                        "\n\nIf this is your school ID, saving it will let the app automatically show your attendance.")
-                .setView(et)
-                .setCancelable(false)
-                .setPositiveButton("Save", (d, w) -> {
-                    String entered = et.getText() == null ? "" : et.getText().toString().trim();
-                    if (entered.isEmpty()) {
-                        Toast.makeText(this, "School ID cannot be empty", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-                    Map<String, Object> updates = new HashMap<>();
-                    updates.put("studentId", entered);
-                    if (studentFullName != null && !studentFullName.isEmpty()) updates.put("fullName", studentFullName);
-                    studentsRef.child(authNodeKey).updateChildren(updates)
-                            .addOnSuccessListener(aVoid -> {
-                                schoolId = entered;
-                                Toast.makeText(this, "Saved school ID.", Toast.LENGTH_SHORT).show();
-                                // re-scan attendance by re-attaching listener
-                                try {
-                                    if (attendanceRootRef != null && attendanceListener != null) {
-                                        attendanceRootRef.removeEventListener(attendanceListener);
-                                        attendanceRootRef.addValueEventListener(attendanceListener);
-                                    }
-                                } catch (Exception ex) { Log.w(TAG, "re-attach attendanceListener failed: " + ex.getMessage()); }
-                                loadStatusForDate(dateKeyFmt.format(new Date()));
-                            })
-                            .addOnFailureListener(e -> {
-                                Toast.makeText(this, "Failed to save school ID. Try again.", Toast.LENGTH_SHORT).show();
-                                Log.w(TAG, "Failed to save schoolId: " + e.getMessage());
-                            });
-                })
-                .setNegativeButton("Skip", (d, w) -> {
-                    Toast.makeText(this, "You can set your School ID later from profile.", Toast.LENGTH_SHORT).show();
-                })
-                .show();
-    }
-
     private void loadStatusForDate(String dateKey) {
-        // prefer Students/{authNodeKey}/attendanceHistory/{date}
-        studentsRef.child(authNodeKey).child("attendanceHistory").child(dateKey)
-                .addListenerForSingleValueEvent(new ValueEventListener() {
-                    @Override public void onDataChange(@NonNull DataSnapshot snap) {
-                        if (snap != null && snap.exists()) {
-                            String status = snap.child("status").getValue(String.class);
-                            String section = snap.child("sectionDisplay").getValue(String.class);
+        // Search in Students for node with matching uid field, then check attendanceHistory
+        studentsRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override public void onDataChange(@NonNull DataSnapshot snapshot) {
+                DataSnapshot studentNode = null;
 
-                            // prefer teacherFullName, fallback to teacherName
-                            String teacherFullName = snap.child("teacherFullName").getValue(String.class);
-                            if (teacherFullName == null || teacherFullName.isEmpty()) {
-                                teacherFullName = snap.child("teacherName").getValue(String.class);
-                            }
-                            String assignedSubject = snap.child("assignedSubject").getValue(String.class);
-
-                            String studentName = snap.child("studentName").getValue(String.class);
-                            StringBuilder sb = new StringBuilder();
-                            sb.append(dateKey).append(": ").append(status == null || status.isEmpty() ? "Not marked" : status);
-                            // include teacher on same line after status (preferred)
-                            if (teacherFullName != null && !teacherFullName.isEmpty()) {
-                                sb.append(" — By ").append(teacherFullName);
-                                if (assignedSubject != null && !assignedSubject.isEmpty()) sb.append(" (").append(assignedSubject).append(")");
-                            } else if (section != null && !section.isEmpty()) {
-                                sb.append(" — ").append(section);
-                            }
-                            if (studentName != null && !studentName.isEmpty()) sb.append("\n").append(studentName);
-                            tvDateStatus.setText(sb.toString());
-                        } else {
-                            // fallback to attendance cache
-                            List<HistoryEntry> list = attendanceByDate.get(dateKey);
-                            if (list == null || list.isEmpty()) {
-                                tvDateStatus.setText(dateKey + ": Not marked");
-                                return;
-                            }
-                            HistoryEntry primary = list.get(0);
-                            StringBuilder sb = new StringBuilder();
-                            sb.append(dateKey).append(": ").append(primary.status == null || primary.status.isEmpty() ? "Not marked" : primary.status);
-                            // show teacher name prominently if present
-                            if (primary.teacher != null && !primary.teacher.isEmpty()) {
-                                sb.append(" — By ").append(primary.teacher);
-                                if (primary.assignedSubject != null && !primary.assignedSubject.isEmpty()) sb.append(" (").append(primary.assignedSubject).append(")");
-                            } else if (primary.section != null && !primary.section.isEmpty()) {
-                                sb.append(" — ").append(primary.section);
-                            }
-                            if (primary.displayStudentName != null && !primary.displayStudentName.isEmpty()) sb.append("\n").append(primary.displayStudentName);
-                            sb.append("  (from teacher record)");
-                            tvDateStatus.setText(sb.toString());
+                // Find the correct student node by uid field
+                if (snapshot != null && snapshot.exists()) {
+                    for (DataSnapshot child : snapshot.getChildren()) {
+                        String uidField = safeString(child.child("uid").getValue(String.class));
+                        if (!uidField.isEmpty() && uidField.equals(authNodeKey)) {
+                            studentNode = child;
+                            break;
                         }
                     }
-                    @Override public void onCancelled(@NonNull DatabaseError error) {
-                        tvDateStatus.setText(dateKey + ": Error loading");
+                }
+
+                // Fallback to direct lookup if uid search failed
+                if (studentNode == null && snapshot != null) {
+                    studentNode = snapshot.child(authNodeKey);
+                }
+
+                if (studentNode != null && studentNode.exists()) {
+                    DataSnapshot historySnap = studentNode.child("attendanceHistory").child(dateKey);
+                    if (historySnap.exists()) {
+                        displayDateStatus(dateKey, historySnap);
+                        return;
                     }
-                });
+                }
+
+                // fallback to attendance cache
+                displayFromCache(dateKey);
+            }
+
+            @Override public void onCancelled(@NonNull DatabaseError error) {
+                tvDateStatus.setText(dateKey + ": Error loading");
+            }
+        });
+    }
+
+    private void displayDateStatus(String dateKey, DataSnapshot snap) {
+        String status = snap.child("status").getValue(String.class);
+        String section = snap.child("sectionDisplay").getValue(String.class);
+
+        // prefer teacherFullName, fallback to teacherName
+        String teacherFullName = snap.child("teacherFullName").getValue(String.class);
+        if (teacherFullName == null || teacherFullName.isEmpty()) {
+            teacherFullName = snap.child("teacherName").getValue(String.class);
+        }
+        String assignedSubject = snap.child("assignedSubject").getValue(String.class);
+
+        String studentName = snap.child("studentName").getValue(String.class);
+        StringBuilder sb = new StringBuilder();
+        sb.append(dateKey).append(": ").append(status == null || status.isEmpty() ? "Not marked" : status);
+        // include teacher on same line after status (preferred)
+        if (teacherFullName != null && !teacherFullName.isEmpty()) {
+            sb.append(" — By ").append(teacherFullName);
+            if (assignedSubject != null && !assignedSubject.isEmpty()) sb.append(" (").append(assignedSubject).append(")");
+        } else if (section != null && !section.isEmpty()) {
+            sb.append(" — ").append(section);
+        }
+        if (studentName != null && !studentName.isEmpty()) sb.append("\n").append(studentName);
+        tvDateStatus.setText(sb.toString());
+    }
+
+    private void displayFromCache(String dateKey) {
+        List<HistoryEntry> list = attendanceByDate.get(dateKey);
+        if (list == null || list.isEmpty()) {
+            tvDateStatus.setText(dateKey + ": Not marked");
+            return;
+        }
+        HistoryEntry primary = list.get(0);
+        StringBuilder sb = new StringBuilder();
+        sb.append(dateKey).append(": ").append(primary.status == null || primary.status.isEmpty() ? "Not marked" : primary.status);
+        // show teacher name prominently if present
+        if (primary.teacher != null && !primary.teacher.isEmpty()) {
+            sb.append(" — By ").append(primary.teacher);
+            if (primary.assignedSubject != null && !primary.assignedSubject.isEmpty()) sb.append(" (").append(primary.assignedSubject).append(")");
+        } else if (primary.section != null && !primary.section.isEmpty()) {
+            sb.append(" — ").append(primary.section);
+        }
+        if (primary.displayStudentName != null && !primary.displayStudentName.isEmpty()) sb.append("\n").append(primary.displayStudentName);
+        sb.append("  (from teacher record)");
+        tvDateStatus.setText(sb.toString());
     }
 
     private void loadRecentHistoryIntoRv(int limit) {
