@@ -95,7 +95,7 @@ public class StudentDashboardActivity extends AppCompatActivity
     private static final String TAG = "StudentDashboard";
 
 
-
+    private DatabaseReference quizzesRef;
 
     // --- Dashboard UI Fields ---
     private TextView tvGreeting;
@@ -172,7 +172,7 @@ public class StudentDashboardActivity extends AppCompatActivity
 
 
 
-
+        quizzesRef = FirebaseDatabase.getInstance().getReference("Quizzes");
         fabScanner = findViewById(R.id.fab_scanner);
         if (fabScanner != null) {
             fabScanner.setOnClickListener(new View.OnClickListener() {
@@ -837,7 +837,39 @@ public class StudentDashboardActivity extends AppCompatActivity
     }
 
 
+    private void fetchActiveQuizzesForStudent(StudentModel student) {
+        if (student == null) return;
 
+        String studentCourseDisplay = student.getCourseName()
+                + " - " + student.getSpecializationName()
+                + " - " + student.getYearName()
+                + " - " + student.getSectionName();
+
+        quizzesRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                int activeQuizCount = 0;
+                for (DataSnapshot teacherSnap : snapshot.getChildren()) {
+                    for (DataSnapshot quizSnap : teacherSnap.getChildren()) {
+                        QuizModel quiz = quizSnap.getValue(QuizModel.class);
+                        if (quiz != null
+                                && quiz.getCourseDisplay().equals(studentCourseDisplay)
+                                && quiz.isActive()) {
+                            activeQuizCount++;
+                        }
+                    }
+                }
+                // Update your UI: for example, set a TextView
+                TextView tvActiveQuizzes = findViewById(R.id.tvActiveExamsCount); // make sure you have this in XML
+                tvActiveQuizzes.setText(String.valueOf(activeQuizCount));
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                // Handle errors
+            }
+        });
+    }
 
     // --- Populate Student Data ---
     private void populateStudentData(StudentModel student) {

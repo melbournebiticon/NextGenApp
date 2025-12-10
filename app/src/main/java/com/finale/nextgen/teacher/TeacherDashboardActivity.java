@@ -156,30 +156,32 @@ public class TeacherDashboardActivity extends AppCompatActivity {
     }
 
     private void loadActiveQuizCount() {
-        DatabaseReference quizRef = FirebaseDatabase.getInstance().getReference("Quizzes");
         String teacherId = sessionManager.getUserId();
-        quizRef.orderByChild("teacherId").equalTo(teacherId)
-                .addListenerForSingleValueEvent(new ValueEventListener() {
-                    @Override
-                    public void onDataChange(@NonNull DataSnapshot snapshot) {
-                        int activeQuizCount = 0;
-                        for (DataSnapshot quizSnap : snapshot.getChildren()) {
-                            Boolean isActive = quizSnap.child("active").getValue(Boolean.class);
-                            if (isActive != null && isActive) {
-                                activeQuizCount++;
-                            }
-                        }
-                        TextView tvActiveQuizCount = findViewById(R.id.tvActiveQuizCount);
-                        if (tvActiveQuizCount != null)
-                            tvActiveQuizCount.setText(String.valueOf(activeQuizCount));
+        // Point to the Quizzes node UNDER the teacherId
+        DatabaseReference quizRef = FirebaseDatabase.getInstance().getReference("Quizzes").child(teacherId);
+
+        quizRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                int activeQuizCount = 0;
+                for (DataSnapshot quizSnap : snapshot.getChildren()) {
+                    Boolean isActive = quizSnap.child("active").getValue(Boolean.class);
+                    Log.d("QUIZ_ACTIVE_COUNT", "quizId: " + quizSnap.getKey() + " | active=" + isActive);
+                    if (isActive != null && isActive) {
+                        activeQuizCount++;
                     }
-                    @Override
-                    public void onCancelled(@NonNull DatabaseError error) {
-                        Toast.makeText(TeacherDashboardActivity.this,
-                                "Failed to load active quizzes: " + error.getMessage(),
-                                Toast.LENGTH_SHORT).show();
-                    }
-                });
+                }
+                TextView tvActiveQuizCount = findViewById(R.id.tvActiveQuizCount);
+                if (tvActiveQuizCount != null)
+                    tvActiveQuizCount.setText(String.valueOf(activeQuizCount));
+            }
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                Toast.makeText(TeacherDashboardActivity.this,
+                        "Failed to load active quizzes: " + error.getMessage(),
+                        Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     // Dynamically load/draw the user's profile photo in toolbar
@@ -232,6 +234,40 @@ public class TeacherDashboardActivity extends AppCompatActivity {
             return true;
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    private void fetchActiveQuizzesForStudent(StudentModel student) {
+        if (student == null) return;
+        String studentCourseDisplay = student.getCourseName()
+                + " - " + student.getSpecializationName()
+                + " - " + student.getYearName()
+                + " - " + student.getSectionName();
+
+        DatabaseReference quizRef = FirebaseDatabase.getInstance().getReference("Quizzes");
+
+        quizRef
+                // No need to orderByChild unless you want to optimize by 'active'
+                .addListenerForSingleValueEvent(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(@NonNull DataSnapshot snapshot) {
+                        int activeQuizCount = 0;
+                        for (DataSnapshot quizSnap : snapshot.getChildren()) {
+                            Boolean isActive = quizSnap.child("active").getValue(Boolean.class);
+                            String courseDisplay = quizSnap.child("courseDisplay").getValue(String.class);
+                            // Log.d("QUIZ_DEBUG", "active: " + isActive + " cd: " + courseDisplay);
+                            if (isActive != null && isActive && studentCourseDisplay.equals(courseDisplay)) {
+                                activeQuizCount++;
+                            }
+                        }
+                        TextView tvActiveQuizzes = findViewById(R.id.tvActiveQuizCount);
+                        if (tvActiveQuizzes != null)
+                            tvActiveQuizzes.setText(String.valueOf(activeQuizCount));
+                    }
+                    @Override
+                    public void onCancelled(@NonNull DatabaseError error) {
+                        // Handle errors
+                    }
+                });
     }
 
     private void showProfilePopup(View anchorView) {

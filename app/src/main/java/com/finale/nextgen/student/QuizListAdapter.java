@@ -26,6 +26,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -41,6 +43,8 @@ import java.text.SimpleDateFormat;
  *   and removes optimistic flags. This should be called when a submission is confirmed (broadcast or DB listener).
  *
  * This prevents the adapter from showing TAKEN immediately when the student is merely marked present.
+ *
+ * Added: score cache (in-memory) so the adapter can display scores fetched from Firebase when the app comes online.
  */
 public class QuizListAdapter extends RecyclerView.Adapter<QuizListAdapter.VH> {
 
@@ -57,6 +61,11 @@ public class QuizListAdapter extends RecyclerView.Adapter<QuizListAdapter.VH> {
 
     // track optimistic present state for items that were scanned locally but DB confirmation pending
     private final Set<String> optimisticPresent = new HashSet<>();
+
+    // in-memory score caches (no DAO required)
+    // keys are normalized quizId
+    private final Map<String, Double> scoreMap = new HashMap<>();
+    private final Map<String, Integer> maxScoreMap = new HashMap<>();
 
     // executor for background checks (Room)
     private final ExecutorService bgExecutor = Executors.newSingleThreadExecutor();
@@ -256,7 +265,7 @@ public class QuizListAdapter extends RecyclerView.Adapter<QuizListAdapter.VH> {
                 // disable button while validating
                 holder.btnTakeQuiz.setEnabled(false);
 
-                // 2) Background checks (Room local pending + optional server check)
+                // 2) Background checks (Room)
                 bgExecutor.execute(() -> {
                     final String ctxStudentId = com.finale.nextgen.SessionManager.getStudentId(holder.btnTakeQuiz.getContext());
                     if (ctxStudentId == null || ctxStudentId.isEmpty()) {
@@ -342,7 +351,23 @@ public class QuizListAdapter extends RecyclerView.Adapter<QuizListAdapter.VH> {
             holder.itemView.setClickable(false);
             holder.itemView.setOnClickListener(null);
         } else if (alreadyTaken) {
-            holder.tvTaken.setText("TAKEN");
+            // If we have a cached score for this quiz, display it.
+            String key = normalizeKey(q.getQuizId());
+            Double s = null;
+            Integer m = null;
+            synchronized (scoreMap) {
+                s = scoreMap.get(key);
+                m = maxScoreMap.get(key);
+            }
+            if (s != null) {
+                if (m != null) {
+                    holder.tvTaken.setText(String.format(Locale.getDefault(), "Score: %d / %d", s.intValue(), m));
+                } else {
+                    holder.tvTaken.setText(String.format(Locale.getDefault(), "Score: %d", s.intValue()));
+                }
+            } else {
+                holder.tvTaken.setText("TAKEN");
+            }
             holder.tvTaken.setBackgroundColor(ContextCompat.getColor(holder.tvTaken.getContext(), R.color.md_theme_primary));
             holder.tvTaken.setTextColor(Color.WHITE);
             holder.btnTakeQuiz.setVisibility(View.GONE);
@@ -528,6 +553,27 @@ public class QuizListAdapter extends RecyclerView.Adapter<QuizListAdapter.VH> {
                 list.add(0, placeholder);
             }
             try { notifyItemInserted(0); } catch (Exception e) { notifyDataSetChanged(); }
+        }
+    }
+
+    /**
+     * Store score in-memory and refresh UI for that quiz.
+     * Call this when you fetch the authoritative score from Firebase (e.g. onResume or on QUIZ_SUBMITTED handling).
+     */
+    public void setQuizScore(@NonNull String quizId, @Nullable Double score, @Nullable Integer maxScore) {
+        if (quizId == null) return;
+        String key = normalizeKey(quizId);
+        synchronized (scoreMap) {
+            if (score != null) scoreMap.put(key, score);
+            else scoreMap.remove(key);
+
+            if (maxScore != null) maxScoreMap.put(key, maxScore);
+            else maxScoreMap.remove(key);
+        }
+
+        int pos = getPositionForQuizId(quizId);
+        if (pos >= 0) {
+            try { notifyItemChanged(pos); } catch (Exception e) { notifyDataSetChanged(); }
         }
     }
 
