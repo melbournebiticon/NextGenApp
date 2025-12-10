@@ -33,4 +33,5 @@ public class ExamEntity {
 
     // For filtering per student (optional, not PK)
     public String studentUid;
+    public long cachedAt;
 }

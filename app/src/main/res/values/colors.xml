@@ -105,4 +105,11 @@
     <color name="red_700">#D32F2F</color>
     <color name="orange_800">#EF6C00</color>
     <color name="teal_50">#E3F2FD</color>
-</resources>
+
+    <color name="blue_400">#42A5F5</color>
+    <color name="blue_600">#1E88E5</color>
+
+    <color name="blue_800">#1565C0</color>
+    <color name="blue_900">#0D47A1</color>
+
+    </resources>

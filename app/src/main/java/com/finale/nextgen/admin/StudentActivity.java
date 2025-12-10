@@ -29,6 +29,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.finale.nextgen.MainActivity;
 import com.finale.nextgen.R;
 import com.finale.nextgen.SessionManager;
+import com.finale.nextgen.utils.InputValidator;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.navigation.NavigationView;
 import com.google.firebase.auth.FirebaseAuth;
@@ -274,11 +275,7 @@ public class StudentActivity extends AppCompatActivity {
 
     @Override
     public void onBackPressed() {
-        if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
-            drawerLayout.closeDrawer(GravityCompat.START);
-        } else {
-            super.onBackPressed();
-        }
+        super.onBackPressed();
     }
 
     // === ISA LANG ANG SET NG METHODS PARA SA ADD/EDIT DIALOGS ===
@@ -378,28 +375,52 @@ public class StudentActivity extends AppCompatActivity {
 
     private void processStudentData(EditText etFullName, EditText etBirthday, EditText etEmail,
                                     EditText etContact, Spinner spinnerCourses, StudentModel existingStudent) {
+
         String fullName = etFullName.getText().toString().trim();
+        fullName = InputValidator.formatFullName(fullName);
         String birthday = etBirthday.getText().toString().trim();
         String email = etEmail.getText().toString().trim();
         String contact = etContact.getText().toString().trim();
         int coursePos = spinnerCourses.getSelectedItemPosition();
 
-        if (TextUtils.isEmpty(fullName) || TextUtils.isEmpty(birthday) ||
-                TextUtils.isEmpty(email) || TextUtils.isEmpty(contact) || coursePos < 0) {
-            Toast.makeText(this, "Complete all fields", Toast.LENGTH_SHORT).show();
+        CourseModel selectedCourse = coursePos >= 0 ? courseOptionList.get(coursePos) : null;
+
+        // Validate all inputs using InputValidator
+        String nameError = InputValidator.validateFullName(fullName);
+        String birthdayError = InputValidator.validateBirthday(birthday, 5);
+        String emailError = InputValidator.validateEmail(email);
+        String contactError = InputValidator.validateContact(contact);
+        String courseError = InputValidator.validateCourses(selectedCourse != null ? List.of(selectedCourse) : null);
+
+        if (nameError != null) {
+            Toast.makeText(this, nameError, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (birthdayError != null) {
+            Toast.makeText(this, birthdayError, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (emailError != null) {
+            Toast.makeText(this, emailError, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (contactError != null) {
+            Toast.makeText(this, contactError, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (courseError != null) {
+            Toast.makeText(this, courseError, Toast.LENGTH_SHORT).show();
             return;
         }
 
-        CourseModel selectedCourse = courseOptionList.get(coursePos);
-
+        // If valid, proceed to add or update
         if (existingStudent != null) {
-            // Update existing student
             updateStudentInDatabase(existingStudent, fullName, birthday, email, contact, selectedCourse);
         } else {
-            // Add new student
             addStudentToDatabase(fullName, birthday, email, contact, selectedCourse);
         }
     }
+
 
     private void showDatePickerDialog(EditText birthdayField) {
         final Calendar calendar = Calendar.getInstance();
@@ -487,6 +508,36 @@ public class StudentActivity extends AppCompatActivity {
 
     private void updateStudentInDatabase(StudentModel student, String fullName, String birthday,
                                          String email, String contact, CourseModel selectedCourse) {
+
+        // --- VALIDATE INPUT ---
+        String nameError = InputValidator.validateFullName(fullName);
+        String birthdayError = InputValidator.validateBirthday(birthday, 5);
+        String emailError = InputValidator.validateEmail(email);
+        String contactError = InputValidator.validateContact(contact);
+        String courseError = InputValidator.validateCourses(selectedCourse != null ? List.of(selectedCourse) : null);
+
+        if (nameError != null) {
+            Toast.makeText(this, nameError, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (birthdayError != null) {
+            Toast.makeText(this, birthdayError, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (emailError != null) {
+            Toast.makeText(this, emailError, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (contactError != null) {
+            Toast.makeText(this, contactError, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (courseError != null) {
+            Toast.makeText(this, courseError, Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // --- UPDATE STUDENT OBJECT ---
         student.setFullName(fullName);
         student.setBirthday(birthday);
         student.setEmail(email);
@@ -497,14 +548,14 @@ public class StudentActivity extends AppCompatActivity {
         student.setYearName(selectedCourse.getYearName());
         student.setSectionName(selectedCourse.getSectionName());
 
+        // --- UPDATE DATABASE ---
         studentsRef.child(student.getStudentId()).setValue(student)
-                .addOnSuccessListener(aVoid -> {
-                    Toast.makeText(this, "Examinee updated successfully", Toast.LENGTH_SHORT).show();
-                })
+                .addOnSuccessListener(aVoid ->
+                        Toast.makeText(this, "Examinee updated successfully", Toast.LENGTH_SHORT).show())
                 .addOnFailureListener(e ->
-                        Toast.makeText(this, "Update failed: " + e.getMessage(), Toast.LENGTH_SHORT).show()
-                );
+                        Toast.makeText(this, "Update failed: " + e.getMessage(), Toast.LENGTH_SHORT).show());
 
+        // --- UPDATE EMAIL IN AUTH IF CHANGED ---
         if (!student.getEmail().equals(email)) {
             FirebaseUser user = auth.getCurrentUser();
             if (user != null && user.getUid().equals(student.getUid())) {
@@ -512,11 +563,14 @@ public class StudentActivity extends AppCompatActivity {
                         .addOnCompleteListener(task -> {
                             if (task.isSuccessful()) {
                                 Toast.makeText(this, "Email updated in authentication", Toast.LENGTH_SHORT).show();
+                            } else {
+                                Toast.makeText(this, "Failed to update email in auth: " + task.getException().getMessage(), Toast.LENGTH_SHORT).show();
                             }
                         });
             }
         }
     }
+
 
     private void loadCourses() {
         coursesRef.addListenerForSingleValueEvent(new ValueEventListener() {
@@ -562,6 +616,7 @@ public class StudentActivity extends AppCompatActivity {
                 Toast.makeText(StudentActivity.this, "Error generating ID", Toast.LENGTH_SHORT).show();
             }
         });
+
     }
 
     interface OnIdGeneratedListener {

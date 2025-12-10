@@ -14,7 +14,6 @@ import android.widget.TextView;
 import android.widget.Toast;
 import android.util.Log;
 
-
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -41,10 +40,9 @@ import java.util.Locale;
 import java.util.HashSet;
 import java.util.HashMap;
 
-// 🏆 NEW Imports for Material Time Picker (for previous request)
+// 🏆 NEW Imports for Material Time Picker
 import com.google.android.material.timepicker.MaterialTimePicker;
 import com.google.android.material.timepicker.TimeFormat;
-
 
 public class ManageExamActivity extends AppCompatActivity {
 
@@ -61,7 +59,6 @@ public class ManageExamActivity extends AppCompatActivity {
 
     private static boolean isFirebaseInitialized = false;
     private SessionManager sessionManager;
-
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -80,7 +77,6 @@ public class ManageExamActivity extends AppCompatActivity {
         tvToolbarTitle.setText("Manage Exam");
 
         toolbar.setNavigationOnClickListener(v -> finish());
-
 
         if (!isFirebaseInitialized) {
             FirebaseApp.initializeApp(this);
@@ -128,9 +124,8 @@ public class ManageExamActivity extends AppCompatActivity {
                     String id = courseSnap.getValue(String.class);
                     if (id != null) courseIds.add(id);
                 }
-// Save course IDs in SessionManager (you’ll need to add methods for this)
+                // Save course IDs in SessionManager (you’ll need to add methods for this)
                 sessionManager.saveCourseIds(courseIds);
-
 
                 // 🔹 Fetch assigned subjects
                 for (DataSnapshot subSnap : snapshot.child("assignedSubjects").getChildren()) {
@@ -173,8 +168,6 @@ public class ManageExamActivity extends AppCompatActivity {
             }
         });
     }
-
-
 
     private void loadExams() {
         List<Exam> examList = new ArrayList<>();
@@ -219,7 +212,6 @@ public class ManageExamActivity extends AppCompatActivity {
 
                     examList.add(exam);
 
-
                     // Optional: save to Room for offline support
                     new Thread(() -> {
                         db.examDao().insert(exam);
@@ -259,7 +251,6 @@ public class ManageExamActivity extends AppCompatActivity {
                                         .show();
                             }
 
-
                             @Override
                             public void onGenerate(Exam exam) {
                                 Intent intent = new Intent(ManageExamActivity.this, GenerateQuestionsActivity.class);
@@ -297,11 +288,7 @@ public class ManageExamActivity extends AppCompatActivity {
                                 intent.putExtra("examSectionName", examSection);
                                 startActivity(intent);
                             }
-
-
-
                         });
-
 
                 recyclerView.setAdapter(adapter);
             }
@@ -361,11 +348,7 @@ public class ManageExamActivity extends AppCompatActivity {
         }
     }
 
-
-
-
-// May nabago
-    // ===== ADD EXAM DIALOG (Updated with Material TimePicker) =====
+    // ===== ADD EXAM DIALOG (Updated with enforced date/time rules) =====
     private void showAddExamDialog() {
         View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_add_exam, null);
 
@@ -381,37 +364,17 @@ public class ManageExamActivity extends AppCompatActivity {
         final Calendar selectedDate = Calendar.getInstance();
         final SimpleDateFormat sdf = new SimpleDateFormat("MMM dd, yyyy hh:mm a", Locale.getDefault());
 
-        // 🏆 START: Updated Time Picker Logic (Using Material TimePicker)
+        // tvSchedule click: DatePicker then constrained time picker
         tvSchedule.setOnClickListener(v -> {
             Calendar now = Calendar.getInstance();
-            new DatePickerDialog(this, (datePicker, year, month, day) -> {
+            DatePickerDialog dpd = new DatePickerDialog(this, (datePicker, year, month, day) -> {
                 now.set(year, month, day);
-
-                MaterialTimePicker timePicker = new MaterialTimePicker.Builder()
-                        .setTitleText("Select Exam Time")
-                        .setHour(now.get(Calendar.HOUR_OF_DAY))
-                        .setMinute(now.get(Calendar.MINUTE))
-                        .setTimeFormat(TimeFormat.CLOCK_12H)
-                        // .setInputMode(MaterialTimePicker.INPUT_MODE_KEYBOARD) // Uncomment kung gusto mo ng direct keyboard
-                        .build();
-
-                timePicker.addOnPositiveButtonClickListener(dialog -> {
-                    int hour = timePicker.getHour();
-                    int minute = timePicker.getMinute();
-
-                    // Update the Calendar object with the new time
-                    now.set(Calendar.HOUR_OF_DAY, hour);
-                    now.set(Calendar.MINUTE, minute);
-
-                    selectedDate.setTimeInMillis(now.getTimeInMillis());
-                    tvSchedule.setText(sdf.format(now.getTime()));
-                });
-
-                timePicker.show(getSupportFragmentManager(), "TIME_PICKER");
-
-            }, now.get(Calendar.YEAR), now.get(Calendar.MONTH), now.get(Calendar.DAY_OF_MONTH)).show();
+                // enforce min date (disable past dates)
+                showTimePickerWithRange(now, selectedDate, sdf, tvSchedule);
+            }, now.get(Calendar.YEAR), now.get(Calendar.MONTH), now.get(Calendar.DAY_OF_MONTH));
+            dpd.getDatePicker().setMinDate(System.currentTimeMillis() - 1000);
+            dpd.show();
         });
-        // 🏆 END: Updated Time Picker Logic
 
         // Course spinner setup
         List<String> courseList = courseDisplayList.isEmpty()
@@ -499,8 +462,6 @@ public class ManageExamActivity extends AppCompatActivity {
         dialog.show();
     }
 
-
-
     // ===== SYNC EXAM TO FIREBASE (UPDATED) =====
     private void syncExamToFirebase(Exam exam) {
         DatabaseReference examsRef = FirebaseDatabase.getInstance().getReference("Exams").child(teacherId);
@@ -531,10 +492,8 @@ public class ManageExamActivity extends AppCompatActivity {
         String courseDisplayValue = courseName + " - " + specializationName + " - " + yearName + " - " + sectionName;
 
         // 🏆 NEW: I-convert ang Milliseconds pabalik sa readable String format
-        // Ito ang magbibigay ng "Oct 28, 2025 10:00 AM" sa database.
         SimpleDateFormat readableSDF = new SimpleDateFormat("MMM dd, yyyy hh:mm a", Locale.getDefault());
         String scheduledDateDisplayValue = readableSDF.format(new java.util.Date(exam.getScheduledAt()));
-
 
         ExamModelTeacher examModel = new ExamModelTeacher(
                 firebaseKey,
@@ -555,13 +514,11 @@ public class ManageExamActivity extends AppCompatActivity {
                 scheduledDateDisplayValue // 🏆 NEW FIELD: Readable Date String
         );
 
-
         // Save to Firebase
         examsRef.child(firebaseKey).setValue(examModel)
                 .addOnSuccessListener(aVoid -> Log.d("FirebaseSync", "Exam synced successfully with readable date: " + scheduledDateDisplayValue))
                 .addOnFailureListener(e -> Log.e("FirebaseSync", "Failed to sync exam", e));
     }
-
 
     private void cacheTeacherData(TeacherModel teacher) {
         SharedPreferences prefs = getSharedPreferences("TeacherPrefs", MODE_PRIVATE);
@@ -574,9 +531,7 @@ public class ManageExamActivity extends AppCompatActivity {
         editor.apply();
     }
 
-
-    // ===== EDIT EXAM DIALOG (Updated with Material TimePicker) =====
-   // May bagyo may bagyo o May bago na - May nabago
+    // ===== EDIT EXAM DIALOG (Updated with enforced date/time rules) =====
     private void showEditExamDialog(Exam exam) {
         View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_add_exam, null);
 
@@ -592,7 +547,6 @@ public class ManageExamActivity extends AppCompatActivity {
         // Simple setting of course selection based on current exam data
         int courseIndex = courseDisplayList.indexOf(exam.getSection());
         if (courseIndex >= 0) spCourse.setSelection(courseIndex);
-
 
         ArrayList<String> subjectNames = new ArrayList<>();
 
@@ -638,39 +592,18 @@ public class ManageExamActivity extends AppCompatActivity {
         selectedDate.setTimeInMillis(exam.getScheduledAt());
         tvSchedule.setText(sdf.format(selectedDate.getTime()));
 
-        // 🏆 START: Updated Time Picker Logic (Using Material TimePicker)
+        // tvSchedule click: DatePicker then constrained time picker
         tvSchedule.setOnClickListener(v -> {
-            // Note: selectedDate already has the exam time
             int initialHour = selectedDate.get(Calendar.HOUR_OF_DAY);
             int initialMinute = selectedDate.get(Calendar.MINUTE);
 
-            new DatePickerDialog(this, (datePicker, year, month, day) -> {
+            DatePickerDialog dpd = new DatePickerDialog(this, (datePicker, year, month, day) -> {
                 selectedDate.set(year, month, day);
-
-                MaterialTimePicker timePicker = new MaterialTimePicker.Builder()
-                        .setTitleText("Select Exam Time")
-                        .setHour(initialHour)
-                        .setMinute(initialMinute)
-                        .setTimeFormat(TimeFormat.CLOCK_12H)
-                        // .setInputMode(MaterialTimePicker.INPUT_MODE_KEYBOARD)
-                        .build();
-
-                timePicker.addOnPositiveButtonClickListener(dialog -> {
-                    int hour = timePicker.getHour();
-                    int minute = timePicker.getMinute();
-
-                    // Update the Calendar object with the new time
-                    selectedDate.set(Calendar.HOUR_OF_DAY, hour);
-                    selectedDate.set(Calendar.MINUTE, minute);
-
-                    tvSchedule.setText(sdf.format(selectedDate.getTime()));
-                });
-
-                timePicker.show(getSupportFragmentManager(), "EDIT_TIME_PICKER");
-
-            }, selectedDate.get(Calendar.YEAR), selectedDate.get(Calendar.MONTH), selectedDate.get(Calendar.DAY_OF_MONTH)).show();
+                showTimePickerWithRange(selectedDate, selectedDate, sdf, tvSchedule);
+            }, selectedDate.get(Calendar.YEAR), selectedDate.get(Calendar.MONTH), selectedDate.get(Calendar.DAY_OF_MONTH));
+            dpd.getDatePicker().setMinDate(System.currentTimeMillis() - 1000);
+            dpd.show();
         });
-        // 🏆 END: Updated Time Picker Logic
 
         AlertDialog dialog = new AlertDialog.Builder(this)
                 .setTitle("Edit Exam")
@@ -696,4 +629,39 @@ public class ManageExamActivity extends AppCompatActivity {
         dialog.show();
     }
 
+    /**
+     * Show MaterialTimePicker and enforce allowed hour range (7..21 inclusive).
+     * If user picks an invalid hour, show an alert and let them pick again.
+     */
+    private void showTimePickerWithRange(Calendar dateCandidate, Calendar selectedDate, SimpleDateFormat sdf, TextView tvSchedule) {
+        MaterialTimePicker timePicker = new MaterialTimePicker.Builder()
+                .setTimeFormat(TimeFormat.CLOCK_12H)
+                .setHour(dateCandidate.get(Calendar.HOUR_OF_DAY))
+                .setMinute(dateCandidate.get(Calendar.MINUTE))
+                .setTitleText("Select Exam Time (7:00 - 21:00)")
+                .build();
+
+        timePicker.addOnPositiveButtonClickListener(dialog -> {
+            int hour = timePicker.getHour();
+            int minute = timePicker.getMinute();
+
+            // Allowed hours: 7..21 (21:00 is allowed)
+            if (hour < 7 || hour > 21) {
+                new AlertDialog.Builder(this)
+                        .setTitle("Invalid time")
+                        .setMessage("Please choose a time between 7:00 AM and 9:00 PM.")
+                        .setPositiveButton("Pick time again", (d, w) -> showTimePickerWithRange(dateCandidate, selectedDate, sdf, tvSchedule))
+                        .setNegativeButton("Cancel", null)
+                        .show();
+                return;
+            }
+
+            dateCandidate.set(Calendar.HOUR_OF_DAY, hour);
+            dateCandidate.set(Calendar.MINUTE, minute);
+            selectedDate.setTimeInMillis(dateCandidate.getTimeInMillis());
+            tvSchedule.setText(sdf.format(dateCandidate.getTime()));
+        });
+
+        timePicker.show(getSupportFragmentManager(), "EXAM_TIME_PICKER");
+    }
 }

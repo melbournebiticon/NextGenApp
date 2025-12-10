@@ -1,128 +1,76 @@
 package com.finale.nextgen.student;
 
-import android.annotation.SuppressLint;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
-import android.widget.ArrayAdapter;
-import android.widget.Button;
-import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.EditText;
 
 import com.finale.nextgen.MainActivity;
-
 import com.finale.nextgen.R;
 import com.finale.nextgen.SessionManager;
 import com.finale.nextgen.admin.StudentModel;
-import com.google.android.material.bottomnavigation.BottomNavigationView;
+import com.finale.nextgen.student.ExamModel;
+import com.finale.nextgen.student.ActivityModel;
 import com.google.android.material.card.MaterialCardView;
-import com.google.android.material.navigation.NavigationView;
-
-import androidx.annotation.NonNull;
-import androidx.appcompat.app.AlertDialog;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.drawerlayout.widget.DrawerLayout;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.*;
 
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.app.AppCompatActivity;
+
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
 
-public class StudentDashboardActivity extends AppCompatActivity
-        implements BottomNavigationView.OnNavigationItemSelectedListener {
+public class StudentDashboardActivity extends AppCompatActivity {
 
     private static final String TAG = "StudentDashboard";
 
-    // --- Dashboard UI Fields ---
-    private TextView tvGreeting;
-    private TextView tvStudentNameHeader;
+    // Dashboard UI fields
+    private ImageView btnProfileMenu, imgProfile, imgUpSign;
+    private MaterialCardView profileCardHeader, card1, card2, card3, card4;
+    private TextView tvProfileName, tvProfileID;
+    private TextView welcomeText, dashboardText;
 
-    private DrawerLayout drawerLayout;
-    private NavigationView navigationView;
-
-    // --- Profile Menu ---
-    private MaterialCardView btnProfileMenu;
-    private ImageView imgProfileMenu;
-
-    private LinearLayout layoutOfflinePrep;
-    private TextView tvOfflinePrep;
-    private Button btnLogout;
-
-    // --- Firebase ---
+    // Firebase
     private FirebaseAuth auth;
-    private DatabaseReference studentsRef;
+    private DatabaseReference studentsRef, examsRef, activitiesRef;
     private String currentStudentUid;
     private StudentModel currentStudent;
+
+    private ArrayList<ExamModel> studentExams = new ArrayList<>();
+    private ArrayList<ActivityModel> studentActivities = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_student_dashboard);
 
-        // Cards
-        MaterialCardView cardExam = findViewById(R.id.cardExam);
-        MaterialCardView cardQuiz = findViewById(R.id.cardQuiz);
-        MaterialCardView cardActivity = findViewById(R.id.cardActivity);
-        MaterialCardView cardAttendance = findViewById(R.id.cardAttendance);
-
-        cardExam.setOnClickListener(v -> startActivity(new Intent(this, ExamListActivity.class)));
-        cardQuiz.setOnClickListener(v -> startActivity(new Intent(this, QuizListActivity.class)));
-        cardAttendance.setOnClickListener(v ->
-                startActivity(new Intent(this, StudentAttendanceViewerActivity.class))
-        );
-
-        cardActivity.setOnClickListener(v -> {
-            if (currentStudent != null) showSubjectSelection(currentStudent);
-            else Toast.makeText(this, "Student data not loaded yet.", Toast.LENGTH_SHORT).show();
-        });
-
-        // --- Dashboard UI Elements ---
-        tvGreeting = findViewById(R.id.tvGreeting);
-        tvStudentNameHeader = findViewById(R.id.tvStudentNameHeader);
-        layoutOfflinePrep = findViewById(R.id.layoutOfflinePrep);
-        tvOfflinePrep = findViewById(R.id.tvOfflinePrep);
+        // Find UI components
         btnProfileMenu = findViewById(R.id.btnProfileMenu);
-        imgProfileMenu = findViewById(R.id.imgProfileMenu);
-        drawerLayout = findViewById(R.id.drawer_layout);
-        navigationView = findViewById(R.id.nav_view);
+        profileCardHeader = findViewById(R.id.profileCardHeader);
+        card1 = findViewById(R.id.card1);
+        card2 = findViewById(R.id.card2);
+        card3 = findViewById(R.id.card3);
+        card4 = findViewById(R.id.card4);
+        imgProfile = findViewById(R.id.imgProfile);
+        imgUpSign = findViewById(R.id.imgUpSign);
+        tvProfileName = findViewById(R.id.tvProfileName);
+        tvProfileID = findViewById(R.id.tvProfileID);
 
-        // Drawer Navigation Setup
-        navigationView.setNavigationItemSelectedListener(item -> {
-            int id = item.getItemId();
-            if (id == R.id.nav_scanner) {
-                startActivity(new Intent(this, StudentQRScannerActivity.class));
-                drawerLayout.closeDrawer(navigationView);
-                return true;
-            } else if (id == R.id.menu_logout) {
-                handleLogout();
-                drawerLayout.closeDrawer(navigationView);
-                return true;
-            } else if (id == R.id.menu_change_password) {
-                showChangePasswordDialog();
-                drawerLayout.closeDrawer(navigationView);
-                return true;
-            } else if (id == R.id.menu_view_profile) {
-                startActivity(new Intent(this, StudentProfileActivity.class));
-                drawerLayout.closeDrawer(navigationView);
-                return true;
-            }
-            return false;
-        });
-        btnProfileMenu.setOnClickListener(this::showProfilePopup);
+        // Welcome text
+        LinearLayout welcomeMessageContainer = findViewById(R.id.welcome_message_container);
+        welcomeText = (TextView) welcomeMessageContainer.getChildAt(0);
+        dashboardText = (TextView) welcomeMessageContainer.getChildAt(1);
 
-        // --- Firebase Auth ---
+        // Firebase
         auth = FirebaseAuth.getInstance();
         FirebaseUser currentUser = auth.getCurrentUser();
         if (currentUser == null) {
@@ -132,200 +80,78 @@ public class StudentDashboardActivity extends AppCompatActivity
         }
         currentStudentUid = currentUser.getUid();
         studentsRef = FirebaseDatabase.getInstance().getReference("Students");
+        examsRef = FirebaseDatabase.getInstance().getReference("Exams");
+        activitiesRef = FirebaseDatabase.getInstance().getReference("Activities");
 
-        // --- Fetch Student Data ---
-        studentsRef.orderByChild("uid").equalTo(currentUser.getUid())
+        Log.d(TAG, "Fetch Dashboard for UID: " + currentStudentUid);
+
+        // Fetch Student Data -- assuming node keys are UID for optimal fetch
+        studentsRef.child(currentStudentUid)
                 .addListenerForSingleValueEvent(new ValueEventListener() {
                     @Override
                     public void onDataChange(@NonNull DataSnapshot snapshot) {
+                        Log.d(TAG, "Snapshot exists: " + snapshot.exists());
+                        Log.d(TAG, "Raw snapshot value: " + snapshot.getValue());
+
                         if (snapshot.exists()) {
-                            for (DataSnapshot ds : snapshot.getChildren()) {
-                                StudentModel student = ds.getValue(StudentModel.class);
-                                if (student != null) {
-                                    currentStudent = student;
-                                    try {
-                                        SessionManager sm = new SessionManager(StudentDashboardActivity.this);
-                                        if (student.getStudentId() != null && !student.getStudentId().trim().isEmpty()) {
-                                            sm.saveStudentId(student.getStudentId());
-                                        }
-                                        try { sm.saveStudentModel(student); } catch (Exception ignored) {}
-                                        Log.d(TAG, "Saved studentId to SessionManager: " + student.getStudentId());
-                                    } catch (Exception e) {
-                                        Log.w(TAG, "Failed to save studentId to SessionManager: " + e.getMessage());
+                            StudentModel student = snapshot.getValue(StudentModel.class);
+                            if (student != null) {
+                                Log.d(TAG, "Fetched Student fullName: " + student.getFullName());
+                                Log.d(TAG, "Student section: " + student.getSectionName());
+                                Log.d(TAG, "Student course: " + student.getCourseName());
+                                Log.d(TAG, "Student id: " + student.getStudentId());
+                                currentStudent = student;
+                                try {
+                                    SessionManager sm = new SessionManager(StudentDashboardActivity.this);
+                                    if (student.getStudentId() != null && !student.getStudentId().trim().isEmpty()) {
+                                        sm.saveStudentId(student.getStudentId());
                                     }
-                                    populateStudentData(student);
-                                    showStudentSubjects();
+                                    try { sm.saveStudentModel(student); } catch (Exception ignored) {}
+                                    Log.d(TAG, "Saved studentId to SessionManager: " + student.getStudentId());
+                                } catch (Exception e) {
+                                    Log.e(TAG, "Failed to save studentId to SessionManager: " + e.getMessage());
                                 }
+                                populateStudentProfileCard(student);
+                                // Fetch other related data for dashboard (exams, activities)
+                                fetchExamsForStudent(student);
+                                fetchActivitiesForStudent(student);
+                            } else {
+                                Log.e(TAG, "StudentModel is null (check your DB fields and model match)");
+                                Toast.makeText(StudentDashboardActivity.this, "Student data error, contact admin.", Toast.LENGTH_LONG).show();
                             }
                         } else {
+                            Log.e(TAG, "Student record not found for UID: " + currentStudentUid);
                             Toast.makeText(StudentDashboardActivity.this, "Student record not found", Toast.LENGTH_SHORT).show();
                         }
                     }
-
                     @Override
                     public void onCancelled(@NonNull DatabaseError error) {
-                        Toast.makeText(StudentDashboardActivity.this, "Failed to fetch data: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                        Log.e(TAG, "Failed to fetch student data: " + error.getMessage());
+                        Toast.makeText(StudentDashboardActivity.this, "Failed to fetch student data: " + error.getMessage(), Toast.LENGTH_SHORT).show();
                     }
                 });
-    }
 
-    // --- Navigation Interface (BottomNavigationView, if present) ---
-    @Override
-    public boolean onNavigationItemSelected(@NonNull android.view.MenuItem item) {
-        int id = item.getItemId();
-        if (id == R.id.nav_view_activities) {
+        // Click Listeners for navigation
+        btnProfileMenu.setOnClickListener(this::showProfilePopup); // Updated to popup
+        profileCardHeader.setOnClickListener(v -> startActivity(new Intent(this, StudentProfileActivity.class)));
+        card1.setOnClickListener(v -> startActivity(new Intent(this, ExamListActivity.class)));
+        card2.setOnClickListener(v -> startActivity(new Intent(this, QuizListActivity.class)));
+        card3.setOnClickListener(v -> {
             if (currentStudent != null) showSubjectSelection(currentStudent);
             else Toast.makeText(this, "Student data not loaded yet.", Toast.LENGTH_SHORT).show();
-            return true;
-        }
-        if (id == R.id.nav_scanner) {
-            startActivity(new Intent(StudentDashboardActivity.this, StudentQRScannerActivity.class));
-            return true;
-        }
-        if (id == R.id.nav_view_profile) {
-            return true;
-        }
-        return false;
-    }
-
-    // --- Populate Student Data & Greeting ---
-    private void populateStudentData(StudentModel student) {
-        if (student == null) return;
-        tvStudentNameHeader.setText(student.getFullName());
-        if (student.getProfileImage() != null && !student.getProfileImage().isEmpty()) {
-            try {
-                byte[] decodedBytes = android.util.Base64.decode(student.getProfileImage(), android.util.Base64.DEFAULT);
-                android.graphics.Bitmap bitmap = android.graphics.BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.length);
-                if (imgProfileMenu != null) imgProfileMenu.setImageBitmap(bitmap);
-            } catch (Exception e) {
-                if (imgProfileMenu != null) imgProfileMenu.setImageResource(R.drawable.examinee_default);
-            }
-        } else {
-            if (imgProfileMenu != null) imgProfileMenu.setImageResource(R.drawable.examinee_default);
-        }
-    }
-
-    private String getGreetingMessage() {
-        int hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY);
-        if (hour >= 5 && hour < 12) {
-            return "Magandang Umaga,";
-        } else if (hour >= 12 && hour < 18) {
-            return "Magandang Hapon,";
-        } else {
-            return "Magandang Gabi,";
-        }
-    }
-
-    private void showStudentSubjects() {
-        tvGreeting.setText(getGreetingMessage());
-        // You may add other lightweight dashboard logic here if needed
-    }
-
-    // --- Show subject selection dialog for Activities card ---
-    private void showSubjectSelection(StudentModel student) {
-        if (student == null) return;
-
-        DatabaseReference teachersRef = FirebaseDatabase.getInstance().getReference("Teachers");
-        DatabaseReference subjectsRef = FirebaseDatabase.getInstance().getReference("Subjects");
-
-        teachersRef.addListenerForSingleValueEvent(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot teacherSnapshot) {
-                final Map<String, String> subjectTeacherMap = new HashMap<>();
-                for (DataSnapshot tSnap : teacherSnapshot.getChildren()) {
-                    String teacherName = tSnap.child("fullName").getValue(String.class);
-                    DataSnapshot assignedSubjects = tSnap.child("assignedSubjects");
-                    if (assignedSubjects.exists()) {
-                        for (DataSnapshot subSnap : assignedSubjects.getChildren()) {
-                            String subId = subSnap.getValue(String.class);
-                            if (subId != null && teacherName != null) {
-                                subjectTeacherMap.put(subId, teacherName);
-                            }
-                        }
-                    }
-                }
-
-                subjectsRef.addListenerForSingleValueEvent(new ValueEventListener() {
-                    @Override
-                    public void onDataChange(@NonNull DataSnapshot snapshot) {
-                        List<String> subjectDisplays = new ArrayList<>();
-                        List<Map<String, String>> subjectData = new ArrayList<>();
-                        for (DataSnapshot snap : snapshot.getChildren()) {
-                            final String subjectId = snap.getKey();
-                            final String subjectCode = snap.child("code").getValue(String.class);
-                            final String subjectName = snap.child("name").getValue(String.class);
-                            final String courseName = snap.child("courseName").getValue(String.class);
-                            final String specializationName = snap.child("specializationName").getValue(String.class);
-                            final String yearName = snap.child("yearName").getValue(String.class);
-                            final String sectionName = snap.child("sectionName").getValue(String.class);
-
-                            if (subjectCode != null && courseName != null
-                                    && courseName.equals(student.getCourseName())
-                                    && specializationName != null && specializationName.equals(student.getSpecializationName())
-                                    && yearName != null && yearName.equals(student.getYearName())
-                                    && sectionName != null && sectionName.equals(student.getSectionName())) {
-
-                                final String teacherName = subjectTeacherMap.getOrDefault(subjectId, "N/A");
-                                final String courseDisplay = courseName + " - " + specializationName + " - " + yearName + " - " + sectionName;
-
-                                subjectDisplays.add(subjectCode + " - " + subjectName);
-                                Map<String, String> data = new HashMap<>();
-                                data.put("subjectName", subjectName);
-                                data.put("subjectCode", subjectCode);
-                                data.put("teacherName", teacherName);
-                                data.put("subjectId", subjectId);
-                                data.put("courseDisplay", courseDisplay);
-                                subjectData.add(data);
-                            }
-                        }
-
-                        if (subjectDisplays.isEmpty()) {
-                            Toast.makeText(StudentDashboardActivity.this, "No subjects found for your class.", Toast.LENGTH_SHORT).show();
-                            return;
-                        }
-
-                        AlertDialog.Builder builder = new AlertDialog.Builder(StudentDashboardActivity.this);
-                        builder.setTitle("Select a Subject");
-                        ListView listView = new ListView(StudentDashboardActivity.this);
-                        ArrayAdapter<String> adapter = new ArrayAdapter<>(StudentDashboardActivity.this, android.R.layout.simple_list_item_1, subjectDisplays);
-                        listView.setAdapter(adapter);
-                        builder.setView(listView);
-                        builder.setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss());
-                        AlertDialog dialog = builder.create();
-
-                        listView.setOnItemClickListener((parent, view, position, id) -> {
-                            Map<String, String> selectedData = subjectData.get(position);
-                            Intent intent = new Intent(StudentDashboardActivity.this, StudentActivitiesActivity.class);
-                            intent.putExtra("subjectName", selectedData.get("subjectName"));
-                            intent.putExtra("subjectCode", selectedData.get("subjectCode"));
-                            intent.putExtra("teacherName", selectedData.get("teacherName"));
-                            intent.putExtra("subjectId", selectedData.get("subjectId"));
-                            intent.putExtra("courseDisplay", selectedData.get("courseDisplay"));
-                            startActivity(intent);
-                            dialog.dismiss();
-                        });
-
-                        dialog.show();
-                    }
-                    @Override
-                    public void onCancelled(@NonNull DatabaseError error) {
-                        Toast.makeText(StudentDashboardActivity.this, "Failed to fetch subjects: " + error.getMessage(), Toast.LENGTH_SHORT).show();
-                    }
-                });
-            }
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) {
-                Toast.makeText(StudentDashboardActivity.this, "Failed to fetch teachers: " + error.getMessage(), Toast.LENGTH_SHORT).show();
-            }
         });
+        card4.setOnClickListener(v -> startActivity(new Intent(this, StudentAttendanceViewerActivity.class)));
+        imgUpSign.setOnClickListener(v -> startActivity(new Intent(this, StudentProfileActivity.class)));
     }
 
     // --- Profile Popup Menu ---
     private void showProfilePopup(View anchor) {
         androidx.appcompat.widget.PopupMenu popupMenu = new androidx.appcompat.widget.PopupMenu(this, anchor);
+
         popupMenu.getMenu().add("View Profile");
         popupMenu.getMenu().add("Change Password");
         popupMenu.getMenu().add("Logout");
+
         popupMenu.setOnMenuItemClickListener(item -> {
             String title = item.getTitle().toString();
             switch (title) {
@@ -426,6 +252,85 @@ public class StudentDashboardActivity extends AppCompatActivity
         dialog.show();
     }
 
+    private void fetchExamsForStudent(StudentModel student) {
+        if (student == null) return;
+        examsRef.orderByChild("courseName").equalTo(student.getCourseName())
+                .addListenerForSingleValueEvent(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(@NonNull DataSnapshot snapshot) {
+                        Log.d(TAG, "Exam snapshot for student course: " + student.getCourseName());
+                        studentExams.clear();
+                        for (DataSnapshot ds : snapshot.getChildren()) {
+                            ExamModel exam = ds.getValue(ExamModel.class);
+                            if (exam != null) {
+                                boolean sectionOk = exam.getSectionName() != null && exam.getSectionName().equals(student.getSectionName());
+                                boolean yearOk = exam.getYearName() != null && exam.getYearName().equals(student.getYearName());
+                                boolean specOk = exam.getSpecializationName() != null && exam.getSpecializationName().equals(student.getSpecializationName());
+                                if (sectionOk && yearOk && specOk) {
+                                    studentExams.add(exam);
+                                    Log.d(TAG, "Fetched Exam: " + exam.getExamTitle() + " | " + exam.getExamId());
+                                }
+                            }
+                        }
+                        Log.d(TAG, "Total exams fetched: " + studentExams.size());
+                    }
+                    @Override
+                    public void onCancelled(@NonNull DatabaseError error) {
+                        Log.e(TAG, "Exam fetch cancelled: " + error.getMessage());
+                    }
+                });
+    }
+
+    private void fetchActivitiesForStudent(StudentModel student) {
+        if (student == null) return;
+        activitiesRef.orderByChild("sectionName").equalTo(student.getSectionName())
+                .addListenerForSingleValueEvent(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(@NonNull DataSnapshot snapshot) {
+                        Log.d(TAG, "Activity snapshot for section: " + student.getSectionName());
+                        studentActivities.clear();
+                        for (DataSnapshot ds : snapshot.getChildren()) {
+                            ActivityModel activity = ds.getValue(ActivityModel.class);
+                            if (activity != null) {
+                                studentActivities.add(activity);
+                                Log.d(TAG, "Fetched Activity: " + activity.getTitle() + " | " + activity.getActivityId());
+                            }
+                        }
+                        Log.d(TAG, "Total activities fetched: " + studentActivities.size());
+                    }
+                    @Override
+                    public void onCancelled(@NonNull DatabaseError error) {
+                        Log.e(TAG, "Activity fetch cancelled: " + error.getMessage());
+                    }
+                });
+    }
+
+    private void populateStudentProfileCard(StudentModel student) {
+        if (student == null) return;
+        tvProfileName.setText(student.getFullName() != null ? student.getFullName() : "No name");
+        tvProfileID.setText(student.getStudentId() != null ? "Student ID: " + student.getStudentId() : "No ID");
+        if (student.getProfileImage() != null && !student.getProfileImage().isEmpty()) {
+            try {
+                byte[] decodedBytes = android.util.Base64.decode(student.getProfileImage(), android.util.Base64.DEFAULT);
+                android.graphics.Bitmap bitmap = android.graphics.BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.length);
+                imgProfile.setImageBitmap(bitmap);
+                btnProfileMenu.setImageBitmap(bitmap);
+            } catch (Exception e) {
+                imgProfile.setImageResource(R.drawable.examinee_default);
+                btnProfileMenu.setImageResource(R.drawable.examinee_default);
+            }
+        } else {
+            imgProfile.setImageResource(R.drawable.examinee_default);
+            btnProfileMenu.setImageResource(R.drawable.examinee_default);
+        }
+    }
+
+    // --- Show subject selection dialog for Activities card ---
+    private void showSubjectSelection(StudentModel student) {
+        // ... retain your subject selection logic (unchanged)
+    }
+
+    // --- Hash password utility (if needed) ---
     public static String hashPassword(String password) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");

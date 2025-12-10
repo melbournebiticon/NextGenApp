@@ -26,7 +26,7 @@
                     QuizPendingSubmission.class,
                     QuizPendingPresence.class     // <-- new
             },
-            version = 8,
+            version = 9,
             exportSchema = true
     )
     public abstract class AppDatabase extends RoomDatabase {

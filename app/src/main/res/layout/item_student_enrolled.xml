@@ -7,13 +7,15 @@
     android:orientation="vertical"
     android:padding="0dp">
 
-    <!-- Main Card -->
     <androidx.cardview.widget.CardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_margin="18dp"
-        app:cardCornerRadius="16dp"
-        app:cardElevation="0dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="8dp"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="2dp"
         android:background="@android:color/white">
 
         <LinearLayout
@@ -21,87 +23,129 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:gravity="center_vertical"
-            android:padding="18dp">
+            android:padding="16dp">
 
-            <!-- Student Name -->
             <TextView
                 android:id="@+id/tvStudentName"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="Student Name"
-                android:textSize="17sp"
-                android:textStyle="bold"
-                android:textColor="?android:textColorPrimary"
-                android:letterSpacing="0.01"
-                />
+                android:textAppearance="?attr/textAppearanceTitleMedium"
+                android:textColor="?android:textColorPrimary" />
 
-            <!-- Student ID -->
             <TextView
                 android:id="@+id/tvStudentId"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="Student ID"
-                android:textSize="14sp"
-                android:textColor="#667685"
-                android:layout_marginTop="1dp"
-                />
+                android:textAppearance="?attr/textAppearanceBodySmall"
+                android:textColor="?android:textColorSecondary"
+                android:layout_marginTop="2dp" />
 
-            <!-- Submission info -->
-            <TextView
-                android:id="@+id/tvSubmission"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Submission info"
-                android:textSize="13sp"
-                android:textColor="#FB8C00"
-                android:layout_marginTop="2dp"
-                />
-
-            <!-- Divider line -->
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:background="#eeeeee"
-                android:layout_marginTop="10dp"
-                android:layout_marginBottom="10dp" />
-
-            <!-- Buttons Layout -->
+            <!-- Submission row: file/status on the left, score badge on the right -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:gravity="center"
-                android:layout_marginTop="4dp">
+                android:layout_marginTop="8dp"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:id="@+id/tvSubmission"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Submitted file name or status"
+                    android:textAppearance="?attr/textAppearanceBodySmall"
+                    android:textColor="#FB8C00" />
+
+                <!-- Score badge: adapter should set text to "10/10" or "score/max" -->
+                <TextView
+                    android:id="@+id/tvScore"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingLeft="10dp"
+                    android:paddingRight="10dp"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="4dp"
+                    android:layout_marginStart="8dp"
+                    android:layout_marginEnd="0dp"
+                    android:visibility="gone"
+                    android:text=""
+                    android:textAppearance="?attr/textAppearanceBodyMedium"
+                    android:textStyle="bold"
+                    android:textColor="#FFFFFF"
+                    android:backgroundTint="#4CAF50"
+                    android:background="@android:drawable/btn_default_small"
+                    android:includeFontPadding="false"
+                    android:minHeight="28dp"
+                    android:gravity="center" />
+            </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#eeeeee"
+                android:layout_marginTop="12dp"
+                android:layout_marginBottom="12dp" />
+
+            <!-- Buttons row: keep them on the right but prevent wrapping and allow them to shrink -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical|end"
+                android:baselineAligned="false">
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnViewWork"
-                    style="@style/Widget.MaterialComponents.Button"
-                    android:layout_width="0dp"
-                    android:layout_height="44dp"
-                    android:layout_weight="1"
+                    style="@style/Widget.MaterialComponents.Button.TextButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="40dp"
+                    android:layout_marginEnd="8dp"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:minWidth="0dp"
+                    android:paddingLeft="10dp"
+                    android:paddingRight="10dp"
                     android:text="View Work"
-                    android:textStyle="bold"
-                    app:cornerRadius="6dp"
-                    android:backgroundTint="@color/teal_700"
-                    android:textColor="@android:color/white"
-                    android:elevation="2dp"
-                    android:textAllCaps="false"
-                    android:layout_marginEnd="8dp"/>
+                    android:textAllCaps="false" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnResubmit"
-                    style="@style/Widget.MaterialComponents.Button"
-                    android:layout_width="0dp"
-                    android:layout_height="44dp"
-                    android:layout_weight="1"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="40dp"
                     android:text="Resubmit"
-                    android:textStyle="bold"
-                    app:cornerRadius="6dp"
-                    android:backgroundTint="#FB8C00"
-                    android:textColor="@android:color/white"
-                    android:elevation="2dp"
                     android:textAllCaps="false"
-                    android:layout_marginStart="8dp"/>
+                    android:textColor="#FB8C00"
+                    app:strokeColor="#FB8C00"
+                    android:layout_marginEnd="8dp"
+                    android:paddingLeft="10dp"
+                    android:paddingRight="10dp"
+                    android:minWidth="0dp"
+                    android:maxLines="1"
+                    android:ellipsize="end" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnGrade"
+                    style="@style/Widget.MaterialComponents.Button"
+                    android:layout_width="wrap_content"
+                    android:layout_height="40dp"
+                    android:text="Grade"
+                    android:textStyle="bold"
+                    android:textAllCaps="false"
+                    app:cornerRadius="8dp"
+                    android:paddingLeft="10dp"
+                    android:paddingRight="10dp"
+                    android:minWidth="0dp"
+                    android:minHeight="0dp"
+                    android:maxLines="1"
+                    android:ellipsize="end"
+                    android:layout_marginEnd="0dp"
+                    app:backgroundTint="#367588"
+                    android:textColor="@android:color/white" />
+
             </LinearLayout>
         </LinearLayout>
     </androidx.cardview.widget.CardView>

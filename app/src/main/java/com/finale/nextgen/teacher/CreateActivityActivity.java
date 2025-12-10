@@ -23,6 +23,7 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -130,6 +131,14 @@ public class CreateActivityActivity extends AppCompatActivity {
             selectedSubTermBeforeEdit = getIntent().getStringExtra("SUB_TERM");
             selectedMaxScoreBeforeEdit = getIntent().getStringExtra("MAX_SCORE");
 
+            // If due date provided, attempt to parse and set calendar so pickers start from that value
+            String due = getIntent().getStringExtra("DUE_DATE");
+            if (due != null && !due.trim().isEmpty()) {
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
+                try {
+                    calendar.setTime(sdf.parse(due));
+                } catch (ParseException ignored) { /* keep current calendar */ }
+            }
         }
     }
 
@@ -149,38 +158,60 @@ public class CreateActivityActivity extends AppCompatActivity {
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
                 android.R.layout.simple_spinner_dropdown_item, maxScoreOptions);
         spMaxScore.setAdapter(adapter);
+
+        // If edit mode and a previous max score exists, set it
+        spMaxScore.post(() -> {
+            if (isEditMode && selectedMaxScoreBeforeEdit != null && !selectedMaxScoreBeforeEdit.isEmpty()) {
+                int pos = adapter.getPosition(selectedMaxScoreBeforeEdit);
+                if (pos >= 0) spMaxScore.setSelection(pos);
+            }
+        });
     }
 
     private void setupDatePicker() {
         btnPickDate.setOnClickListener(v -> {
+            final Calendar now = Calendar.getInstance();
             DatePickerDialog datePicker = new DatePickerDialog(
                     this,
                     (view, year, month, dayOfMonth) -> {
+                        // set selected date on calendar
                         calendar.set(year, month, dayOfMonth);
-
-                        new android.app.TimePickerDialog(
-                                this,
-                                (timeView, hour, minute) -> {
-                                    calendar.set(Calendar.HOUR_OF_DAY, hour);
-                                    calendar.set(Calendar.MINUTE, minute);
-
-                                    SimpleDateFormat sdf =
-                                            new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
-
-                                    etDueDate.setText(sdf.format(calendar.getTime()));
-                                },
-                                calendar.get(Calendar.HOUR_OF_DAY),
-                                calendar.get(Calendar.MINUTE),
-                                false
-                        ).show();
+                        // then show time picker (no time restrictions per your request)
+                        showTimePickerAndSet();
                     },
                     calendar.get(Calendar.YEAR),
                     calendar.get(Calendar.MONTH),
                     calendar.get(Calendar.DAY_OF_MONTH)
             );
 
+            // disable past dates
+            datePicker.getDatePicker().setMinDate(System.currentTimeMillis() - 1000);
             datePicker.show();
         });
+    }
+
+    /**
+     * Show a TimePickerDialog without hour validation (user can pick any time).
+     * After selection the combined date+time is formatted and placed into etDueDate.
+     */
+    private void showTimePickerAndSet() {
+        int initialHour = calendar.get(Calendar.HOUR_OF_DAY);
+        int initialMinute = calendar.get(Calendar.MINUTE);
+
+        new android.app.TimePickerDialog(
+                this,
+                (timeView, hour, minute) -> {
+                    // set calendar time and update EditText (no restriction)
+                    calendar.set(Calendar.HOUR_OF_DAY, hour);
+                    calendar.set(Calendar.MINUTE, minute);
+
+                    SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
+                    etDueDate.setText(sdf.format(calendar.getTime()));
+                },
+                initialHour,
+                initialMinute,
+                false
+        ).show();
     }
 
     private void setupSpinners() {

@@ -3,6 +3,8 @@ package com.finale.nextgen.student;
 import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
@@ -21,29 +23,37 @@ import com.google.firebase.database.*;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.widget.Toolbar; // ADD THIS IMPORT!
+import androidx.appcompat.widget.Toolbar;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-
-import com.google.android.material.floatingactionbutton.FloatingActionButton; // ADD THIS IMPORT!
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * Improved ExamListActivity:
+ * - Fully supports offline exam list and question caching/usage.
+ * - Loads exams from local Room DB (offline_exams) if offline.
+ * - Caches fetched exams after Firebase reads for future offline access.
+ * - Caches questions for each exam for offline-taking (via OfflineExamManager).
+ * - Handles attendance/presents locally for offline sync/usage.
+ */
 public class ExamListActivity extends AppCompatActivity {
 
     private static final String TAG = "ExamListActivity";
+    private static final String TAG_DEBUG = "EXAM_OFFLINE_DEBUG";
     private static final long MAX_LOGIN_WINDOW_MILLIS = TimeUnit.MINUTES.toMillis(15);
-    private final int REFRESH_INTERVAL = 3000;
+    private final int REFRESH_INTERVAL = 3000; // 3 seconds
 
-    // --- UI Fields ---
+    // --- UI ---
     private LinearLayout emptyStateLayout, layoutOfflinePrep;
     private TextView tvAvailableExamsCount, tvOfflinePrep;
     private ProgressBar progressOfflinePrep;
     private RecyclerView rvExams;
     private ExamAdapter examAdapter;
-    private FloatingActionButton fabQrExam; // Add FAB for QR
+    private FloatingActionButton fabQrExam;
 
     // --- Data/State ---
     private List<ExamModel> examList = Collections.synchronizedList(new ArrayList<>());
@@ -57,6 +67,7 @@ public class ExamListActivity extends AppCompatActivity {
     private FirebaseAuth auth;
     private DatabaseReference studentsRef, scoresRef, examsRef;
 
+    // Broadcast for presence: reload exams from local DB if local changes
     private final android.content.BroadcastReceiver presenceSavedReceiver = new android.content.BroadcastReceiver() {
         @Override
         public void onReceive(android.content.Context context, android.content.Intent intent) {
@@ -71,13 +82,10 @@ public class ExamListActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_exam_list);
 
-        // --- Toolbar Setup ---
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-        // Enable back arrow
-        if (getSupportActionBar() != null) {
+        if (getSupportActionBar() != null)
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-        }
         toolbar.setNavigationOnClickListener(v -> finish());
 
         tvAvailableExamsCount = findViewById(R.id.tvAvailableExamsCount);
@@ -86,17 +94,15 @@ public class ExamListActivity extends AppCompatActivity {
         layoutOfflinePrep = findViewById(R.id.layoutOfflinePrep);
         tvOfflinePrep = findViewById(R.id.tvOfflinePrep);
         progressOfflinePrep = findViewById(R.id.progressOfflinePrep);
-
-        fabQrExam = findViewById(R.id.fabAddExam); // FAB for exam QR scan
-        fabQrExam.setOnClickListener(v -> {
-            startActivity(new Intent(ExamListActivity.this, StudentQRScannerActivity.class));
-        });
+        fabQrExam = findViewById(R.id.fabAddExam);
+        fabQrExam.setOnClickListener(v ->
+                startActivity(new Intent(ExamListActivity.this, StudentQRScannerActivity.class))
+        );
 
         examAdapter = new ExamAdapter(this, examList);
         rvExams.setLayoutManager(new LinearLayoutManager(this));
         rvExams.setAdapter(examAdapter);
 
-        // --- Firebase ---
         auth = FirebaseAuth.getInstance();
         FirebaseUser currentUser = auth.getCurrentUser();
         if (currentUser == null) {
@@ -104,11 +110,17 @@ public class ExamListActivity extends AppCompatActivity {
             finish();
             return;
         }
-
         currentStudentUid = currentUser.getUid();
         studentsRef = FirebaseDatabase.getInstance().getReference("Students");
         examsRef = FirebaseDatabase.getInstance().getReference("Exams");
         scoresRef = FirebaseDatabase.getInstance().getReference("Scores");
+
+        // ---- OFFLINE EXAM LIST LOGIC ----
+        if (!isNetworkAvailable()) {
+            loadExamsFromLocalDbNoNetwork();
+            return; // do not continue with Firebase code
+        }
+        // ---- END OFFLINE LOGIC ----
 
         studentsRef.orderByChild("uid").equalTo(currentStudentUid)
                 .addListenerForSingleValueEvent(new ValueEventListener() {
@@ -154,10 +166,12 @@ public class ExamListActivity extends AppCompatActivity {
         handler.post(examRefreshRunnable);
     }
 
+    /** Loads exams from local DB for online UI and for caching new questions if network is available. */
     private void loadExamsFromLocalDb() {
         new Thread(() -> {
             com.finale.nextgen.offline.AppDatabase db = com.finale.nextgen.offline.AppDatabase.getInstance(this);
-            List<com.finale.nextgen.offline.ExamEntity> cachedExams = db.examDao().getAllExamsForStudent(currentStudentUid);
+            List<com.finale.nextgen.offline.ExamEntity> cachedExams =
+                    db.examDao().getAllExamsForStudent(currentStudentUid);
             runOnUiThread(() -> {
                 examList.clear();
                 for (com.finale.nextgen.offline.ExamEntity entity : cachedExams) {
@@ -170,13 +184,37 @@ public class ExamListActivity extends AppCompatActivity {
         }).start();
     }
 
-    private boolean isNetworkAvailable() {
-        android.net.ConnectivityManager cm = (android.net.ConnectivityManager) getSystemService(android.content.Context.CONNECTIVITY_SERVICE);
-        if (cm == null) return false;
-        android.net.NetworkInfo netInfo = cm.getActiveNetworkInfo();
-        return netInfo != null && netInfo.isConnected();
+    /** Loads exams from local DB when network is not available on startup. */
+    private void loadExamsFromLocalDbNoNetwork() {
+        new Thread(() -> {
+            com.finale.nextgen.offline.AppDatabase db = com.finale.nextgen.offline.AppDatabase.getInstance(this);
+            List<com.finale.nextgen.offline.ExamEntity> cachedExams =
+                    db.examDao().getAllExamsForStudent(currentStudentUid);
+            runOnUiThread(() -> {
+                examList.clear();
+                for (com.finale.nextgen.offline.ExamEntity entity : cachedExams) {
+                    examList.add(toExamModel(entity));
+                }
+                updateExamRecyclerView();
+                updateAvailableExamsCount();
+                progressOfflinePrep.setVisibility(View.GONE);
+                Log.d(TAG_DEBUG, "Offline: loaded " + examList.size() + " exams from local cache");
+                Toast.makeText(ExamListActivity.this, "Offline: loaded " + examList.size() + " cached exams", Toast.LENGTH_LONG).show();
+            });
+        }).start();
     }
 
+    /** Checks for network connection. */
+    private boolean isNetworkAvailable() {
+        try {
+            ConnectivityManager cm = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
+            if (cm == null) return false;
+            NetworkInfo netInfo = cm.getActiveNetworkInfo();
+            return netInfo != null && netInfo.isConnected();
+        } catch (Exception e) { return false; }
+    }
+
+    /** Converts Room ExamEntity to ExamModel used by UI. */
     private ExamModel toExamModel(com.finale.nextgen.offline.ExamEntity entity) {
         ExamModel model = new ExamModel();
         model.setExamId(entity.examId);
@@ -195,7 +233,27 @@ public class ExamListActivity extends AppCompatActivity {
         return model;
     }
 
-    // UPDATED: Remove stats, only show available today
+    // Debug helper: dump cached exam by examId
+    private void dumpSpecificCachedExam(final String examId) {
+        new Thread(() -> {
+            try {
+                com.finale.nextgen.offline.AppDatabase db = com.finale.nextgen.offline.AppDatabase.getInstance(this);
+                com.finale.nextgen.offline.ExamEntity qe = db.examDao().getExamById(examId);
+                if (qe == null) {
+                    Log.d(TAG_DEBUG, "No cached row for examId=" + examId);
+                } else {
+                    Log.d(TAG_DEBUG, "Cached exam: id=" + qe.examId + " title=" + qe.examTitle
+                            + " present=" + qe.present + " active=" + qe.active
+                            + " availableAt=" + qe.scheduledAt + " duration=" + qe.durationMinutes
+                            + " course=" + qe.courseName + " section=" + qe.sectionName
+                            + " cachedAt=" + qe.scheduledAt);
+                }
+            } catch (Exception e) {
+                Log.e(TAG_DEBUG, "dumpSpecificCachedExam failed: " + e.getMessage(), e);
+            }
+        }).start();
+    }
+
     private void updateAvailableExamsCount() {
         int availableTodayCount = 0;
         Calendar today = Calendar.getInstance();
@@ -217,6 +275,7 @@ public class ExamListActivity extends AppCompatActivity {
                 now.get(Calendar.DAY_OF_YEAR) == cal.get(Calendar.DAY_OF_YEAR);
     }
 
+    /** Fetches all eligible exams from Firebase and saves them to local DB for offline use. */
     private void fetchExamsForStudent(StudentModel student) {
         if (isFetchingExams) return;
         isFetchingExams = true;
@@ -335,6 +394,7 @@ public class ExamListActivity extends AppCompatActivity {
                                                                     examList.addAll(tempExamList);
                                                                     updateExamRecyclerView();
                                                                     updateAvailableExamsCount();
+                                                                    // Bulk save for offline cache
                                                                     new Thread(() -> {
                                                                         com.finale.nextgen.offline.AppDatabase db2 = com.finale.nextgen.offline.AppDatabase.getInstance(ExamListActivity.this);
                                                                         List<com.finale.nextgen.offline.ExamEntity> entities = new ArrayList<>();
@@ -354,9 +414,11 @@ public class ExamListActivity extends AppCompatActivity {
                                                                             entity.isAvailable = ex.isAvailable();
                                                                             entity.present = ex.isPresent();
                                                                             entity.studentUid = currentStudentUid;
+                                                                            entity.cachedAt = System.currentTimeMillis();
                                                                             entities.add(entity);
                                                                         }
                                                                         db2.examDao().insertExams(entities);
+                                                                        Log.d(TAG_DEBUG, "Saved " + entities.size() + " exams to offline cache.");
                                                                     }).start();
                                                                 }
                                                                 isFetchingExams = false;
@@ -365,7 +427,6 @@ public class ExamListActivity extends AppCompatActivity {
                                                     }
                                                 }
                                             }
-
                                             @Override
                                             public void onCancelled(@NonNull DatabaseError error) {
                                                 synchronized (tempExamList) {
@@ -394,7 +455,6 @@ public class ExamListActivity extends AppCompatActivity {
                             });
                 }
             }
-
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
                 runOnUiThread(() -> {
@@ -420,6 +480,7 @@ public class ExamListActivity extends AppCompatActivity {
         }
     }
 
+    /** Caches all exam questions for offline use. */
     private void cacheAllExamQuestionsForOffline(List<ExamModel> exams) {
         if (exams == null || exams.isEmpty()) return;
         runOnUiThread(() -> {
@@ -515,6 +576,26 @@ public class ExamListActivity extends AppCompatActivity {
         // (Optional: Add live updates if you want, else you can comment/remove this)
     }
 
+    // (Optional) Add QR scanner logic: mark attendance/present as true and persist locally for offline use
+    public void markPresentOffline(String examId) {
+        new Thread(() -> {
+            try {
+                com.finale.nextgen.offline.AppDatabase db = com.finale.nextgen.offline.AppDatabase.getInstance(ExamListActivity.this);
+                com.finale.nextgen.offline.ExamEntity entity = db.examDao().getExamById(examId);
+                if (entity == null) {
+                    entity = new com.finale.nextgen.offline.ExamEntity();
+                    entity.examId = examId;
+                }
+                entity.present = true;
+                entity.cachedAt = System.currentTimeMillis();
+                db.examDao().insertExam(entity); // REPLACE semantics
+                Log.d(TAG_DEBUG, "Persisted present=true for examId=" + examId);
+            } catch (Exception e) {
+                Log.e(TAG_DEBUG, "Failed to persist present: " + e.getMessage());
+            }
+        }).start();
+    }
+
     @SuppressLint("UnspecifiedRegisterReceiverFlag")
     @Override
     protected void onResume() {
@@ -523,6 +604,7 @@ public class ExamListActivity extends AppCompatActivity {
             registerReceiver(presenceSavedReceiver, new IntentFilter(PresenceHelper.ACTION_PRESENCE_SAVED));
         } catch (Exception ignored) { }
     }
+
     @Override
     protected void onPause() {
         try { unregisterReceiver(presenceSavedReceiver); } catch (Exception ignored) { }

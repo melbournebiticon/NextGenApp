@@ -1431,29 +1431,30 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
 
 
     // Replace the existing attachPresenceListenerForQuiz(...) method in QuizListActivity with this code.
+    // ...[all your imports and class definition]...
+
+// Inside QuizListActivity (replace attachPresenceListenerForQuiz as below):
+
     private void attachPresenceListenerForQuiz(@NonNull final String quizId) {
         if (quizId == null || quizId.trim().isEmpty()) return;
         final String key = quizId.trim();
 
-
+        // Prevent duplicate listeners
         if (quizPresenceListeners.containsKey(key)) return;
-
 
         final String studentId = (scoresStudentId != null && !scoresStudentId.isEmpty())
                 ? scoresStudentId
                 : sessionManager.getStudentId();
-
 
         if (studentId == null || studentId.isEmpty()) {
             android.util.Log.d(TAG_DEBUG, "attachPresenceListenerForQuiz: no studentId yet, skipping for quiz=" + key);
             return;
         }
 
-
+        // ---- QuizStudents listener ----
         DatabaseReference qRef = FirebaseDatabase.getInstance()
-                .getReference("QuizStudents").child(key).child(studentId);
-
-
+                .getReference("QuizStudents")
+                .child(key).child(studentId);
         ValueEventListener qListener = new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
@@ -1461,17 +1462,13 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                 boolean present = Boolean.TRUE.equals(snapshot.child("present").getValue(Boolean.class));
                 boolean exists = snapshot.exists();
 
-
-                // store latest quiz node state (synchronized)
                 synchronized (QuizListActivity.this) {
                     lastQuizNodeExists.put(key, exists);
                     lastQuizAllowed.put(key, allowed);
                     lastQuizPresent.put(key, present);
                 }
 
-
                 android.util.Log.d(TAG_DEBUG, "QuizStudents presence change: quiz=" + key + " student=" + studentId + " allowed=" + allowed + " present=" + present + " exists=" + exists);
-
 
                 // compute effective presence: QuizStudents authoritative when it exists
                 boolean effective;
@@ -1483,12 +1480,9 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                     }
                 }
 
-
-                // update UI
                 runOnUiThread(() -> {
                     if (adapter != null) adapter.setStudentPresent(key, effective);
                 });
-
 
                 // persist effective presence into local cache
                 final boolean toPersist = effective;
@@ -1509,15 +1503,19 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                     }
                 }).start();
             }
-
-
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
                 android.util.Log.w(TAG_DEBUG, "QuizStudents listener cancelled for quiz=" + key + ": " + error.getMessage());
             }
         };
+        qRef.addValueEventListener(qListener);
+        quizPresenceListeners.put(key, qListener);
+        quizPresenceRefs.put(key, qRef);
 
-
+        // ---- ExamStudents listener ----
+        DatabaseReference eRef = FirebaseDatabase.getInstance()
+                .getReference("ExamStudents")
+                .child(key).child(studentId);
         ValueEventListener eListener = new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
@@ -1525,19 +1523,13 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                 boolean present = Boolean.TRUE.equals(snapshot.child("present").getValue(Boolean.class));
                 boolean exists = snapshot.exists();
 
-
-                // store latest exam node state (synchronized)
                 synchronized (QuizListActivity.this) {
                     lastExamAllowed.put(key, allowed);
                     lastExamPresent.put(key, present);
-                    // note: do NOT set lastQuizNodeExists here
                 }
-
 
                 android.util.Log.d(TAG_DEBUG, "ExamStudents presence change: quiz=" + key + " student=" + studentId + " allowed=" + allowed + " present=" + present + " exists=" + exists);
 
-
-                // compute effective presence: QuizStudents authoritative when it exists
                 boolean effective;
                 synchronized (QuizListActivity.this) {
                     if (Boolean.TRUE.equals(lastQuizNodeExists.get(key))) {
@@ -1546,15 +1538,11 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                         effective = Boolean.TRUE.equals(lastExamAllowed.get(key)) || Boolean.TRUE.equals(lastExamPresent.get(key));
                     }
                 }
-
-
-                // update UI
                 runOnUiThread(() -> {
                     if (adapter != null) adapter.setStudentPresent(key, effective);
                 });
 
-
-                // persist effective presence into local cache
+                // persist to local cache
                 final boolean toPersist = effective;
                 new Thread(() -> {
                     try {
@@ -1573,13 +1561,14 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                     }
                 }).start();
             }
-
-
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
                 android.util.Log.w(TAG_DEBUG, "ExamStudents listener cancelled for quiz=" + key + ": " + error.getMessage());
             }
         };
+        eRef.addValueEventListener(eListener);
+        examPresenceListeners.put(key, eListener);
+        examPresenceRefs.put(key, eRef);
     }
 
 

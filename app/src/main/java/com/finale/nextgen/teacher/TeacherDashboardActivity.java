@@ -400,7 +400,7 @@ public class TeacherDashboardActivity extends AppCompatActivity {
                                                 .setValue(hashedNewPass)
                                                 .addOnSuccessListener(aVoid2 -> {
                                                     Toast.makeText(TeacherDashboardActivity.this,
-                                                            "Password updated in Auth and Database (hashed)!", Toast.LENGTH_SHORT).show();
+                                                            "Password updated", Toast.LENGTH_SHORT).show();
                                                     dialog.dismiss();
                                                 })
                                                 .addOnFailureListener(e ->
