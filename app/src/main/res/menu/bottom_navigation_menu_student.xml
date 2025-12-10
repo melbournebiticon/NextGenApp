@@ -6,19 +6,22 @@
         android:icon="@drawable/ic_history"
         android:title="My Classes" />
 
+
+    <item
+        android:id="@+id/nav_view_exam"
+        android:icon="@drawable/ic_home"
+        android:title="Exams" />
     <!-- NEW: Quizzes -->
     <item
         android:id="@+id/nav_quizzes"
         android:icon="@drawable/ic_quiz"
         android:title="Quizzes" />
 
-    <item
-        android:id="@+id/nav_scanner"
-        android:icon="@drawable/ic_qr_code_scanner"
-        android:title="Scan Exam QR Code" />
 
     <item
-        android:id="@+id/nav_view_profile"
-        android:icon="@drawable/ic_profile"
-        android:title="Grades" />
+        android:id="@+id/nav_view_attendance"
+        android:icon="@drawable/ic_people"
+        android:title="Attendance" />
+
+
 </menu>

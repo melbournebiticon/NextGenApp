@@ -77,7 +77,6 @@ public class TakeQuizActivity extends AppCompatActivity {
     private RecyclerView rvQuestions;
     private TakeExamAdapter questionAdapter; // Reuse same adapter as exam
     private List<Question> questionList = new ArrayList<>();
-    private Button btnSubmit;
 
     private String quizId;
     private String quizName;
@@ -150,17 +149,16 @@ public class TakeQuizActivity extends AppCompatActivity {
         );
 
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_take_exam); // reuse same layout as exam
+        setContentView(R.layout.activity_take_quiz); // reuse same layout as exam
 
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
             getSupportActionBar().setHomeButtonEnabled(true);
         }
 
-        tvQuizTitle = findViewById(R.id.tvExamTitle); // layout id reused
+        tvQuizTitle = findViewById(R.id.tvQuizTitle); // layout id reused
         rvQuestions = findViewById(R.id.rvQuestions);
         rvQuestions.setLayoutManager(new LinearLayoutManager(this));
-        btnSubmit = findViewById(R.id.btnSubmitExam);
         tvTimer = findViewById(R.id.tvTimer);
 
         // Read intent extras (quizId, quizName, optional availableAt, durationMinutes)
@@ -607,7 +605,6 @@ public class TakeQuizActivity extends AppCompatActivity {
         } else {
             Log.d("OfflineDebug", "offlineLoaded true - skipping loadQuestions()");
             checkAndRequestAudioPermission();
-            btnSubmit.setOnClickListener(v -> handleNextOrSubmit());
         }
 
         // Listen for quiz reset using QuizStudents node then fallback to ExamStudents
@@ -922,7 +919,6 @@ public class TakeQuizActivity extends AppCompatActivity {
 
         offlineLoaded = true;
         checkAndRequestAudioPermission();
-        btnSubmit.setOnClickListener(v -> handleNextOrSubmit());
     }
 
     private void fetchQuestionsFromFirebaseAndCache(String id) {
@@ -961,7 +957,6 @@ public class TakeQuizActivity extends AppCompatActivity {
                         mapEntitiesToQuestionsAndShow(toCache);
                         offlineLoaded = true;
                         checkAndRequestAudioPermission();
-                        btnSubmit.setOnClickListener(v -> handleNextOrSubmit());
                     });
                 }).start();
             }
@@ -995,16 +990,28 @@ public class TakeQuizActivity extends AppCompatActivity {
             currentQ.setDisplayNumber(typeQuestionNumber);
             singleQuestion.add(currentQ);
 
-            questionAdapter = new TakeExamAdapter(TakeQuizActivity.this, singleQuestion, allMatchingAnswers);
+            // Determine button label
+            String btnLabel;
+            if (typeIndex < questionTypeOrder.length - 1 || currentIndex < currentTypeQuestions.size() - 1) {
+                btnLabel = (currentIndex == currentTypeQuestions.size() - 1 && hasNextNonEmptySection())
+                        ? "Next Section"
+                        : "Next";
+            } else {
+                btnLabel = "Submit Quiz";
+            }
+
+            // FIX: Pass all required arguments
+            questionAdapter = new TakeExamAdapter(
+                    TakeQuizActivity.this,
+                    singleQuestion,
+                    allMatchingAnswers,
+                    btnLabel,
+                    questionList.size()
+            );
             rvQuestions.setAdapter(questionAdapter);
 
-            if (currentIndex == currentTypeQuestions.size() - 1 && !hasNextNonEmptySection()) {
-                btnSubmit.setText("Submit Quiz");
-            } else if (currentIndex == currentTypeQuestions.size() - 1) {
-                btnSubmit.setText("Next Section");
-            } else {
-                btnSubmit.setText("Next");
-            }
+            // Set up your adapter action listener here if needed
+            questionAdapter.setOnActionListener((position, buttonText) -> handleNextOrSubmit());
         } else {
             goToNextType();
         }
@@ -1016,8 +1023,6 @@ public class TakeQuizActivity extends AppCompatActivity {
             filterQuestionsByType(questionTypeOrder[typeIndex]);
             if (currentTypeQuestions.isEmpty()) goToNextType();
             else showNextQuestion();
-        } else {
-            btnSubmit.setText("Submit Quiz");
         }
     }
 
@@ -1029,7 +1034,6 @@ public class TakeQuizActivity extends AppCompatActivity {
             return;
         }
 
-        btnSubmit.setEnabled(false);
 
         int totalQuestions = questionList.size();
         int correctAnswers = 0;
@@ -1046,7 +1050,7 @@ public class TakeQuizActivity extends AppCompatActivity {
         String localStudentId = com.finale.nextgen.SessionManager.getStudentId(this);
 
         if (localStudentId != null && !localStudentId.isEmpty()) {
-            com.finale.nextgen.sync.SubmissionHelper.saveQuizSubmissionLocallyAndEnqueue(
+            com.finale.nextgen.sync.SubmissionHelper.saveSubmissionLocallyAndEnqueue(
                     getApplicationContext(),
                     quizId,
                     localStudentId,
@@ -1077,13 +1081,12 @@ public class TakeQuizActivity extends AppCompatActivity {
                                 String studentId = ds.child("studentId").getValue(String.class);
                                 if (studentId == null || studentId.isEmpty()) {
                                     Toast.makeText(TakeQuizActivity.this, "Student ID missing.", Toast.LENGTH_SHORT).show();
-                                    btnSubmit.setEnabled(true);
                                     return;
                                 }
-                                com.finale.nextgen.sync.SubmissionHelper.saveQuizSubmissionLocallyAndEnqueue(
+                                com.finale.nextgen.sync.SubmissionHelper.saveSubmissionLocallyAndEnqueue(
                                         getApplicationContext(),
                                         quizId,
-                                        localStudentId,
+                                        studentId,
                                         questionList,
                                         finalCalculatedScore,
                                         totalQuestions
@@ -1103,11 +1106,11 @@ public class TakeQuizActivity extends AppCompatActivity {
                             }
                         } else {
                             Toast.makeText(TakeQuizActivity.this, "Student ID not found online.", Toast.LENGTH_SHORT).show();
-                            btnSubmit.setEnabled(true);
+
                         }
                     }
                     @Override public void onCancelled(@NonNull DatabaseError error) {
-                        btnSubmit.setEnabled(true);
+
                         Toast.makeText(TakeQuizActivity.this, "Error fetching student ID.", Toast.LENGTH_SHORT).show();
                     }
                 });
@@ -1116,11 +1119,10 @@ public class TakeQuizActivity extends AppCompatActivity {
     private void submitQuizWithZeroScore() {
         stopAudioMonitoring();
         int maxScore = questionList.size();
-        btnSubmit.setEnabled(false);
 
         String localStudentId = com.finale.nextgen.SessionManager.getStudentId(this);
         if (localStudentId != null && !localStudentId.isEmpty()) {
-            com.finale.nextgen.sync.SubmissionHelper.saveQuizSubmissionLocallyAndEnqueue(
+            com.finale.nextgen.sync.SubmissionHelper.saveSubmissionLocallyAndEnqueue(
                     getApplicationContext(),
                     quizId,
                     localStudentId,
@@ -1130,6 +1132,7 @@ public class TakeQuizActivity extends AppCompatActivity {
             );
             if (isNetworkAvailable()) saveScoreToFirebase(localStudentId, 0, maxScore);
             Toast.makeText(TakeQuizActivity.this, "Zero-score submission saved locally.", Toast.LENGTH_LONG).show();
+            // --- ADD THIS BROADCAST ---
             Intent intent = new Intent("com.finale.nextgen.QUIZ_SUBMITTED");
             intent.putExtra("quizId", quizId);
             LocalBroadcastManager.getInstance(TakeQuizActivity.this).sendBroadcast(intent);
@@ -1147,11 +1150,11 @@ public class TakeQuizActivity extends AppCompatActivity {
                                 String studentId = ds.child("studentId").getValue(String.class);
                                 if (studentId == null || studentId.isEmpty()) {
                                     Toast.makeText(TakeQuizActivity.this, "Student ID missing.", Toast.LENGTH_SHORT).show();
-                                    btnSubmit.setEnabled(true);
+
                                     return;
                                 }
 
-                                com.finale.nextgen.sync.SubmissionHelper.saveQuizSubmissionLocallyAndEnqueue(
+                                com.finale.nextgen.sync.SubmissionHelper.saveSubmissionLocallyAndEnqueue(
                                         getApplicationContext(),
                                         quizId,
                                         studentId,
@@ -1161,6 +1164,7 @@ public class TakeQuizActivity extends AppCompatActivity {
                                 );
                                 if (isNetworkAvailable()) saveScoreToFirebase(studentId, 0, maxScore);
                                 Toast.makeText(TakeQuizActivity.this, "Zero-score submission saved locally.", Toast.LENGTH_LONG).show();
+                                // --- ADD THIS BROADCAST ---
                                 Intent intent = new Intent("com.finale.nextgen.QUIZ_SUBMITTED");
                                 intent.putExtra("quizId", quizId);
                                 LocalBroadcastManager.getInstance(TakeQuizActivity.this).sendBroadcast(intent);
@@ -1170,11 +1174,11 @@ public class TakeQuizActivity extends AppCompatActivity {
                             }
                         } else {
                             Toast.makeText(TakeQuizActivity.this, "Student ID not found online.", Toast.LENGTH_SHORT).show();
-                            btnSubmit.setEnabled(true);
+
                         }
                     }
                     @Override public void onCancelled(@NonNull DatabaseError error) {
-                        btnSubmit.setEnabled(true);
+
                         Toast.makeText(TakeQuizActivity.this, "Error fetching student ID.", Toast.LENGTH_SHORT).show();
                     }
                 });
@@ -1552,7 +1556,6 @@ public class TakeQuizActivity extends AppCompatActivity {
             currentIndex++;
             typeQuestionNumber++;
             showQuestion(currentTypeQuestions.get(currentIndex));
-            updateButtonText();
         } else {
             goToNextTypeOrSubmit();
         }
@@ -1564,12 +1567,10 @@ public class TakeQuizActivity extends AppCompatActivity {
             filterQuestionsByType(questionTypeOrder[typeIndex]);
             if (!currentTypeQuestions.isEmpty()) {
                 showQuestion(currentTypeQuestions.get(currentIndex));
-                updateButtonText();
             } else {
                 goToNextTypeOrSubmit();
             }
         } else {
-            btnSubmit.setText("Submit Quiz");
             maybeConfirmSubmit();
         }
     }
@@ -1579,15 +1580,27 @@ public class TakeQuizActivity extends AppCompatActivity {
         List<Question> singleQuestion = new ArrayList<>();
         singleQuestion.add(question);
 
-        questionAdapter = new TakeExamAdapter(this, singleQuestion, allMatchingAnswers);
+        String btnLabel;
+        if (typeIndex < questionTypeOrder.length - 1 || currentIndex < currentTypeQuestions.size() - 1) {
+            btnLabel = (currentIndex == currentTypeQuestions.size() - 1 && hasNextNonEmptySection()) ? "Next Section" : "Next";
+        } else {
+            btnLabel = "Submit Quiz";
+        }
+
+        questionAdapter = new TakeExamAdapter(
+                this,
+                singleQuestion,
+                allMatchingAnswers,
+                btnLabel,
+                questionList.size()
+        );
         rvQuestions.setAdapter(questionAdapter);
+
+        questionAdapter.setOnActionListener((position, buttonText) -> {
+            handleNextOrSubmit();
+        });
     }
 
-    private void updateButtonText() {
-        if (currentIndex < currentTypeQuestions.size() - 1) btnSubmit.setText("Next");
-        else if (hasNextNonEmptySection()) btnSubmit.setText("Next Section");
-        else btnSubmit.setText("Submit Quiz");
-    }
 
     @Override
     protected void onDestroy() {

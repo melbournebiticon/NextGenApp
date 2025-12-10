@@ -49,6 +49,9 @@ import com.google.android.gms.tasks.Tasks;
  *   When teacher marks a student absent -> present=false and allowed=false (student should not be able to start).
  *   When teacher marks present -> present=true and allowed=true.
  *
+ * - Filtering: this version filters the Students snapshot by class/course/year/section using intent extras:
+ *   quizSpecialization, quizSectionName, quizYearName, quizCourseName.
+ *
  * Note: student apps must check the "allowed" flag (QuizStudents/{quizId}/{studentId}/allowed)
  * in addition to "present" if you want to ensure they're prevented from starting a quiz.
  * This update only ensures the teacher side writes the required fields.
@@ -59,6 +62,12 @@ public class QuizMonitorActivity extends AppCompatActivity {
     private StudentQuizAdapter adapter;
     private String quizTitle;
     private String quizId;
+
+    // Filtering criteria obtained from intent
+    private String quizSpecialization;
+    private String quizSectionName;
+    private String quizYearName;
+    private String quizCourseName;
 
     // Firebase refs and cached snapshots
     private DatabaseReference studentsRef;
@@ -92,8 +101,21 @@ public class QuizMonitorActivity extends AppCompatActivity {
         }
         if (quizTitle == null) quizTitle = "(Untitled)";
 
+        // Read filtering criteria from intent. These should match the keys the caller sends.
+        quizSpecialization = getIntent().getStringExtra("quizSpecialization");
+        quizSectionName = getIntent().getStringExtra("quizSectionName");
+        quizYearName = getIntent().getStringExtra("quizYearName");
+        quizCourseName = getIntent().getStringExtra("quizCourseName");
+
+        // Normalize nulls to empty strings for easier comparison
+        if (quizSpecialization == null) quizSpecialization = "";
+        if (quizSectionName == null) quizSectionName = "";
+        if (quizYearName == null) quizYearName = "";
+        if (quizCourseName == null) quizCourseName = "";
+
         setTitle("Monitoring: " + quizTitle);
         android.util.Log.d("QuizMonitor", "quizId from intent: " + quizId);
+        android.util.Log.d("QuizMonitor", "Filtering by spec='" + quizSpecialization + "' section='" + quizSectionName + "' year='" + quizYearName + "' course='" + quizCourseName + "'");
 
         // Show QR button (reuses same button id in layout)
         View btnShowQr = findViewById(R.id.btnShowQR);
@@ -191,6 +213,11 @@ public class QuizMonitorActivity extends AppCompatActivity {
     /**
      * Build the list of StudentQuizStatus items by correlating Students snapshot with QuizStudents/ExamStudents snapshot.
      * Uses setters to create StudentQuizStatus instances so it works regardless of available constructors.
+     *
+     * This version filters Students by the class/course/year/section passed in the intent. Comparison is case-insensitive
+     * and will include students only when all non-empty filter criteria match.
+     *
+     * IMPORTANT: if a StudentModel.studentId is missing, we use the DataSnapshot key locally but do NOT write it back to the DB.
      */
     private void buildStudentList(@NonNull DataSnapshot quizSnap, @Nullable DataSnapshot studentsSnap) {
         if (studentsSnap == null) {
@@ -207,11 +234,26 @@ public class QuizMonitorActivity extends AppCompatActivity {
             StudentModel student = ds.getValue(StudentModel.class);
             if (student == null) continue;
 
+            // Determine studentId locally (do NOT write back to DB if missing)
             String studentId = student.getStudentId();
             if (studentId == null || studentId.trim().isEmpty()) {
                 studentId = ds.getKey();
-                student.setStudentId(studentId);
             }
+
+            // Normalize student properties for comparison
+            String studentSpec = student.getSpecializationName() != null ? student.getSpecializationName().trim() : "";
+            String studentSection = student.getSectionName() != null ? student.getSectionName().trim() : "";
+            String studentYear = student.getYearName() != null ? student.getYearName().trim() : "";
+            String studentCourse = student.getCourseName() != null ? student.getCourseName().trim() : "";
+
+            // Apply filtering: if a filter is provided (non-empty), it must match the student's value (case-insensitive)
+            boolean matches = true;
+            if (!quizSpecialization.isEmpty() && !studentSpec.equalsIgnoreCase(quizSpecialization)) matches = false;
+            if (!quizSectionName.isEmpty() && !studentSection.equalsIgnoreCase(quizSectionName)) matches = false;
+            if (!quizYearName.isEmpty() && !studentYear.equalsIgnoreCase(quizYearName)) matches = false;
+            if (!quizCourseName.isEmpty() && !studentCourse.equalsIgnoreCase(quizCourseName)) matches = false;
+
+            if (!matches) continue;
 
             boolean present = false;
             boolean ongoing = false;
@@ -232,10 +274,10 @@ public class QuizMonitorActivity extends AppCompatActivity {
             status.setPresent(present);
             status.setOngoing(ongoing);
             status.setQuestionsAnswered(questionsAnswered);
-            status.setCourse(student.getCourseName());
-            status.setSpecialization(student.getSpecializationName());
-            status.setYear(student.getYearName());
-            status.setSection(student.getSectionName());
+            status.setCourse(studentCourse);
+            status.setSpecialization(studentSpec);
+            status.setYear(studentYear);
+            status.setSection(studentSection);
 
             students.add(status);
         }
@@ -566,3 +608,4 @@ public class QuizMonitorActivity extends AppCompatActivity {
         }
     }
 }
+

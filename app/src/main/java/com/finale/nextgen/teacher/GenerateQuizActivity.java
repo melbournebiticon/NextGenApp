@@ -110,7 +110,6 @@ public class GenerateQuizActivity extends AppCompatActivity {
         cbMatching = findViewById(R.id.cbMatching);
         btnSaveQuestions = findViewById(R.id.btnSaveQuestion);
         fabImportQuestions = findViewById(R.id.fabImportQuestions);
-        fabImportQuestions.setOnClickListener(v -> openFilePicker());
         rvQuestions = findViewById(R.id.rvQuestions);
         rvQuestions.setLayoutManager(new LinearLayoutManager(this));
 

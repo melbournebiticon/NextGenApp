@@ -56,12 +56,7 @@
     <string name="tc_icon">Test Coordinator count icon</string>
     <string name="curriculum_icon">Curriculum count icon</string>
     <string name="exams_icon">Total Exams count icon</string>
-    <string name="tap_to_select">Tap to Select\n</string>
-    <string name="student_avatar">Student Avatar\n</string>
-    <string name="present">Present</string>
-    <string name="absent">Absent</string>
-    <string name="excused">Excused</string>
-    <string name="late">Late</string>
+    <string name="scan">Exam Scanner</string>
     <string-array name="main_term_options">
         <item>1st Term</item>
         <item>2nd Term</item>

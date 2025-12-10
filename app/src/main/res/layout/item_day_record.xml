@@ -37,7 +37,7 @@
             android:layout_height="wrap_content"
             android:text="Present"
             android:textSize="14sp"
-            android:textColor="@color/green_500"
+            android:textColor="#00796B"
             android:paddingStart="8dp"
             android:paddingEnd="8dp" />
     </LinearLayout>

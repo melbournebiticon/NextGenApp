@@ -6,179 +6,114 @@
     android:id="@+id/attendanceLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@android:color/white"
+    android:padding="16dp"
     tools:context=".teacher.StudentAttendanceActivity">
 
-    <!-- Top App Bar -->
-    <com.google.android.material.appbar.MaterialToolbar
-        android:id="@+id/studentToolbar"
+    <!-- Title -->
+    <TextView
+        android:id="@+id/titleTxt"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:background="@color/dark_blue_700"
-        android:elevation="6dp"
-        app:title="Mark Attendance"
+        android:text="@string/mark_attendance_title"
+        android:textSize="22sp"
+        android:textStyle="bold"
         android:gravity="center"
-        app:titleTextColor="@android:color/white"
-        app:titleCentered="true"
-        app:navigationIcon="@drawable/ic_arrow_back"
+        android:contentDescription="@string/mark_attendance_title"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"/>
+        app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- Card for section selection -->
-    <com.google.android.material.card.MaterialCardView
-        android:id="@+id/sectionCard"
+    <!-- Section Dropdown -->
+    <Spinner
+        android:id="@+id/sectionSpinner"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:elevation="4dp"
-        android:layout_marginTop="20dp"
-        app:cardCornerRadius="24dp"
-        app:cardBackgroundColor="@color/white"
-        app:layout_constraintTop_toBottomOf="@id/studentToolbar"
+        android:spinnerMode="dropdown"
+        android:prompt="@string/select_section_prompt"
+        android:contentDescription="@string/section_spinner_desc"
+        app:layout_constraintTop_toBottomOf="@id/titleTxt"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginHorizontal="12dp">
+        android:layout_marginTop="12dp" />
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:padding="10dp">
-
-            <TextView
-                android:id="@+id/sectionLabel"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/select_section_prompt"
-                android:textColor="@color/black"
-                android:textSize="16sp"
-                android:layout_marginEnd="12dp"
-                android:textStyle="normal" />
-
-            <Spinner
-                android:id="@+id/sectionSpinner"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:spinnerMode="dropdown"
-                android:backgroundTint="@color/dark_blue_700"
-                android:paddingHorizontal="16dp"
-                android:paddingVertical="6dp"
-                android:dropDownVerticalOffset="12dp"
-                android:dropDownWidth="200dp"
-                android:layout_marginLeft="2dp"
-                android:layout_marginRight="2dp"
-                android:popupBackground="@color/white"
-                android:contentDescription="@string/section_spinner_desc"/>
-
-        </LinearLayout>
-    </com.google.android.material.card.MaterialCardView>
-
-    <!-- RecyclerView in card -->
-    <com.google.android.material.card.MaterialCardView
-        android:id="@+id/recyclerCard"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        app:cardElevation="0dp"
-        app:cardCornerRadius="20dp"
-        app:cardBackgroundColor="@color/white"
-        app:layout_constraintTop_toBottomOf="@id/sectionCard"
-        app:layout_constraintBottom_toTopOf="@id/bottomBar"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="18dp"
-        android:layout_marginBottom="8dp"
-        android:layout_marginHorizontal="10dp">
-
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/recyclerView"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:paddingTop="10dp"
-            android:paddingBottom="8dp"
-            android:clipToPadding="false"
-            android:scrollbars="vertical"
-            tools:listitem="@layout/item_student_attendance"/>
-    </com.google.android.material.card.MaterialCardView>
-
-    <!-- Empty state overlay -->
-    <LinearLayout
-        android:id="@+id/emptyContainer"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:orientation="vertical"
-        android:gravity="center"
-        android:visibility="gone"
-        app:layout_constraintTop_toTopOf="@id/recyclerCard"
-        app:layout_constraintBottom_toBottomOf="@id/recyclerCard"
-        app:layout_constraintStart_toStartOf="@id/recyclerCard"
-        app:layout_constraintEnd_toEndOf="@id/recyclerCard"/>
-
-    <!-- Progress overlay for loading, aligns to recyclerCard -->
-    <FrameLayout
-        android:id="@+id/progressBarContainer"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:visibility="gone"
-        android:background="@color/dark_blue_700"
-        app:layout_constraintTop_toTopOf="@id/recyclerCard"
-        app:layout_constraintBottom_toBottomOf="@id/recyclerCard"
-        app:layout_constraintStart_toStartOf="@id/recyclerCard"
-        app:layout_constraintEnd_toEndOf="@id/recyclerCard">
-
-        <com.google.android.material.progressindicator.CircularProgressIndicator
-            android:id="@+id/progressBar"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            app:indicatorColor="@color/teal_700"
-            app:indicatorSize="48dp"
-            android:layout_gravity="center"/>
-    </FrameLayout>
-
-    <!-- Debug text, hidden by default -->
+    <!-- Debug text (kept hidden by default, enable during debugging) -->
     <TextView
         android:id="@+id/debugTxt"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginHorizontal="16dp"
         android:textColor="@android:color/holo_blue_dark"
         android:textSize="12sp"
         android:visibility="gone"
-        app:layout_constraintTop_toBottomOf="@id/sectionCard"
+        android:paddingTop="8dp"
+        app:layout_constraintTop_toBottomOf="@id/sectionSpinner"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toTopOf="@id/recyclerCard"/>
+        app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- Bottom bar for actions, direct child of ConstraintLayout -->
-    <androidx.constraintlayout.widget.ConstraintLayout
+    <!-- RecyclerView -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerView"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:clipToPadding="false"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"
+        android:scrollbars="vertical"
+        tools:listitem="@layout/item_student_attendance"
+        app:layout_constraintTop_toBottomOf="@id/debugTxt"
+        app:layout_constraintBottom_toTopOf="@id/bottomBar"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Empty placeholder shown when no sections or students -->
+    <TextView
+        android:id="@+id/emptyTxt"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:text="@string/empty_no_sections_or_students"
+        android:textColor="@color/black"
+        android:textSize="16sp"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="@id/recyclerView"
+        app:layout_constraintBottom_toBottomOf="@id/recyclerView"
+        app:layout_constraintStart_toStartOf="@id/recyclerView"
+        app:layout_constraintEnd_toEndOf="@id/recyclerView" />
+
+    <!-- Progress Bar (Centered over RecyclerView) -->
+    <ProgressBar
+        android:id="@+id/progressBar"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        style="?android:attr/progressBarStyleLarge"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="@id/recyclerView"
+        app:layout_constraintBottom_toBottomOf="@id/recyclerView"
+        app:layout_constraintStart_toStartOf="@id/recyclerView"
+        app:layout_constraintEnd_toEndOf="@id/recyclerView" />
+
+    <!-- Bottom Bar -->
+    <LinearLayout
         android:id="@+id/bottomBar"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:background="@color/white"
+        android:orientation="horizontal"
+        android:padding="8dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:paddingVertical="14dp"
-        android:paddingHorizontal="18dp"
-        android:elevation="10dp">
+        app:layout_constraintEnd_toEndOf="parent">
 
-        <com.google.android.material.button.MaterialButton
+        <!-- View Report Button -->
+        <Button
             android:id="@+id/viewReportBtn"
-            style="@style/Widget.MaterialComponents.Button"
-            android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:layout_marginEnd="16dp"
-            app:cornerRadius="0dp"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
             android:backgroundTint="@color/teal_700"
-            android:background="@drawable/bg_rectangle_button"
+            android:elevation="4dp"
+            android:padding="12dp"
             android:text="@string/viewreport"
             android:textAllCaps="false"
-            android:textColor="@android:color/white"
-            app:icon="@drawable/ic_upload"
-            app:iconTint="@android:color/white"
-            app:iconGravity="textStart"
-            app:iconPadding="10dp"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"/>
-    </androidx.constraintlayout.widget.ConstraintLayout>
+            android:textColor="@android:color/white" />
+    </LinearLayout>
+
 </androidx.constraintlayout.widget.ConstraintLayout>

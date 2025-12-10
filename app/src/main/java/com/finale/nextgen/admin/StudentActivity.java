@@ -616,7 +616,6 @@ public class StudentActivity extends AppCompatActivity {
                 Toast.makeText(StudentActivity.this, "Error generating ID", Toast.LENGTH_SHORT).show();
             }
         });
-
     }
 
     interface OnIdGeneratedListener {

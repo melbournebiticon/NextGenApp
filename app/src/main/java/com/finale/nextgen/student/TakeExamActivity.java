@@ -46,9 +46,8 @@ public class TakeExamActivity extends AppCompatActivity {
 
     private TextView tvExamTitle;
     private RecyclerView rvQuestions;
-    private com.finale.nextgen.student.TakeExamAdapter questionAdapter;
+    private TakeExamAdapter questionAdapter;
     private List<Question> questionList = new ArrayList<>();
-    private Button btnSubmit;
 
     private String examId;
     private String examTitle;
@@ -102,8 +101,6 @@ public class TakeExamActivity extends AppCompatActivity {
     private boolean isShowingRules = false;
     private boolean isRequestingMicPermission = false;
 
-    private TextView tvQuestionProgress;
-
     // NEW: set to true when we successfully loaded offline data on startup
     private volatile boolean offlineLoaded = false;
 
@@ -123,10 +120,8 @@ public class TakeExamActivity extends AppCompatActivity {
         }
 
         tvExamTitle = findViewById(R.id.tvExamTitle);
-        tvQuestionProgress = findViewById(R.id.tvQuestionProgress);
         rvQuestions = findViewById(R.id.rvQuestions);
         rvQuestions.setLayoutManager(new LinearLayoutManager(this));
-        btnSubmit = findViewById(R.id.btnSubmitExam);
         tvTimer = findViewById(R.id.tvTimer);
 
         examId = getIntent().getStringExtra("examId");
@@ -308,7 +303,6 @@ public class TakeExamActivity extends AppCompatActivity {
             Log.d("OfflineDebug", "offlineLoaded already true - skipping loadQuestions()");
             // We still want audio permission request / submit listener set
             checkAndRequestAudioPermission();
-            btnSubmit.setOnClickListener(v -> handleNextOrSubmit());
         }
 
         // -----------------------------
@@ -725,7 +719,6 @@ public class TakeExamActivity extends AppCompatActivity {
         // At end of mapEntitiesToQuestionsAndShow(...) after showNextQuestion();
         offlineLoaded = true; // already set earlier in some places, but ensure it
         checkAndRequestAudioPermission();
-        btnSubmit.setOnClickListener(v -> handleNextOrSubmit());
     }
 
     // And the Firebase fetch/cache helper:
@@ -774,7 +767,6 @@ public class TakeExamActivity extends AppCompatActivity {
                         // mark offlineLoaded and ensure audio/submit wiring
                         offlineLoaded = true;
                         checkAndRequestAudioPermission();
-                        btnSubmit.setOnClickListener(v -> handleNextOrSubmit());
                     });
                 }).start();
             }
@@ -803,7 +795,7 @@ public class TakeExamActivity extends AppCompatActivity {
 
     private void showNextQuestion() {
         if (currentTypeQuestions.isEmpty()) {
-            goToNextType();
+            goToNextTypeOrSubmit(); // Use OrSubmit to handle end-of-section/exam properly!
             return;
         }
 
@@ -813,20 +805,30 @@ public class TakeExamActivity extends AppCompatActivity {
             currentQ.setDisplayNumber(typeQuestionNumber);
             singleQuestion.add(currentQ);
 
-            questionAdapter = new com.finale.nextgen.student.TakeExamAdapter(TakeExamActivity.this, singleQuestion, allMatchingAnswers);
+            // Button label logic -- ensure this block is here!
+            boolean hasNext = currentIndex < currentTypeQuestions.size() - 1;
+            boolean hasNextSection = !hasNext && hasNextNonEmptySection();
+            String buttonText;
+            if (hasNext) buttonText = "Next";
+            else if (hasNextSection) buttonText = "Next Section";
+            else buttonText = "Submit";
+
+            // Make sure totalQuestions is the total for the exam (ex: questionList.size() or fullQuestionList.size())
+            int totalQuestions = questionList.size(); // or whatever holds the full count for the exam
+            questionAdapter = new TakeExamAdapter(this, singleQuestion, allMatchingAnswers, buttonText, totalQuestions);
+            questionAdapter.setOnActionListener((position, actionString) -> {
+                if ("Next".equalsIgnoreCase(actionString)) {
+                    moveToNext();
+                } else if ("Next Section".equalsIgnoreCase(actionString)) {
+                    goToNextTypeOrSubmit();
+                } else if (actionString.startsWith("Submit")) {
+                    maybeConfirmSubmit();
+                }
+            });
             rvQuestions.setAdapter(questionAdapter);
 
-            // NEW: look ahead for actual non-empty sections
-            if (currentIndex == currentTypeQuestions.size() - 1 && !hasNextNonEmptySection()) {
-                btnSubmit.setText("Submit Exam");
-            } else if (currentIndex == currentTypeQuestions.size() - 1) {
-                btnSubmit.setText("Next Section");
-            } else {
-                btnSubmit.setText("Next");
-            }
-
         } else {
-            goToNextType();
+            goToNextTypeOrSubmit();
         }
     }
 
@@ -839,8 +841,6 @@ public class TakeExamActivity extends AppCompatActivity {
             } else {
                 showNextQuestion();
             }
-        } else {
-            btnSubmit.setText("Submit Exam");
         }
     }
 
@@ -854,7 +854,8 @@ public class TakeExamActivity extends AppCompatActivity {
             return;
         }
 
-        btnSubmit.setEnabled(false); // prevent double taps
+
+
 
         int totalQuestions = questionList.size();
         int correctAnswers = 0;
@@ -897,8 +898,7 @@ public class TakeExamActivity extends AppCompatActivity {
                                 String studentId = ds.child("studentId").getValue(String.class);
                                 if (studentId == null || studentId.isEmpty()) {
                                     Toast.makeText(TakeExamActivity.this, "Student ID missing.", Toast.LENGTH_SHORT).show();
-                                    // allow retry by re-enabling the button
-                                    btnSubmit.setEnabled(true);
+
                                     return;
                                 }
 
@@ -918,13 +918,13 @@ public class TakeExamActivity extends AppCompatActivity {
                             }
                         } else {
                             Toast.makeText(TakeExamActivity.this, "Student ID not found online.", Toast.LENGTH_SHORT).show();
-                            btnSubmit.setEnabled(true);
+
+
                         }
                     }
 
                     @Override
                     public void onCancelled(@NonNull DatabaseError error) {
-                        btnSubmit.setEnabled(true);
                         Toast.makeText(TakeExamActivity.this, "Error fetching student ID.", Toast.LENGTH_SHORT).show();
                     }
                 });
@@ -934,7 +934,8 @@ public class TakeExamActivity extends AppCompatActivity {
         stopAudioMonitoring();
 
         int maxScore = questionList.size();
-        btnSubmit.setEnabled(false);
+
+
 
         // Try local Student ID first (works offline)
         String localStudentId = com.finale.nextgen.SessionManager.getStudentId(this);
@@ -963,7 +964,8 @@ public class TakeExamActivity extends AppCompatActivity {
                                 String studentId = ds.child("studentId").getValue(String.class);
                                 if (studentId == null || studentId.isEmpty()) {
                                     Toast.makeText(TakeExamActivity.this, "Student ID missing.", Toast.LENGTH_SHORT).show();
-                                    btnSubmit.setEnabled(true);
+
+
                                     return;
                                 }
 
@@ -982,13 +984,14 @@ public class TakeExamActivity extends AppCompatActivity {
                             }
                         } else {
                             Toast.makeText(TakeExamActivity.this, "Student ID not found online.", Toast.LENGTH_SHORT).show();
-                            btnSubmit.setEnabled(true);
+
+
                         }
                     }
 
                     @Override
                     public void onCancelled(@NonNull DatabaseError error) {
-                        btnSubmit.setEnabled(true);
+
                         Toast.makeText(TakeExamActivity.this, "Error fetching student ID.", Toast.LENGTH_SHORT).show();
                     }
                 });
@@ -1312,25 +1315,7 @@ public class TakeExamActivity extends AppCompatActivity {
             });
         } else {
             moveToNext();
-            // currentIndex and questionList.size() should always be up-to-date
         }
-    }
-
-    private void updateQuestionProgress() {
-        tvQuestionProgress.setText((getCurrentOverallIndex() + 1) + "/" + questionList.size());
-    }
-
-    private int getCurrentOverallIndex() {
-        int count = 0;
-        for (int i = 0; i < typeIndex; i++) {
-            String pastType = questionTypeOrder[i];
-            for (Question q : questionList) {
-                if (q.getQuestionType() != null && q.getQuestionType().equalsIgnoreCase(pastType)) {
-                    count++;
-                }
-            }
-        }
-        return count + currentIndex;
     }
 
     private void moveToNext() {
@@ -1338,8 +1323,6 @@ public class TakeExamActivity extends AppCompatActivity {
             currentIndex++;
             typeQuestionNumber++;
             showQuestion(currentTypeQuestions.get(currentIndex));
-            updateQuestionProgress();
-            updateButtonText();
         } else {
             goToNextTypeOrSubmit();
         }
@@ -1350,36 +1333,50 @@ public class TakeExamActivity extends AppCompatActivity {
             filterQuestionsByType(questionTypeOrder[typeIndex]);
             if (!currentTypeQuestions.isEmpty()) {
                 showQuestion(currentTypeQuestions.get(currentIndex));
-                // currentIndex and questionList.size() should always be up-to-date
-                updateQuestionProgress();
-                updateButtonText();
             } else {
                 // Skip empty section
                 goToNextTypeOrSubmit();
             }
         } else {
-            // All sections done -> ask for confirmation (replaces direct submitExam())
-            btnSubmit.setText("Submit Exam");
+
             maybeConfirmSubmit();
         }
     }
     private void showQuestion(Question question) {
+        // Set question display number for formatting (e.g., 1., 2., ...)
         question.setDisplayNumber(typeQuestionNumber);
+
+        // Prepare a single-question list (for one-question-at-a-time navigation)
         List<Question> singleQuestion = new ArrayList<>();
         singleQuestion.add(question);
 
-        questionAdapter = new com.finale.nextgen.student.TakeExamAdapter(this, singleQuestion, allMatchingAnswers);
+        // --- Button label logic:
+        // "Next" = if more questions left in current section
+        // "Next Section" = if this is last question of current section, but more section types exist
+        // "Submit" = last question of last section
+        boolean hasNext = currentIndex < currentTypeQuestions.size() - 1;
+        boolean hasNextSection = !hasNext && hasNextNonEmptySection();
+        String buttonText;
+        if (hasNext) buttonText = "Next";
+        else if (hasNextSection) buttonText = "Next Section";
+        else buttonText = "Submit";
+
+        // Create adapter and pass button text
+        questionAdapter = new TakeExamAdapter(this, singleQuestion, allMatchingAnswers, buttonText, questionList.size());
+
+        // Set the navigation callback for item button clicks
+        questionAdapter.setOnActionListener((position, actionString) -> {
+            if ("Next".equalsIgnoreCase(actionString)) {
+                moveToNext();
+            } else if ("Next Section".equalsIgnoreCase(actionString)) {
+                goToNextTypeOrSubmit();
+            } else if (actionString.startsWith("Submit")) {
+                maybeConfirmSubmit();
+            }
+        });
+
+        // Set the adapter
         rvQuestions.setAdapter(questionAdapter);
     }
-    private void updateButtonText() {
-        if (currentIndex < currentTypeQuestions.size() - 1) {
-            btnSubmit.setText("Next");
-        } else if (hasNextNonEmptySection()) {
-            btnSubmit.setText("Next Section");
-        } else {
-            btnSubmit.setText("Submit Exam");
-        }
-    }
-
 }
 
