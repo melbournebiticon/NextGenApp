@@ -29,24 +29,23 @@
                 app:layout_scrollFlags="scroll|exitUntilCollapsed">
 
                 <FrameLayout
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:layout_gravity="end|top"
-                android:layout_marginTop="16dp"
-                android:clickable="true"
-                android:focusable="true">
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_gravity="end|top"
+                    android:layout_marginTop="16dp"
+                    android:clickable="true"
+                    android:focusable="true">
 
-                <com.google.android.material.imageview.ShapeableImageView
-                    android:id="@+id/ivProfile"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
-                    android:src="@drawable/ic_admin"
-                    android:layout_gravity="center"
-                    android:contentDescription="Profile"
-                    app:shapeAppearanceOverlay="@style/ShapeAppearanceOverlay.Material3.Corner.Full"
-                    android:clipToOutline="true" />
-
-            </FrameLayout>
+                    <com.google.android.material.imageview.ShapeableImageView
+                        android:id="@+id/ivProfile"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:src="@drawable/ic_admin"
+                        android:layout_gravity="center"
+                        android:contentDescription="Profile"
+                        app:shapeAppearanceOverlay="@style/ShapeAppearanceOverlay.Material3.Corner.Full"
+                        android:clipToOutline="true" />
+                </FrameLayout>
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -76,214 +75,216 @@
             </FrameLayout>
         </com.google.android.material.appbar.AppBarLayout>
 
-
         <androidx.core.widget.NestedScrollView
             android:id="@+id/scroll_body"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            app:layout_behavior="@string/appbar_scrolling_view_behavior" android:clipToPadding="false"
+            app:layout_behavior="@string/appbar_scrolling_view_behavior"
+            android:clipToPadding="false"
             android:paddingStart="16dp"
             android:paddingEnd="16dp"
-            android:paddingTop="0dp" android:paddingBottom="92dp"> <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:layout_marginTop="8dp">
-
-            <androidx.gridlayout.widget.GridLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="18dp"
-                app:columnCount="3"
-                app:rowCount="1"
-                app:orientation="horizontal">
-
-                <androidx.cardview.widget.CardView
-                    android:id="@+id/card_totalCourses"
-                    android:layout_width="0dp"
-                    android:layout_height="140dp"
-                    app:layout_columnWeight="1"
-                    app:layout_rowWeight="1"
-                    android:layout_margin="8dp"
-                    app:cardCornerRadius="16dp"
-                    app:cardElevation="4dp"
-                    android:clickable="true"
-                    android:focusable="true"
-                    app:cardBackgroundColor="#FFFFFF">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:orientation="vertical"
-                        android:padding="16dp">
-
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="horizontal"
-                            android:gravity="center_vertical"
-                            android:layout_marginBottom="8dp">
-
-                            <TextView
-                                android:text="Curriculum"
-                                android:textStyle="bold"
-                                android:textSize="14sp"
-                                android:textColor="#424242"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"/>
-
-                            <View
-                                android:layout_width="0dp"
-                                android:layout_height="1dp"
-                                android:layout_weight="1" />
-                        </LinearLayout>
-
-                        <TextView
-                            android:id="@+id/totalCourses"
-                            android:text="32"
-                            android:textColor="#0D47A1"
-                            android:textSize="55sp"
-                            android:textStyle="bold"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginBottom="6dp"/>
-
-
-                    </LinearLayout>
-                </androidx.cardview.widget.CardView>
-
-                <androidx.cardview.widget.CardView
-                    android:id="@+id/card_totalExaminees"
-                    android:layout_width="0dp"
-                    android:layout_height="140dp"
-                    app:layout_columnWeight="1"
-                    app:layout_rowWeight="1"
-                    android:layout_margin="8dp"
-                    app:cardCornerRadius="16dp"
-                    app:cardElevation="4dp"
-                    android:clickable="true"
-                    android:focusable="true"
-                    app:cardBackgroundColor="#FFFFFF">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:orientation="vertical"
-                        android:padding="16dp">
-
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="horizontal"
-                            android:gravity="center_vertical"
-                            android:layout_marginBottom="8dp">
-
-                            <TextView
-                                android:text="Examinees"
-                                android:textStyle="bold"
-                                android:textSize="14sp"
-                                android:textColor="#424242"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"/>
-
-                            <View
-                                android:layout_width="0dp"
-                                android:layout_height="1dp"
-                                android:layout_weight="1" />
-                        </LinearLayout>
-
-                        <TextView
-                            android:id="@+id/totalExaminees"
-                            android:text="1,240"
-                            android:textColor="#0D47A1"
-                            android:textSize="55sp"
-                            android:textStyle="bold"
-                            android:layout_marginBottom="6dp"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"/>
-
-
-                    </LinearLayout>
-                </androidx.cardview.widget.CardView>
-
-                <androidx.cardview.widget.CardView
-                    android:id="@+id/card_totalTeachers"
-                    android:layout_width="0dp"
-                    android:layout_height="140dp"
-                    app:layout_columnWeight="1"
-                    app:layout_rowWeight="1"
-                    android:layout_margin="8dp"
-                    app:cardCornerRadius="16dp"
-                    app:cardElevation="4dp"
-                    android:clickable="true"
-                    android:focusable="true"
-                    app:cardBackgroundColor="#FFFFFF">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:orientation="vertical"
-                        android:padding="16dp">
-
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="horizontal"
-                            android:gravity="center_vertical"
-                            android:layout_marginBottom="8dp">
-
-                            <TextView
-                                android:text="Teachers"
-                                android:textStyle="bold"
-                                android:textSize="14sp"
-                                android:textColor="#424242"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"/>
-
-                            <View
-                                android:layout_width="0dp"
-                                android:layout_height="1dp"
-                                android:layout_weight="1" />
-                        </LinearLayout>
-
-                        <TextView
-                            android:id="@+id/totalTeachers"
-                            android:text="48"
-                            android:textColor="#0D47A1"
-                            android:textSize="55sp"
-                            android:textStyle="bold"
-                            android:layout_marginBottom="6dp"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"/>
-
-
-                    </LinearLayout>
-                </androidx.cardview.widget.CardView>
-            </androidx.gridlayout.widget.GridLayout>
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
-                android:text="Quick Actions"
-                android:textColor="#0D47A1"
-                android:textSize="18sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Manage Curriculum"
-                android:textColor="#424242"
-                android:textSize="15sp"
-                android:textStyle="bold"
-                android:layout_marginBottom="12dp" />
+            android:paddingTop="0dp"
+            android:paddingBottom="92dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:layout_marginBottom="24dp">
+                android:layout_marginTop="8dp">
+
+                <androidx.gridlayout.widget.GridLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="18dp"
+                    app:columnCount="3"
+                    app:rowCount="1"
+                    app:orientation="horizontal">
+
+                    <!-- Curriculum card -->
+                    <androidx.cardview.widget.CardView
+                        android:id="@+id/card_totalCourses"
+                        android:layout_width="0dp"
+                        android:layout_height="140dp"
+                        app:layout_columnWeight="1"
+                        app:layout_rowWeight="1"
+                        android:layout_margin="8dp"
+                        app:cardCornerRadius="16dp"
+                        app:cardElevation="4dp"
+                        android:clickable="true"
+                        android:focusable="true"
+                        app:cardBackgroundColor="#FFFFFF">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:orientation="vertical"
+                            android:padding="16dp">
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:gravity="center_vertical"
+                                android:layout_marginBottom="8dp">
+
+                                <TextView
+                                    android:text="Curriculum"
+                                    android:textStyle="bold"
+                                    android:textSize="14sp"
+                                    android:textColor="#424242"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"/>
+
+                                <View
+                                    android:layout_width="0dp"
+                                    android:layout_height="1dp"
+                                    android:layout_weight="1" />
+                            </LinearLayout>
+
+                            <TextView
+                                android:id="@+id/totalCourses"
+                                android:text="32"
+                                android:textColor="#0D47A1"
+                                android:textSize="55sp"
+                                android:textStyle="bold"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginBottom="6dp"/>
+                        </LinearLayout>
+                    </androidx.cardview.widget.CardView>
+
+                    <!-- Examinees card -->
+                    <androidx.cardview.widget.CardView
+                        android:id="@+id/card_totalExaminees"
+                        android:layout_width="0dp"
+                        android:layout_height="140dp"
+                        app:layout_columnWeight="1"
+                        app:layout_rowWeight="1"
+                        android:layout_margin="8dp"
+                        app:cardCornerRadius="16dp"
+                        app:cardElevation="4dp"
+                        android:clickable="true"
+                        android:focusable="true"
+                        app:cardBackgroundColor="#FFFFFF">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:orientation="vertical"
+                            android:padding="16dp">
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:gravity="center_vertical"
+                                android:layout_marginBottom="8dp">
+
+                                <TextView
+                                    android:text="Examinees"
+                                    android:textStyle="bold"
+                                    android:textSize="14sp"
+                                    android:textColor="#424242"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"/>
+
+                                <View
+                                    android:layout_width="0dp"
+                                    android:layout_height="1dp"
+                                    android:layout_weight="1" />
+                            </LinearLayout>
+
+                            <TextView
+                                android:id="@+id/totalExaminees"
+                                android:text="1,240"
+                                android:textColor="#0D47A1"
+                                android:textSize="55sp"
+                                android:textStyle="bold"
+                                android:layout_marginBottom="6dp"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"/>
+                        </LinearLayout>
+                    </androidx.cardview.widget.CardView>
+
+                    <!-- Teachers card -->
+                    <androidx.cardview.widget.CardView
+                        android:id="@+id/card_totalTeachers"
+                        android:layout_width="0dp"
+                        android:layout_height="140dp"
+                        app:layout_columnWeight="1"
+                        app:layout_rowWeight="1"
+                        android:layout_margin="8dp"
+                        app:cardCornerRadius="16dp"
+                        app:cardElevation="4dp"
+                        android:clickable="true"
+                        android:focusable="true"
+                        app:cardBackgroundColor="#FFFFFF">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:orientation="vertical"
+                            android:padding="16dp">
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:gravity="center_vertical"
+                                android:layout_marginBottom="8dp">
+
+                                <TextView
+                                    android:text="Teachers"
+                                    android:textStyle="bold"
+                                    android:textSize="14sp"
+                                    android:textColor="#424242"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"/>
+
+                                <View
+                                    android:layout_width="0dp"
+                                    android:layout_height="1dp"
+                                    android:layout_weight="1" />
+                            </LinearLayout>
+
+                            <TextView
+                                android:id="@+id/totalTeachers"
+                                android:text="48"
+                                android:textColor="#0D47A1"
+                                android:textSize="55sp"
+                                android:textStyle="bold"
+                                android:layout_marginBottom="6dp"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"/>
+                        </LinearLayout>
+                    </androidx.cardview.widget.CardView>
+                </androidx.gridlayout.widget.GridLayout>
+
+                <!-- Quick Actions -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp"
+                    android:text="Quick Actions"
+                    android:textColor="#0D47A1"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Manage Curriculum"
+                    android:textColor="#424242"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="12dp" />
+
+                <!-- Quick Action Cards Section -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_marginBottom="24dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -598,15 +599,13 @@
                     android:layout_weight="1"/>
             </LinearLayout>
 
-            <TextView
+            <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Recently created — Students"
-                android:textColor="#274E86"
-                android:textStyle="bold"
-                android:textSize="15sp"
-                android:layout_marginTop="6dp"
-                android:layout_marginBottom="8dp"/>
+                app:cardCornerRadius="12dp"
+                app:cardElevation="2dp"
+                android:padding="8dp"
+                android:layout_marginBottom="12dp"/>
 
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
@@ -614,39 +613,7 @@
                 app:cardCornerRadius="12dp"
                 app:cardElevation="2dp"
                 android:padding="8dp"
-                android:layout_marginBottom="12dp">
-
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/rv_recent_students"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:nestedScrollingEnabled="false"/>
-            </com.google.android.material.card.MaterialCardView>
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Recently created — TC"
-                android:textColor="#274E86"
-                android:textStyle="bold"
-                android:textSize="15sp"
-                android:layout_marginTop="6dp"
-                android:layout_marginBottom="8dp"/>
-
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="2dp"
-                android:padding="8dp"
-                android:layout_marginBottom="120dp">
-
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/rv_recent_tc"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:nestedScrollingEnabled="false"/>
-            </com.google.android.material.card.MaterialCardView>
+                android:layout_marginBottom="120dp"/>
 
         </LinearLayout>
         </androidx.core.widget.NestedScrollView>

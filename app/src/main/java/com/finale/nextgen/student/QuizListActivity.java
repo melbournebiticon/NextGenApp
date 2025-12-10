@@ -1,5 +1,8 @@
 package com.finale.nextgen.student;
 
+
+
+
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
@@ -12,11 +15,17 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+
+
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+
+
+
 
 import com.finale.nextgen.R;
 import com.finale.nextgen.admin.StudentModel;
@@ -30,20 +39,32 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
+
+
+
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+
+
+
 // add these imports near the top of QuizListActivity.java (with the other imports)
 import java.util.Map;
 import java.util.HashMap;
+
+
+
 
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import androidx.core.content.ContextCompat;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.IntentFilter;
+
+
+
 
 /**
  * Patched QuizListActivity with offline caching integration (uses QuizCacheManager + Room).
@@ -55,38 +76,68 @@ import android.content.IntentFilter;
  */
 public class QuizListActivity extends AppCompatActivity implements QuizListAdapter.OnQuizClickListener {
 
+
+
+
     private static final String TAG = "QuizListActivity";
     private static final String TAG_DEBUG = "QUIZ_DEBUG";
     private static final boolean SHOW_ALL_ACTIVE_FOR_DEBUG = false;
 
+
+
+
     private static final int REQ_CODE_ZXING_SCAN = 0x1001;
     private static final int REQ_CODE_IN_APP_SCAN = 0x1002;
+
+
+
 
     private RecyclerView rvQuizzes;
     private ProgressBar progress;
     private TextView tvEmpty;
     private Button btnScanQr;
 
+
+
+
     private QuizListAdapter adapter;
     private final List<QuizModel> quizList = new ArrayList<>();
     private final Set<String> quizIds = new HashSet<>();
 
+
+
+
     private StudentModel student;
     private SessionManager sessionManager;
 
+
+
+
     private DatabaseReference publicRef;
     private ChildEventListener publicChildListener;
+
+
+
 
     private DatabaseReference scoresRefForStudent;
     private ChildEventListener scoresChildListener;
     private String scoresStudentId = null;
 
+
+
+
     private String autoOpenQuizId;
+
+
+
 
     private final Map<String, ValueEventListener> quizPresenceListeners = new HashMap<>();
     private final Map<String, DatabaseReference> quizPresenceRefs = new HashMap<>();
     private final Map<String, ValueEventListener> examPresenceListeners = new HashMap<>();
     private final Map<String, DatabaseReference> examPresenceRefs = new HashMap<>();
+
+
+
 
     private DatabaseReference quizScoresRefForStudent;
     private DatabaseReference legacyScoresRefForStudent;
@@ -95,37 +146,82 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
     private static final int REQ_CODE_PICK_IMAGE = 0x1003;
     private static final int REQ_CODE_READ_STORAGE = 0x2001;
 
+
+
+
+    private final Map<String, Boolean> lastQuizNodeExists = new HashMap<>();
+    private final Map<String, Boolean> lastQuizAllowed = new HashMap<>();
+    private final Map<String, Boolean> lastQuizPresent = new HashMap<>();
+    private final Map<String, Boolean> lastExamAllowed = new HashMap<>();
+    private final Map<String, Boolean> lastExamPresent = new HashMap<>();
+
+
+
+
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+
+
 
         LocalBroadcastManager.getInstance(this).registerReceiver(
                 quizSubmittedReceiver,
                 new IntentFilter("com.finale.nextgen.QUIZ_SUBMITTED")
         );
 
+
+
+
+
+
+
+
         setContentView(R.layout.activity_quiz_list);
         sessionManager = new SessionManager(this);
+
+
+
+
+        debugReadServerPresenceOnce( "-OfwYDC8ZXUPI6uNLcc6");
+
+
+
 
         rvQuizzes = findViewById(R.id.rvQuizzes);
         progress = findViewById(R.id.progressQuizzes);
         tvEmpty = findViewById(R.id.tvNoQuizzes);
         btnScanQr = findViewById(R.id.btnScanQr);
 
+
+
+
         rvQuizzes.setLayoutManager(new LinearLayoutManager(this));
         adapter = new QuizListAdapter(quizList, this);
         rvQuizzes.setAdapter(adapter);
+
+
+
 
         // after: rvQuizzes.setLayoutManager(...) and rvQuizzes.setAdapter(adapter);
         dumpSpecificCachedQuiz("" +
                 "-Oft2XaEk5EN_3l0WK2Y");
 
+
+
+
         LocalBroadcastManager.getInstance(this).registerReceiver(presenceReceiver,
                 new IntentFilter("com.finale.nextgen.PRESENCE_UPDATED"));
+
+
+
 
         if (btnScanQr != null) {
             btnScanQr.setOnClickListener(v -> launchInAppScanner());
         }
+
+
+
 
         student = sessionManager.getStudentModel();
         if (student == null) {
@@ -136,10 +232,16 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
             student.setSectionName(sessionManager.getSectionName());
         }
 
+
+
+
         Log.d(TAG_DEBUG, "Session student: course='" + sessionManager.getCourseName()
                 + "' spec='" + sessionManager.getSpecializationName()
                 + "' year='" + sessionManager.getYearName()
                 + "' section='" + sessionManager.getSectionName() + "'");
+
+
+
 
         // Read Intent extras (if StudentDashboard passed them)
         try {
@@ -151,16 +253,25 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                 String intentYear = caller.getStringExtra("yearName");
                 String intentSection = caller.getStringExtra("sectionName");
 
+
+
+
                 if (intentStudentId != null && !intentStudentId.isEmpty()) {
                     try { sessionManager.saveStudentId(intentStudentId); } catch (Exception ignored) {}
                     scoresStudentId = intentStudentId;
                 }
+
+
+
 
                 if (student == null) student = new StudentModel();
                 if (intentCourse != null && !intentCourse.trim().isEmpty()) student.setCourseName(intentCourse);
                 if (intentSpec != null && !intentSpec.trim().isEmpty()) student.setSpecializationName(intentSpec);
                 if (intentYear != null && !intentYear.trim().isEmpty()) student.setYearName(intentYear);
                 if (intentSection != null && !intentSection.trim().isEmpty()) student.setSectionName(intentSection);
+
+
+
 
                 Log.d(TAG_DEBUG, "Intent-seeded student: course='" + student.getCourseName()
                         + "' spec='" + student.getSpecializationName()
@@ -172,8 +283,14 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
             Log.w(TAG_DEBUG, "Failed to read intent extras: " + e.getMessage());
         }
 
+
+
+
         autoOpenQuizId = getIntent().getStringExtra("autoOpenQuizId");
         publicRef = FirebaseDatabase.getInstance().getReference("AvailableQuizzes");
+
+
+
 
         // offline fallback: if no network, try load cached quizzes
         // offline fallback: if no network, try load cached quizzes
@@ -188,9 +305,15 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                         progress.setVisibility(View.GONE);
                         tvEmpty.setVisibility(cached.isEmpty() ? View.VISIBLE : View.GONE);
 
+
+
+
                         // debug: show a toast/log so you know the cached branch ran
                         Log.d(TAG_DEBUG, "Offline: loaded " + cached.size() + " quizzes from local cache");
                         try { Toast.makeText(QuizListActivity.this, "Offline: loaded " + cached.size() + " cached quizzes", Toast.LENGTH_LONG).show(); } catch (Exception ignored) {}
+
+
+
 
                         attachScoresRealtimeListenerIfNeeded();
                     });
@@ -208,16 +331,25 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                 });
             }).start();
 
+
+
+
             // Important: return here so onCreate doesn't continue to call startRealtimeListener()
             // (we started it in the background branch above).
             return;
         }
+
+
+
 
         // If we don't have course/section info yet but we do have a saved studentId,
         // fetch the student's profile from the DB to populate session and local student
         // BEFORE starting realtime listeners so filtering works immediately.
         String storedStudentId = null;
         try { storedStudentId = sessionManager.getStudentId(); } catch (Exception ignored) {}
+
+
+
 
         boolean hasStudentFields =
                 (student != null &&
@@ -227,6 +359,9 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                                 (student.getSectionName() != null && !student.getSectionName().trim().isEmpty())
                         ));
 
+
+
+
         if (!hasStudentFields && storedStudentId != null && !storedStudentId.isEmpty()) {
             fetchStudentProfileByStudentIdAndStart(storedStudentId);
         } else {
@@ -235,6 +370,9 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
             startChildNotifications();
         }
     }
+
+
+
 
     private boolean isNetworkAvailable() {
         try {
@@ -247,6 +385,9 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
         }
     }
 
+
+
+
     // inside QuizListActivity: update the BroadcastReceiver logic
     // inside QuizListActivity
     private final BroadcastReceiver presenceReceiver = new BroadcastReceiver() {
@@ -256,13 +397,22 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
             String studentId = intent.getStringExtra("studentId");
             boolean present = intent.getBooleanExtra("present", true); // default true
 
+
+
+
             if (quizId == null || quizId.trim().isEmpty()) return;
             if (sessionManager == null) return;
             String myStudentId = sessionManager.getStudentId();
 
+
+
+
             if (studentId == null || studentId.equals(myStudentId)) {
                 // update UI
                 if (adapter != null) adapter.setStudentPresent(quizId, present);
+
+
+
 
                 // Persist presence into local cache so offline shows same state
                 new Thread(() -> {
@@ -288,6 +438,9 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
         }
     };
 
+
+
+
     private void fetchStudentProfileByStudentIdAndStart(@NonNull String studentId) {
         try {
             Log.d(TAG_DEBUG, "Looking up student profile for studentId=" + studentId);
@@ -305,6 +458,9 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                                     String fullName = ds.child("fullName").getValue(String.class);
                                     String profileImage = ds.child("profileImage").getValue(String.class);
 
+
+
+
                                     StudentModel saved = new StudentModel();
                                     saved.setStudentId(studentId);
                                     if (uid != null) saved.setUid(uid);
@@ -315,6 +471,9 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                                     if (fullName != null) saved.setFullName(fullName);
                                     if (profileImage != null) saved.setProfileImage(profileImage);
 
+
+
+
                                     try { sessionManager.saveStudentModel(saved); } catch (Exception ignored) {}
                                     student = saved;
                                     break;
@@ -323,10 +482,16 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                                 Log.w(TAG_DEBUG, "Student profile not found for studentId=" + studentId);
                             }
 
+
+
+
                             debugFetchAndLog();
                             startRealtimeListener();
                             startChildNotifications();
                         }
+
+
+
 
                         @Override public void onCancelled(@NonNull DatabaseError error) {
                             Log.w(TAG_DEBUG, "Student profile lookup cancelled: " + error.getMessage());
@@ -363,7 +528,13 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
         }).start();
     }
 
+
+
+
     private void startChildNotifications() { /* no-op for now */ }
+
+
+
 
     @Override
     protected void onResume() {
@@ -371,11 +542,17 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
         attachScoresRealtimeListenerIfNeeded();
     }
 
+
+
+
     @Override
     protected void onPause() {
         super.onPause();
         detachScoresRealtimeListener();
     }
+
+
+
 
     @Override
     protected void onDestroy() {
@@ -387,7 +564,13 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
         LocalBroadcastManager.getInstance(this).unregisterReceiver(quizSubmittedReceiver);
     }
 
+
+
+
     private void stopChildNotifications() { /* no-op */ }
+
+
+
 
     private void launchInAppScanner() {
         try {
@@ -398,6 +581,9 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
             launchExternalScannerFallback();
         }
     }
+
+
+
 
     private void launchExternalScannerFallback() {
         Intent intent = new Intent("com.google.zxing.client.android.SCAN");
@@ -414,12 +600,18 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
         }
     }
 
+
+
+
     private @Nullable String findMatchingQuizId(String scanned) {
         if (scanned == null) return null;
         String s = scanned.trim();
         if (s.toLowerCase().startsWith("quiz:")) s = s.substring(5).trim();
         if (s.toLowerCase().startsWith("exam:")) s = s.substring(5).trim();
         String lower = s.toLowerCase();
+
+
+
 
         synchronized (quizList) {
             for (QuizModel qm : quizList) {
@@ -433,9 +625,15 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
         return null;
     }
 
+
+
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+
+
+
 
         if (requestCode == REQ_CODE_IN_APP_SCAN) {
             if (resultCode == Activity.RESULT_OK && data != null) {
@@ -445,15 +643,24 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                 }
                 String quizNameMeta = data.getStringExtra("quizName");
 
+
+
+
                 if (contents != null && !contents.trim().isEmpty()) {
                     contents = contents.trim();
                     String candidate = contents.toLowerCase().startsWith("quiz:") ? contents.substring("quiz:".length()).trim() : contents;
                     String matchedQuizId = findMatchingQuizId(candidate);
                     final String quizIdToUse = matchedQuizId != null ? matchedQuizId : candidate;
 
+
+
+
                     if (!quizIdToUse.isEmpty()) {
                         adapter.markOptimisticPresent(quizIdToUse);
                         adapter.setStudentPresent(quizIdToUse, true);
+
+
+
 
                         if (quizNameMeta != null && !quizNameMeta.trim().isEmpty()) {
                             synchronized (quizList) {
@@ -475,6 +682,9 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                             }
                         }
 
+
+
+
                         // persist optimistic present into cache
                         new Thread(() -> {
                             try {
@@ -492,10 +702,16 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                             }
                         }).start();
 
+
+
+
                         autoOpenQuizId = quizIdToUse;
                         adapter.setHighlightQuizId(quizIdToUse);
                         int pos = adapter.getPositionForQuizId(quizIdToUse);
                         if (pos >= 0) rvQuizzes.scrollToPosition(pos);
+
+
+
 
                         View root = findViewById(android.R.id.content);
                         if (root != null) {
@@ -529,6 +745,9 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
             return;
         }
 
+
+
+
         // NEW: handle gallery image pick that may contain a QR code
         if (requestCode == REQ_CODE_PICK_IMAGE) {
             if (resultCode == Activity.RESULT_OK && data != null) {
@@ -541,6 +760,9 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                         android.graphics.Bitmap bmp = android.graphics.BitmapFactory.decodeStream(is, null, opts);
                         if (is != null) try { is.close(); } catch (Exception ignored) {}
 
+
+
+
                         if (bmp != null) {
                             String decoded = decodeQRCodeFromBitmap(bmp); // add helper decodeQRCodeFromBitmap(Bitmap) to the activity
                             if (decoded != null && !decoded.trim().isEmpty()) {
@@ -549,9 +771,15 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                                 String matched = findMatchingQuizId(candidate);
                                 final String quizIdToUse = matched != null ? matched : candidate;
 
+
+
+
                                 if (!quizIdToUse.isEmpty()) {
                                     adapter.markOptimisticPresent(quizIdToUse);
                                     adapter.setStudentPresent(quizIdToUse, true);
+
+
+
 
                                     // persist optimistic present
                                     new Thread(() -> {
@@ -570,10 +798,16 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                                         }
                                     }).start();
 
+
+
+
                                     autoOpenQuizId = quizIdToUse;
                                     adapter.setHighlightQuizId(quizIdToUse);
                                     int pos = adapter.getPositionForQuizId(quizIdToUse);
                                     if (pos >= 0) rvQuizzes.scrollToPosition(pos);
+
+
+
 
                                     View root = findViewById(android.R.id.content);
                                     if (root != null) Snackbar.make(root, "Marked present locally. Tap 'Take Quiz' to start.", Snackbar.LENGTH_LONG).show();
@@ -595,6 +829,9 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
             return;
         }
 
+
+
+
         if (requestCode == REQ_CODE_ZXING_SCAN) {
             if (resultCode == Activity.RESULT_OK && data != null) {
                 String scanContents = data.getStringExtra("SCAN_RESULT");
@@ -603,8 +840,14 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                     String matched = findMatchingQuizId(candidate);
                     final String quizIdToUse = matched != null ? matched : candidate;
 
+
+
+
                     adapter.markOptimisticPresent(quizIdToUse);
                     adapter.setStudentPresent(quizIdToUse, true);
+
+
+
 
                     // persist optimistic present
                     new Thread(() -> {
@@ -623,10 +866,16 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                         }
                     }).start();
 
+
+
+
                     autoOpenQuizId = quizIdToUse;
                     adapter.setHighlightQuizId(quizIdToUse);
                     int pos = adapter.getPositionForQuizId(quizIdToUse);
                     if (pos >= 0) rvQuizzes.scrollToPosition(pos);
+
+
+
 
                     View root = findViewById(android.R.id.content);
                     if (root != null) Snackbar.make(root, "Marked present locally. Tap 'Take Quiz' to start.", Snackbar.LENGTH_LONG).show();
@@ -634,6 +883,9 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
             }
         }
     }
+
+
+
 
     // Add this method inside QuizListActivity (class body)
     private @Nullable String decodeQRCodeFromBitmap(android.graphics.Bitmap bitmap) {
@@ -644,11 +896,17 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
             int[] pixels = new int[width * height];
             bitmap.getPixels(pixels, 0, width, 0, 0, width, height);
 
+
+
+
             com.google.zxing.RGBLuminanceSource source =
                     new com.google.zxing.RGBLuminanceSource(width, height, pixels);
             com.google.zxing.common.HybridBinarizer binarizer =
                     new com.google.zxing.common.HybridBinarizer(source);
             com.google.zxing.BinaryBitmap binaryBitmap = new com.google.zxing.BinaryBitmap(binarizer);
+
+
+
 
             com.google.zxing.Reader reader = new com.google.zxing.MultiFormatReader();
             com.google.zxing.Result result = reader.decode(binaryBitmap);
@@ -669,8 +927,14 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                 // DEBUG: log the size returned from Firebase
                 Log.d("QuizListActivity", "AvailableQuizzes snapshot size=" + (snapshot == null ? 0 : snapshot.getChildrenCount()));
 
+
+
+
                 // save snapshot to local cache for offline fallback
                 com.finale.nextgen.offline.QuizCacheManager.saveSnapshot(QuizListActivity.this, snapshot);
+
+
+
 
                 // existing logic
                 resolveStudentIdAndFetchScores(snapshot);
@@ -682,22 +946,37 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
         });
     }
 
+
+
+
     private void resolveStudentIdAndFetchScores(@Nullable DataSnapshot publicSnapshot) {
         String storedStudentId = null;
         try { storedStudentId = sessionManager.getStudentId(); } catch (Exception ignored) {}
+
+
+
 
         if (storedStudentId != null && !storedStudentId.isEmpty()) {
             fetchScoresAndBuildList(publicSnapshot, storedStudentId);
             return;
         }
 
+
+
+
         String uid = null;
         try { if (FirebaseAuth.getInstance().getCurrentUser() != null) uid = FirebaseAuth.getInstance().getCurrentUser().getUid(); } catch (Exception ignored) {}
+
+
+
 
         if (uid == null || uid.isEmpty()) {
             buildListFromPublicSnapshot(publicSnapshot, new HashSet<>(), null);
             return;
         }
+
+
+
 
         DatabaseReference studentsRef = FirebaseDatabase.getInstance().getReference("Students");
         String finalUid = uid;
@@ -724,11 +1003,20 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
         });
     }
 
+
+
+
     private void fetchScoresAndBuildList(@Nullable DataSnapshot publicSnapshot, @NonNull String studentId) {
         DatabaseReference quizScoresRef = FirebaseDatabase.getInstance().getReference("QuizScores").child(studentId);
         DatabaseReference legacyScoresRef = FirebaseDatabase.getInstance().getReference("Scores").child(studentId);
 
+
+
+
         Set<String> takenQuizIds = new HashSet<>();
+
+
+
 
         quizScoresRef.get().addOnCompleteListener(task -> {
             if (task.isSuccessful() && task.getResult() != null) {
@@ -738,6 +1026,9 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                 }
             }
 
+
+
+
             legacyScoresRef.get().addOnCompleteListener(task2 -> {
                 if (task2.isSuccessful() && task2.getResult() != null) {
                     for (DataSnapshot snap : task2.getResult().getChildren()) {
@@ -746,6 +1037,9 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                     }
                 }
 
+
+
+
                 scoresStudentId = studentId;
                 buildListFromPublicSnapshot(publicSnapshot, takenQuizIds, studentId);
                 attachScoresRealtimeListenerIfNeeded();
@@ -753,18 +1047,30 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
         });
     }
 
+
+
+
     // Replace the existing buildListFromPublicSnapshot(...) method with this version.
     private void buildListFromPublicSnapshot(@Nullable DataSnapshot snapshot, @NonNull Set<String> takenQuizIds, @Nullable String studentId) {
         List<QuizModel> newList = new ArrayList<>();
         quizIds.clear();
         adapter.setHighlightQuizId(null);
 
+
+
+
         String stuCourse = normalize(student != null ? student.getCourseName() : null);
         String stuSpec = normalize(student != null ? student.getSpecializationName() : null);
         String stuYear = normalize(student != null ? student.getYearName() : null);
         String stuSection = normalize(student != null ? student.getSectionName() : null);
 
+
+
+
         Log.d(TAG_DEBUG, "Normalized student: course='" + stuCourse + "' spec='" + stuSpec + "' year='" + stuYear + "' section='" + stuSection + "'");
+
+
+
 
         if (snapshot == null || !snapshot.exists()) {
             Log.d(TAG_DEBUG, "AvailableQuizzes snapshot empty");
@@ -775,9 +1081,15 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                     if (quizId == null) continue;
                     if (quizIds.contains(quizId)) continue;
 
+
+
+
                     Boolean activeObj = child.child("active").getValue(Boolean.class);
                     boolean active = activeObj != null && activeObj;
                     if (!active) continue;
+
+
+
 
                     String quizName = child.child("quizName").getValue(String.class);
                     String teacherName = child.child("teacherName").getValue(String.class);
@@ -785,13 +1097,22 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                     String sectionValue = child.child("section").getValue(String.class);
                     String courseNameRaw = child.child("courseName").getValue(String.class);
 
+
+
+
                     Long scheduledAtRaw = child.child("scheduledAt").getValue(Long.class);
                     Integer duration = child.child("durationMinutes").getValue(Integer.class);
+
+
+
 
                     long scheduledAt = scheduledAtRaw != null ? scheduledAtRaw : 0L;
                     if (scheduledAt > 0 && scheduledAt < 1_000_000_000_000L) {
                         scheduledAt = scheduledAt * 1000L;
                     }
+
+
+
 
                     Long availableAtFromDb = child.child("availableAt").getValue(Long.class);
                     Integer availableAfterMinutes = child.child("availableAfterMinutes").getValue(Integer.class);
@@ -799,10 +1120,16 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                         availableAtFromDb = availableAtFromDb * 1000L;
                     }
 
+
+
+
                     String parsedCourse = "";
                     String parsedSpec = "";
                     String parsedYear = "";
                     String parsedSection = "";
+
+
+
 
                     if (sectionValue != null && !sectionValue.trim().isEmpty()) {
                         if (sectionValue.contains(" - ")) {
@@ -816,13 +1143,22 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                         }
                     }
 
+
+
+
                     String nCourse = normalize(!parsedCourse.isEmpty() ? parsedCourse : courseNameRaw);
                     String nSpec = normalize(parsedSpec);
                     String nYear = normalize(parsedYear);
                     String nSection = normalize(parsedSection);
                     String nCourseDisplay = normalize(child.child("courseDisplay").getValue(String.class));
 
+
+
+
                     boolean match = true;
+
+
+
 
                     if (!stuCourse.isEmpty()) {
                         boolean courseMatches = false;
@@ -831,13 +1167,22 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                         if (!courseMatches) match = false;
                     }
 
+
+
+
                     if (match && !stuSpec.isEmpty()) {
                         if (nSpec.isEmpty() || !nSpec.equals(stuSpec)) match = false;
                     }
 
+
+
+
                     if (match && !stuYear.isEmpty()) {
                         if (nYear.isEmpty() || !nYear.equals(stuYear)) match = false;
                     }
+
+
+
 
                     if (match && !stuSection.isEmpty()) {
                         if (nSection.isEmpty() || !nSection.equals(stuSection)) {
@@ -845,7 +1190,13 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                         }
                     }
 
+
+
+
                     if (!match) continue;
+
+
+
 
                     if (!takenQuizIds.contains(quizId) || SHOW_ALL_ACTIVE_FOR_DEBUG) {
                         QuizModel qm = new QuizModel();
@@ -859,6 +1210,9 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                         qm.setDurationMinutes(duration != null ? duration : 0);
                         qm.setActive(active);
 
+
+
+
                         long computedAvailableAt = 0L;
                         if (availableAtFromDb != null && availableAtFromDb > 0) {
                             computedAvailableAt = availableAtFromDb;
@@ -869,9 +1223,15 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                         }
                         qm.setAvailableAt(computedAvailableAt > 0 ? computedAvailableAt : 0L);
 
+
+
+
                         qm.setSpecializationName(parsedSpec != null ? parsedSpec : "");
                         qm.setYearName(parsedYear != null ? parsedYear : "");
                         qm.setSectionName(parsedSection != null ? parsedSection : "");
+
+
+
 
                         boolean alreadyTaken = takenQuizIds.contains(quizId);
                         try {
@@ -892,9 +1252,18 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                             }
                         } catch (Exception ignored) {}
 
+
+
+
                         newList.add(qm);
 
+
+
+
                         attachPresenceListenerForQuiz(quizId);
+
+
+
 
                         quizIds.add(quizId);
                     }
@@ -904,6 +1273,9 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
             }
         }
 
+
+
+
         runOnUiThread(() -> {
             synchronized (quizList) {
                 quizList.clear();
@@ -911,8 +1283,14 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
             }
             adapter.updateData(quizList);
 
+
+
+
             progress.setVisibility(View.GONE);
             tvEmpty.setVisibility(quizList.isEmpty() ? View.VISIBLE : View.GONE);
+
+
+
 
             if (autoOpenQuizId != null && !autoOpenQuizId.isEmpty()) {
                 int idx = adapter.getPositionForQuizId(autoOpenQuizId);
@@ -933,7 +1311,13 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
             String studentId = scoresStudentId != null && !scoresStudentId.isEmpty() ? scoresStudentId : sessionManager.getStudentId();
             if (studentId == null || studentId.isEmpty()) return;
 
+
+
+
             if (quizScoresRefForStudent != null && quizScoresChildListener != null && studentId.equals(scoresStudentId)) return;
+
+
+
 
             try {
                 if (quizScoresRefForStudent != null && quizScoresChildListener != null) quizScoresRefForStudent.removeEventListener(quizScoresChildListener);
@@ -941,6 +1325,9 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
             try {
                 if (legacyScoresRefForStudent != null && legacyScoresChildListener != null) legacyScoresRefForStudent.removeEventListener(legacyScoresChildListener);
             } catch (Exception ignored) {}
+
+
+
 
             quizScoresRefForStudent = FirebaseDatabase.getInstance().getReference("QuizScores").child(studentId);
             quizScoresChildListener = new ChildEventListener() {
@@ -958,6 +1345,9 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
             };
             quizScoresRefForStudent.addChildEventListener(quizScoresChildListener);
 
+
+
+
             legacyScoresRefForStudent = FirebaseDatabase.getInstance().getReference("Scores").child(studentId);
             legacyScoresChildListener = new ChildEventListener() {
                 @Override public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
@@ -974,12 +1364,18 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
             };
             legacyScoresRefForStudent.addChildEventListener(legacyScoresChildListener);
 
+
+
+
             scoresStudentId = studentId;
             Log.d(TAG_DEBUG, "Attached QuizScores and Scores realtime listeners for studentId=" + studentId);
         } catch (Exception e) {
             Log.w(TAG_DEBUG, "attachScoresRealtimeListener failed: " + e.getMessage());
         }
     }
+
+
+
 
     private void detachScoresRealtimeListener() {
         try {
@@ -999,15 +1395,27 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
         scoresStudentId = null;
     }
 
+
+
+
     private void markQuizTakenLocally(String quizId) {
         if (quizId == null) return;
 
+
+
+
         Log.d(TAG_DEBUG, "markQuizTakenLocally called for quizId=" + quizId);
+
+
+
 
         if (adapter != null) {
             adapter.setQuizTaken(quizId);
             return;
         }
+
+
+
 
         int pos = findIndexById(quizId);
         if (pos >= 0) {
@@ -1023,6 +1431,9 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
         }
     }
 
+
+
+
     private int findIndexById(String id) {
         if (id == null) return -1;
         synchronized (quizList) {
@@ -1033,6 +1444,9 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
         }
         return -1;
     }
+
+
+
 
     private void debugFetchAndLog() {
         publicRef.get().addOnCompleteListener(task -> {
@@ -1058,28 +1472,162 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
         });
     }
 
+
+
+
     private String normalize(String s) {
         if (s == null) return "";
         return s.trim().toLowerCase();
     }
 
+
+
+
+    // Replace the existing onQuizClick(...) method with this:
     @Override
     public void onQuizClick(QuizModel quiz) {
         if (quiz == null || quiz.getQuizId() == null) return;
 
+
+
+
         boolean isPresent = false;
         try { isPresent = Boolean.TRUE.equals(quiz.getPresent()); } catch (Exception ignored) {}
+
+
+
 
         if (isPresent || "TAKEN".equalsIgnoreCase(quiz.getStatus())) {
             Toast.makeText(this, "You have already taken this quiz.", Toast.LENGTH_SHORT).show();
             return;
         }
 
+
+
+
+        // Defer starting the quiz until we verify server-side permission (prefer QuizStudents)
+        checkAllowedAndStart(quiz);
+    }
+
+
+
+
+    /**
+     * Reads QuizStudents/{quizId}/{studentId} (authoritative if present).
+     * If QuizStudents node doesn't exist, falls back to ExamStudents/{quizId}/{studentId}.
+     * Starts TakeQuizActivity only when allowed.
+     */
+    private void checkAllowedAndStart(@NonNull final QuizModel quiz) {
+        final String quizId = quiz.getQuizId();
+        final String studentId = (scoresStudentId != null && !scoresStudentId.isEmpty())
+                ? scoresStudentId
+                : sessionManager.getStudentId();
+
+
+
+
+        if (studentId == null || studentId.trim().isEmpty()) {
+            Log.d(TAG_DEBUG, "checkAllowedAndStart: no studentId available; blocking start for quiz=" + quizId);
+            Toast.makeText(this, "Student identity not available; cannot start quiz.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+
+
+
+        DatabaseReference quizRef = FirebaseDatabase.getInstance()
+                .getReference("QuizStudents").child(quizId).child(studentId);
+
+
+
+
+        quizRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override public void onDataChange(@NonNull DataSnapshot snapshot) {
+                boolean exists = snapshot.exists();
+                Boolean allowed = snapshot.child("allowed").getValue(Boolean.class);
+                Boolean present = snapshot.child("present").getValue(Boolean.class);
+
+
+
+
+                Log.d(TAG_DEBUG, "serverCheck: QuizStudents read quiz=" + quizId + " student=" + studentId
+                        + " exists=" + exists + " allowed=" + allowed + " present=" + present
+                        + " value=" + (snapshot.getValue() == null ? "null" : snapshot.getValue().toString()));
+
+
+
+
+                if (exists) {
+                    boolean allow = Boolean.TRUE.equals(allowed) || Boolean.TRUE.equals(present);
+                    if (allow) {
+                        Log.d(TAG_DEBUG, "serverCheck: allowed by QuizStudents -> starting quiz " + quizId);
+                        startTakeQuizActivityWithModel(quiz);
+                    } else {
+                        Log.d(TAG_DEBUG, "serverCheck: denied by QuizStudents -> blocking quiz " + quizId);
+                        Toast.makeText(QuizListActivity.this, "You are not allowed to take this quiz.", Toast.LENGTH_SHORT).show();
+                        // trigger a refresh so UI updates quickly
+                        startRealtimeListener();
+                    }
+                    return;
+                }
+
+
+
+
+                // Fallback to ExamStudents only when QuizStudents is absent
+                DatabaseReference examRef = FirebaseDatabase.getInstance()
+                        .getReference("ExamStudents").child(quizId).child(studentId);
+
+
+
+
+                examRef.addListenerForSingleValueEvent(new ValueEventListener() {
+                    @Override public void onDataChange(@NonNull DataSnapshot snap2) {
+                        Boolean allowed2 = snap2.child("allowed").getValue(Boolean.class);
+                        Boolean present2 = snap2.child("present").getValue(Boolean.class);
+                        Log.d(TAG_DEBUG, "serverCheck: ExamStudents read quiz=" + quizId + " student=" + studentId
+                                + " exists=" + snap2.exists() + " allowed=" + allowed2 + " present=" + present2
+                                + " value=" + (snap2.getValue() == null ? "null" : snap2.getValue().toString()));
+
+
+
+
+                        boolean allow2 = Boolean.TRUE.equals(allowed2) || Boolean.TRUE.equals(present2);
+                        if (allow2) {
+                            Log.d(TAG_DEBUG, "serverCheck: allowed by ExamStudents fallback -> starting quiz " + quizId);
+                            startTakeQuizActivityWithModel(quiz);
+                        } else {
+                            Log.d(TAG_DEBUG, "serverCheck: denied by ExamStudents fallback -> blocking quiz " + quizId);
+                            Toast.makeText(QuizListActivity.this, "You are not allowed to take this quiz.", Toast.LENGTH_SHORT).show();
+                            startRealtimeListener();
+                        }
+                    }
+                    @Override public void onCancelled(@NonNull DatabaseError error) {
+                        Log.w(TAG_DEBUG, "serverCheck: ExamStudents read cancelled: " + error.getMessage());
+                        Toast.makeText(QuizListActivity.this, "Unable to verify permission: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+            @Override public void onCancelled(@NonNull DatabaseError error) {
+                Log.w(TAG_DEBUG, "serverCheck: QuizStudents read cancelled: " + error.getMessage());
+                Toast.makeText(QuizListActivity.this, "Unable to verify permission: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+
+
+
+    /** Start TakeQuizActivity with the same intent-building logic you had in onQuizClick. */
+    private void startTakeQuizActivityWithModel(@NonNull QuizModel quiz) {
         Intent intent = new Intent(this, TakeQuizActivity.class);
         intent.putExtra("quizId", quiz.getQuizId());
         intent.putExtra("quizName", quiz.getQuizName());
         intent.putExtra("availableAt", quiz.getAvailableAt() != null ? quiz.getAvailableAt() : 0L);
         intent.putExtra("durationMinutes", quiz.getDurationMinutes() != null ? quiz.getDurationMinutes() : 0);
+
+
+
 
         try {
             java.lang.reflect.Method m = quiz.getClass().getMethod("getSubjectId");
@@ -1089,8 +1637,14 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
             }
         } catch (Exception ignored) {}
 
+
+
+
         if (quiz.getSubjectName() != null) intent.putExtra("subjectName", quiz.getSubjectName());
         if (quiz.getTeacherName() != null) intent.putExtra("teacherName", quiz.getTeacherName());
+
+
+
 
         String courseCodeOrName = null;
         try {
@@ -1103,48 +1657,178 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
         }
         if (courseCodeOrName != null) intent.putExtra("courseCode", courseCodeOrName);
 
+
+
+
         Log.d("QuizListActivity", "Launching TakeQuizActivity: quizId=" + quiz.getQuizId()
                 + " subjectId=" + intent.getStringExtra("subjectId")
                 + " subjectName=" + intent.getStringExtra("subjectName")
                 + " courseCode=" + intent.getStringExtra("courseCode")
                 + " teacher=" + intent.getStringExtra("teacherName"));
 
+
+
+
         startActivity(intent);
     }
+
+
+
+
+    /** Optional debug helper: logs both QuizStudents and ExamStudents values for a given quizId (call from UI for quick checks). */
+    private void debugReadServerPresenceOnce(final String quizId) {
+        if (quizId == null || quizId.trim().isEmpty()) {
+            Log.d(TAG_DEBUG, "debugReadServerPresenceOnce: quizId is empty");
+            return;
+        }
+
+
+
+
+        // Ensure we have a SessionManager instance (fall back to creating one if necessary)
+        SessionManager sm = this.sessionManager;
+        if (sm == null) {
+            try {
+                sm = new SessionManager(this);
+            } catch (Exception e) {
+                Log.w(TAG_DEBUG, "debugReadServerPresenceOnce: failed to construct SessionManager: " + e.getMessage());
+                sm = null;
+            }
+        }
+
+
+
+
+        final String studentId = (scoresStudentId != null && !scoresStudentId.isEmpty())
+                ? scoresStudentId
+                : (sm != null ? sm.getStudentId() : null);
+
+
+
+
+        if (studentId == null || studentId.isEmpty()) {
+            Log.d(TAG_DEBUG, "debugReadServerPresenceOnce: no studentId available");
+            return;
+        }
+
+
+
+
+        DatabaseReference qRef = FirebaseDatabase.getInstance().getReference("QuizStudents").child(quizId).child(studentId);
+        qRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override public void onDataChange(@NonNull DataSnapshot snapshot) {
+                Log.d(TAG_DEBUG, "QuizStudents read: quiz=" + quizId + " student=" + studentId + " exists=" + snapshot.exists()
+                        + " present=" + snapshot.child("present").getValue(Boolean.class)
+                        + " allowed=" + snapshot.child("allowed").getValue(Boolean.class)
+                        + " value=" + (snapshot.getValue() == null ? "null" : snapshot.getValue().toString()));
+            }
+            @Override public void onCancelled(@NonNull DatabaseError error) {
+                Log.w(TAG_DEBUG, "QuizStudents read cancelled: " + error.getMessage());
+            }
+        });
+
+
+
+
+        DatabaseReference eRef = FirebaseDatabase.getInstance().getReference("ExamStudents").child(quizId).child(studentId);
+        eRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override public void onDataChange(@NonNull DataSnapshot snapshot) {
+                Log.d(TAG_DEBUG, "ExamStudents read: quiz=" + quizId + " student=" + studentId + " exists=" + snapshot.exists()
+                        + " present=" + snapshot.child("present").getValue(Boolean.class)
+                        + " allowed=" + snapshot.child("allowed").getValue(Boolean.class)
+                        + " value=" + (snapshot.getValue() == null ? "null" : snapshot.getValue().toString()));
+            }
+            @Override public void onCancelled(@NonNull DatabaseError error) {
+                Log.w(TAG_DEBUG, "ExamStudents read cancelled: " + error.getMessage());
+            }
+        });
+    }
+
+
+
 
     // Replace the existing attachPresenceListenerForQuiz(...) method in QuizListActivity with this code.
     private void attachPresenceListenerForQuiz(@NonNull final String quizId) {
         if (quizId == null || quizId.trim().isEmpty()) return;
         final String key = quizId.trim();
 
+
+
+
         if (quizPresenceListeners.containsKey(key)) return;
+
+
+
 
         final String studentId = (scoresStudentId != null && !scoresStudentId.isEmpty())
                 ? scoresStudentId
                 : sessionManager.getStudentId();
+
+
+
 
         if (studentId == null || studentId.isEmpty()) {
             android.util.Log.d(TAG_DEBUG, "attachPresenceListenerForQuiz: no studentId yet, skipping for quiz=" + key);
             return;
         }
 
+
+
+
         DatabaseReference qRef = FirebaseDatabase.getInstance()
                 .getReference("QuizStudents").child(key).child(studentId);
+
+
+
 
         ValueEventListener qListener = new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 boolean allowed = Boolean.TRUE.equals(snapshot.child("allowed").getValue(Boolean.class));
                 boolean present = Boolean.TRUE.equals(snapshot.child("present").getValue(Boolean.class));
-                boolean allowStudent = allowed || present;
-                android.util.Log.d(TAG_DEBUG, "QuizStudents presence change: quiz=" + key + " student=" + studentId + " allowed=" + allowed + " present=" + present);
+                boolean exists = snapshot.exists();
+
+
+
+
+                // store latest quiz node state (synchronized)
+                synchronized (QuizListActivity.this) {
+                    lastQuizNodeExists.put(key, exists);
+                    lastQuizAllowed.put(key, allowed);
+                    lastQuizPresent.put(key, present);
+                }
+
+
+
+
+                android.util.Log.d(TAG_DEBUG, "QuizStudents presence change: quiz=" + key + " student=" + studentId + " allowed=" + allowed + " present=" + present + " exists=" + exists);
+
+
+
+
+                // compute effective presence: QuizStudents authoritative when it exists
+                boolean effective;
+                synchronized (QuizListActivity.this) {
+                    if (Boolean.TRUE.equals(lastQuizNodeExists.get(key))) {
+                        effective = Boolean.TRUE.equals(lastQuizAllowed.get(key)) || Boolean.TRUE.equals(lastQuizPresent.get(key));
+                    } else {
+                        effective = Boolean.TRUE.equals(lastExamAllowed.get(key)) || Boolean.TRUE.equals(lastExamPresent.get(key));
+                    }
+                }
+
+
+
 
                 // update UI
                 runOnUiThread(() -> {
-                    if (adapter != null) adapter.setStudentPresent(key, allowStudent);
+                    if (adapter != null) adapter.setStudentPresent(key, effective);
                 });
 
-                // persist allowStudent into local cache so offline shows same state
+
+
+
+                // persist effective presence into local cache
+                final boolean toPersist = effective;
                 new Thread(() -> {
                     try {
                         com.finale.nextgen.offline.AppDatabase db = com.finale.nextgen.offline.AppDatabase.getInstance(QuizListActivity.this);
@@ -1153,16 +1837,18 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                             qe = new com.finale.nextgen.offline.QuizEntity();
                             qe.quizId = key;
                         }
-                        qe.present = allowStudent;
+                        qe.present = toPersist;
                         qe.cachedAt = System.currentTimeMillis();
-                        // NOTE: we DO NOT attempt to read quizName synchronously here (DatabaseReference has no getValue).
                         db.quizDao().insert(qe);
-                        android.util.Log.d(TAG_DEBUG, "Persisted QuizStudents presence for quiz=" + key + " present=" + allowStudent);
+                        android.util.Log.d(TAG_DEBUG, "Persisted QuizStudents presence for quiz=" + key + " present=" + toPersist);
                     } catch (Exception e) {
-                        android.util.Log.w(TAG_DEBUG, "Failed to persist QuizStudents presence for quiz=" + key + ": " + e.getMessage());
+                        android.util.Log.w(TAG_DEBUG, "Failed to persist presence for quiz=" + key + ": " + e.getMessage());
                     }
                 }).start();
             }
+
+
+
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
@@ -1170,27 +1856,57 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
             }
         };
 
-        qRef.addValueEventListener(qListener);
-        quizPresenceListeners.put(key, qListener);
-        quizPresenceRefs.put(key, qRef);
 
-        DatabaseReference eRef = FirebaseDatabase.getInstance()
-                .getReference("ExamStudents").child(key).child(studentId);
+
 
         ValueEventListener eListener = new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 boolean allowed = Boolean.TRUE.equals(snapshot.child("allowed").getValue(Boolean.class));
                 boolean present = Boolean.TRUE.equals(snapshot.child("present").getValue(Boolean.class));
-                boolean allowStudent = allowed || present;
-                android.util.Log.d(TAG_DEBUG, "ExamStudents presence change: quiz=" + key + " student=" + studentId + " allowed=" + allowed + " present=" + present);
+                boolean exists = snapshot.exists();
+
+
+
+
+                // store latest exam node state (synchronized)
+                synchronized (QuizListActivity.this) {
+                    lastExamAllowed.put(key, allowed);
+                    lastExamPresent.put(key, present);
+                    // note: do NOT set lastQuizNodeExists here
+                }
+
+
+
+
+                android.util.Log.d(TAG_DEBUG, "ExamStudents presence change: quiz=" + key + " student=" + studentId + " allowed=" + allowed + " present=" + present + " exists=" + exists);
+
+
+
+
+                // compute effective presence: QuizStudents authoritative when it exists
+                boolean effective;
+                synchronized (QuizListActivity.this) {
+                    if (Boolean.TRUE.equals(lastQuizNodeExists.get(key))) {
+                        effective = Boolean.TRUE.equals(lastQuizAllowed.get(key)) || Boolean.TRUE.equals(lastQuizPresent.get(key));
+                    } else {
+                        effective = Boolean.TRUE.equals(lastExamAllowed.get(key)) || Boolean.TRUE.equals(lastExamPresent.get(key));
+                    }
+                }
+
+
+
 
                 // update UI
                 runOnUiThread(() -> {
-                    if (adapter != null) adapter.setStudentPresent(key, allowStudent);
+                    if (adapter != null) adapter.setStudentPresent(key, effective);
                 });
 
-                // persist allowStudent into local cache so offline shows same state
+
+
+
+                // persist effective presence into local cache
+                final boolean toPersist = effective;
                 new Thread(() -> {
                     try {
                         com.finale.nextgen.offline.AppDatabase db = com.finale.nextgen.offline.AppDatabase.getInstance(QuizListActivity.this);
@@ -1199,27 +1915,28 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                             qe = new com.finale.nextgen.offline.QuizEntity();
                             qe.quizId = key;
                         }
-                        qe.present = allowStudent;
+                        qe.present = toPersist;
                         qe.cachedAt = System.currentTimeMillis();
-                        // NOTE: we DO NOT attempt to read quizName synchronously here.
                         db.quizDao().insert(qe);
-                        android.util.Log.d(TAG_DEBUG, "Persisted ExamStudents presence for quiz=" + key + " present=" + allowStudent);
+                        android.util.Log.d(TAG_DEBUG, "Persisted ExamStudents presence for quiz=" + key + " present=" + toPersist);
                     } catch (Exception e) {
-                        android.util.Log.w(TAG_DEBUG, "Failed to persist ExamStudents presence for quiz=" + key + ": " + e.getMessage());
+                        android.util.Log.w(TAG_DEBUG, "Failed to persist presence for quiz=" + key + ": " + e.getMessage());
                     }
                 }).start();
             }
+
+
+
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
                 android.util.Log.w(TAG_DEBUG, "ExamStudents listener cancelled for quiz=" + key + ": " + error.getMessage());
             }
         };
-
-        eRef.addValueEventListener(eListener);
-        examPresenceListeners.put(key, eListener);
-        examPresenceRefs.put(key, eRef);
     }
+
+
+
 
     private void detachAllPresenceListeners() {
         try {
@@ -1239,6 +1956,9 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
         examPresenceListeners.clear();
         examPresenceRefs.clear();
     }
+
+
+
 
     private final BroadcastReceiver quizSubmittedReceiver = new BroadcastReceiver() {
         @Override
@@ -1260,10 +1980,16 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
             perm = android.Manifest.permission.READ_EXTERNAL_STORAGE;
         }
 
+
+
+
         if (ContextCompat.checkSelfPermission(this, perm) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{perm}, REQ_CODE_READ_STORAGE);
             return;
         }
+
+
+
 
         try {
             Intent intent = new Intent(Intent.ACTION_PICK);
@@ -1273,6 +1999,9 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
             Toast.makeText(this, "Unable to open gallery: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
+
+
+
 
     // Handle permission result for gallery access
     @Override
@@ -1287,3 +2016,4 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
         }
     }
 }
+

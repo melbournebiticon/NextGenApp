@@ -15,6 +15,14 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
+
+import android.content.ActivityNotFoundException;
+import android.content.Intent;
+import android.webkit.MimeTypeMap;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+
 import androidx.annotation.NonNull;
 import androidx.core.content.FileProvider;
 import androidx.recyclerview.widget.RecyclerView;
@@ -229,27 +237,140 @@ public class SectionAdapter extends RecyclerView.Adapter<SectionAdapter.ViewHold
     // Open file helper
     private void openSubmissionFile(Context context, SubmissionModel submission, ViewHolder holder) {
         try {
-            byte[] fileBytes = Base64.decode(submission.getFileData(), Base64.DEFAULT);
-            File tempFile = new File(context.getCacheDir(), "submission_" + submission.getSubmissionId());
-            try (FileOutputStream fos = new FileOutputStream(tempFile)) {
-                fos.write(fileBytes);
+            if (submission == null || submission.getFileData() == null) {
+                Toast.makeText(context, "No file data available", Toast.LENGTH_SHORT).show();
+                return;
             }
 
-            Uri fileUri = FileProvider.getUriForFile(context, context.getPackageName() + ".provider", tempFile);
-            Intent openIntent = new Intent(Intent.ACTION_VIEW);
-            openIntent.setDataAndType(fileUri, getMimeType(context, fileUri));
-            openIntent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            context.startActivity(openIntent);
+            // 1) Extract base64 payload and mime from possible data URI
+            String fileData = submission.getFileData();
+            String possibleMime = extractMimeFromDataUri(fileData); // may be null
+            byte[] fileBytes = extractBase64Bytes(fileData);
+            if (fileBytes == null || fileBytes.length == 0) {
+                Toast.makeText(context, "Failed to decode file data", Toast.LENGTH_LONG).show();
+                return;
+            }
 
-            // Viewing the work should NOT mark the submission as "graded".
-            // We write viewed=true for tracking, but we avoid changing local submission.score here.
+            // 2) Determine extension and mime-type fallback from fileName
+            String originalName = submission.getFileName();
+            String ext = getExtensionFromName(originalName);
+            String mime = possibleMime != null ? possibleMime : guessMimeFromExtension(ext);
+
+            // If mime still null, try to guess via contentResolver (write temp file with guessed extension first)
+            if (mime == null) {
+                // fallback to binary
+                mime = "*/*";
+            }
+
+            // 3) Save bytes to cache with safe file name + extension
+            String safeBase = "submission_" + (submission.getSubmissionId() != null ? submission.getSubmissionId() : System.currentTimeMillis());
+            String safeName = sanitizeFilename(safeBase);
+            if (ext != null && !ext.isEmpty()) safeName = safeName + "." + ext;
+            File tempFile = new File(context.getCacheDir(), safeName);
+            try (FileOutputStream fos = new FileOutputStream(tempFile)) {
+                fos.write(fileBytes);
+                fos.flush();
+            }
+
+            // 4) Build URI via FileProvider (authority uses ".provider" as in your manifest)
+            String authority = context.getPackageName() + ".provider";
+            Uri fileUri = FileProvider.getUriForFile(context, authority, tempFile);
+
+            // 5) Create VIEW intent with chooser and grant permissions
+            Intent openIntent = new Intent(Intent.ACTION_VIEW);
+            openIntent.setDataAndType(fileUri, mime);
+            openIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+
+            Intent chooser = Intent.createChooser(openIntent, "Open submission");
+            // Ensure we don't crash if no app can open it
+            try {
+                context.startActivity(chooser);
+            } catch (ActivityNotFoundException ex) {
+                // If there is no app to handle mime type, fallback to generic view
+                Intent fallback = new Intent(Intent.ACTION_VIEW);
+                fallback.setDataAndType(fileUri, "*/*");
+                fallback.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                try {
+                    context.startActivity(Intent.createChooser(fallback, "Open submission with"));
+                } catch (ActivityNotFoundException ex2) {
+                    Toast.makeText(context, "No app available to open this file.", Toast.LENGTH_LONG).show();
+                }
+            }
+
+            // 6) Mark viewed flag in DB (do not change score here)
             if (submission.getSubmissionId() != null) {
                 submissionsRef.child(submission.getSubmissionId()).child("viewed").setValue(true);
             }
 
+        } catch (IOException e) {
+            Log.e(TAG, "openSubmissionFile: IO error: " + e.getMessage(), e);
+            Toast.makeText(context, "Error opening file: " + e.getMessage(), Toast.LENGTH_LONG).show();
         } catch (Exception e) {
-            Toast.makeText(context, "Error: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            Log.e(TAG, "openSubmissionFile: " + e.getMessage(), e);
+            Toast.makeText(context, "Unexpected error opening file", Toast.LENGTH_LONG).show();
         }
+    }
+
+    // Helper: extract base64 bytes from data URI or raw base64 string
+    private static byte[] extractBase64Bytes(String fileData) {
+        if (fileData == null) return null;
+        try {
+            String b64 = fileData;
+            int comma = fileData.indexOf(',');
+            if (fileData.startsWith("data:") && comma > 0) {
+                b64 = fileData.substring(comma + 1);
+            }
+            return android.util.Base64.decode(b64, android.util.Base64.DEFAULT);
+        } catch (Exception e) {
+            Log.w(TAG, "extractBase64Bytes failed: " + e.getMessage());
+            try {
+                // second attempt: decode raw bytes using default charset (rare)
+                return fileData.getBytes(StandardCharsets.ISO_8859_1);
+            } catch (Exception ignored) { }
+            return null;
+        }
+    }
+
+    // Helper: if fileData starts with data:<mime>;base64,... returns the mime
+    private static String extractMimeFromDataUri(String fileData) {
+        if (fileData == null) return null;
+        try {
+            if (fileData.startsWith("data:")) {
+                int semi = fileData.indexOf(';');
+                if (semi > 5) {
+                    return fileData.substring(5, semi);
+                }
+            }
+        } catch (Exception ignored) {}
+        return null;
+    }
+
+    // Helper: get extension from filename (without dot), null if none
+    private static String getExtensionFromName(String name) {
+        if (name == null) return null;
+        int idx = name.lastIndexOf('.');
+        if (idx >= 0 && idx < name.length() - 1) {
+            String ext = name.substring(idx + 1).toLowerCase();
+            // sanitize common extensions
+            ext = ext.replaceAll("[^a-z0-9]", "");
+            return ext;
+        }
+        return null;
+    }
+
+    // Helper: guess mime from extension
+    private static String guessMimeFromExtension(String ext) {
+        if (ext == null) return null;
+        String mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext);
+        return mime;
+    }
+
+    // Helper: sanitize filename for filesystem (keeps ascii safe chars)
+    private static String sanitizeFilename(String name) {
+        if (name == null) name = "file";
+        String safe = name.replaceAll("[^a-zA-Z0-9._-]", "_");
+        if (safe.length() > 80) safe = safe.substring(0, 80);
+        return safe;
     }
 
     // Grade dialog with transaction + DB re-read to ensure UI shows DB values

@@ -117,80 +117,8 @@
                         android:layout_marginEnd="10dp"
                         android:backgroundTint="?attr/colorSurfaceContainerHigh"
                         app:cardCornerRadius="24dp"
-                        app:cardElevation="16dp">
+                        app:cardElevation="16dp"/>
 
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="vertical"
-                            android:padding="20dp">
-
-                            <ImageView
-                                android:layout_width="32dp"
-                                android:layout_height="32dp"
-                                android:src="@drawable/ic_book"
-                                android:contentDescription="Icon"
-                                app:tint="?attr/colorPrimary"/>
-
-                            <TextView
-                                android:id="@+id/tvTotalExams"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="16dp"
-                                android:text="12"
-                                android:textColor="?attr/colorPrimary"
-                                android:textSize="48sp"
-                                android:textStyle="bold"/>
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="Exams Taken"
-                                android:textColor="?attr/colorOnSurfaceVariant"
-                                android:textSize="14sp"/>
-                        </LinearLayout>
-                    </com.google.android.material.card.MaterialCardView>
-
-                    <com.google.android.material.card.MaterialCardView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:layout_marginStart="10dp"
-                        android:backgroundTint="?attr/colorPrimaryContainer"
-                        app:cardCornerRadius="24dp"
-                        app:cardElevation="16dp">
-
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="vertical"
-                            android:padding="20dp">
-
-                            <ImageView
-                                android:layout_width="32dp"
-                                android:layout_height="32dp"
-                                android:src="@drawable/ic_star"
-                                android:contentDescription="Icon"
-                                app:tint="?attr/colorOnPrimaryContainer"/>
-
-                            <TextView
-                                android:id="@+id/tvAvgScore"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="16dp"
-                                android:text="85%"
-                                android:textColor="?attr/colorOnPrimaryContainer"
-                                android:textSize="48sp"
-                                android:textStyle="bold"/>
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="Pending Submissions"
-                                android:textColor="?attr/colorOnPrimaryContainer"
-                                android:textSize="14sp"/>
-                        </LinearLayout>
-                    </com.google.android.material.card.MaterialCardView>
                 </LinearLayout>
 
                 <LinearLayout

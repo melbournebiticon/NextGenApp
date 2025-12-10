@@ -134,11 +134,7 @@ public class SectionsActivity extends AppCompatActivity {
     }
     @Override
     public void onBackPressed() {
-        if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
-            drawerLayout.closeDrawer(GravityCompat.START);
-        } else {
             super.onBackPressed();
-        }
     }
 
     // ORIGINAL METHODS - WITH UI UPDATES
