@@ -41,6 +41,10 @@ public class QuizModel implements Serializable {
     private String status;
     private String subjectId;
 
+    // ===== Score fields (nullable) =====
+    private Double score;     // student's score (nullable)
+    private Integer maxScore; // optional max score (nullable)
+
     public QuizModel() {
         this.scheduledAt = 0L;
         this.availableAt = 0L;
@@ -54,6 +58,8 @@ public class QuizModel implements Serializable {
         this.studentPresent = false;
         this.passMark = 0;
         this.status = "";
+        this.score = null;
+        this.maxScore = null;
     }
 
     // ======================
@@ -83,6 +89,10 @@ public class QuizModel implements Serializable {
     public Boolean getPresent() { return present; }
     public Boolean getStudentPresent() { return studentPresent; }
     public String getStatus() { return status; }
+
+    // New getters for score
+    public Double getScore() { return score; }
+    public Integer getMaxScore() { return maxScore; }
 
     public boolean isActive() { return active != null && active; }
     public boolean isAvailable() { return available != null && available; }
@@ -126,6 +136,11 @@ public class QuizModel implements Serializable {
     public void setPresent(Boolean present) { this.present = present != null && present; }
     public void setStudentPresent(Boolean studentPresent) { this.studentPresent = studentPresent != null && studentPresent; }
     public void setStatus(String status) { this.status = status != null ? status : ""; }
+
+    // New setters for score
+    public void setScore(Double score) { this.score = score; }
+    public void setMaxScore(Integer maxScore) { this.maxScore = maxScore; }
+    public void setScoreAndMax(Double score, Integer maxScore) { this.score = score; this.maxScore = maxScore; }
 
     private void computeEndTime() {
         long sched = scheduledAt != null ? scheduledAt : 0L;
@@ -177,6 +192,8 @@ public class QuizModel implements Serializable {
                 ", active=" + active +
                 ", present=" + present +
                 ", studentPresent=" + studentPresent +
+                ", score=" + score +
+                ", maxScore=" + maxScore +
                 '}';
     }
 

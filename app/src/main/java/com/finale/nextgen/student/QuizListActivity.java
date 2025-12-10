@@ -559,6 +559,31 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
     protected void onResume() {
         super.onResume();
         attachScoresRealtimeListenerIfNeeded();
+
+        // Try to upload pending scores if you have that logic (optional)
+        // attemptUploadPendingScores();
+
+        // If online, fetch authoritative scores for any quizzes that were marked present/taken but show no score
+        if (isNetworkAvailable()) {
+            new Thread(() -> {
+                List<String> idsToCheck = new ArrayList<>();
+                synchronized (quizList) {
+                    for (QuizModel qm : quizList) {
+                        if (qm == null) continue;
+                        boolean present = Boolean.TRUE.equals(qm.getPresent());
+                        boolean taken = "TAKEN".equalsIgnoreCase(qm.getStatus());
+                        boolean hasScore = false;
+                        try { hasScore = qm.getScore() != null; } catch (Exception ignored) {}
+                        if ((present || taken) && !hasScore) {
+                            idsToCheck.add(qm.getQuizId());
+                        }
+                    }
+                }
+                for (String qid : idsToCheck) {
+                    tryFetchScoreForQuiz(qid);
+                }
+            }).start();
+        }
     }
 
 
@@ -1536,14 +1561,12 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
      * If QuizStudents node doesn't exist, falls back to ExamStudents/{quizId}/{studentId}.
      * Starts TakeQuizActivity only when allowed.
      */
+    // Replace the existing checkAllowedAndStart(...) method in QuizListActivity with this implementation.
     private void checkAllowedAndStart(@NonNull final QuizModel quiz) {
         final String quizId = quiz.getQuizId();
         final String studentId = (scoresStudentId != null && !scoresStudentId.isEmpty())
                 ? scoresStudentId
                 : sessionManager.getStudentId();
-
-
-
 
         if (studentId == null || studentId.trim().isEmpty()) {
             Log.d(TAG_DEBUG, "checkAllowedAndStart: no studentId available; blocking start for quiz=" + quizId);
@@ -1551,14 +1574,39 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
             return;
         }
 
+        // OFFLINE PATH: if there's no network, rely on local cache / optimistic present
+        if (!isNetworkAvailable()) {
+            Log.d(TAG_DEBUG, "Offline: checking local cache for optimistic presence for quiz=" + quizId);
+            new Thread(() -> {
+                try {
+                    com.finale.nextgen.offline.AppDatabase db = com.finale.nextgen.offline.AppDatabase.getInstance(QuizListActivity.this);
+                    com.finale.nextgen.offline.QuizEntity qe = db.quizDao().getById(quizId);
+                    boolean presentLocal = qe != null && Boolean.TRUE.equals(qe.present);
 
+                    runOnUiThread(() -> {
+                        if (presentLocal) {
+                            Log.d(TAG_DEBUG, "Offline: found local present=true for quiz=" + quizId + ", starting TakeQuizActivity");
+                            startTakeQuizActivityWithModel(quiz);
+                        } else {
+                            Log.d(TAG_DEBUG, "Offline: no local present record for quiz=" + quizId + ", cannot verify permission");
+                            Toast.makeText(QuizListActivity.this,
+                                    "Offline: unable to verify permission for this quiz. Please try again when online or ask your instructor.",
+                                    Toast.LENGTH_LONG).show();
+                        }
+                    });
+                } catch (Exception e) {
+                    Log.w(TAG_DEBUG, "Offline permission check failed: " + e.getMessage());
+                    runOnUiThread(() -> Toast.makeText(QuizListActivity.this,
+                            "Offline: unable to verify permission for this quiz. Please try again when online.",
+                            Toast.LENGTH_LONG).show());
+                }
+            }).start();
+            return;
+        }
 
-
+        // ONLINE PATH: original authoritative server checks (QuizStudents -> fallback ExamStudents)
         DatabaseReference quizRef = FirebaseDatabase.getInstance()
                 .getReference("QuizStudents").child(quizId).child(studentId);
-
-
-
 
         quizRef.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override public void onDataChange(@NonNull DataSnapshot snapshot) {
@@ -1566,15 +1614,9 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                 Boolean allowed = snapshot.child("allowed").getValue(Boolean.class);
                 Boolean present = snapshot.child("present").getValue(Boolean.class);
 
-
-
-
                 Log.d(TAG_DEBUG, "serverCheck: QuizStudents read quiz=" + quizId + " student=" + studentId
                         + " exists=" + exists + " allowed=" + allowed + " present=" + present
                         + " value=" + (snapshot.getValue() == null ? "null" : snapshot.getValue().toString()));
-
-
-
 
                 if (exists) {
                     boolean allow = Boolean.TRUE.equals(allowed) || Boolean.TRUE.equals(present);
@@ -1590,15 +1632,9 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                     return;
                 }
 
-
-
-
                 // Fallback to ExamStudents only when QuizStudents is absent
                 DatabaseReference examRef = FirebaseDatabase.getInstance()
                         .getReference("ExamStudents").child(quizId).child(studentId);
-
-
-
 
                 examRef.addListenerForSingleValueEvent(new ValueEventListener() {
                     @Override public void onDataChange(@NonNull DataSnapshot snap2) {
@@ -1607,9 +1643,6 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                         Log.d(TAG_DEBUG, "serverCheck: ExamStudents read quiz=" + quizId + " student=" + studentId
                                 + " exists=" + snap2.exists() + " allowed=" + allowed2 + " present=" + present2
                                 + " value=" + (snap2.getValue() == null ? "null" : snap2.getValue().toString()));
-
-
-
 
                         boolean allow2 = Boolean.TRUE.equals(allowed2) || Boolean.TRUE.equals(present2);
                         if (allow2) {
@@ -1988,8 +2021,118 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                 adapter.setQuizTaken(quizId);
                 Log.d("QUIZ_DEBUG", "About to setQuizTaken for " + quizId + " from " + Thread.currentThread().getName());
             }
+            // Try to fetch authoritative score (will no-op if offline)
+            tryFetchScoreForQuiz(quizId);
         }
     };
+    // Paste into QuizListActivity (class body)
+
+    // Try to fetch score for a quiz if network available; if not, leave for onResume to retry.
+    private void tryFetchScoreForQuiz(@NonNull final String quizId) {
+        if (!isNetworkAvailable()) {
+            Log.d(TAG_DEBUG, "Offline - will fetch score for " + quizId + " when back online");
+            return;
+        }
+
+        // Use scoresStudentId if present (set when we fetched scores earlier), otherwise session student id
+        String studentId = (scoresStudentId != null && !scoresStudentId.isEmpty()) ? scoresStudentId : null;
+        if (studentId == null || studentId.isEmpty()) {
+            try {
+                studentId = sessionManager != null ? sessionManager.getStudentId() : null;
+            } catch (Exception ignored) {}
+        }
+
+        if (studentId != null && !studentId.isEmpty()) {
+            fetchScoreFromFirebase(studentId, quizId);
+        } else {
+            // fallback: try to resolve studentId by current auth uid, then fetch
+            tryResolveStudentIdAndFetchScore(quizId);
+        }
+    }
+
+    private void tryResolveStudentIdAndFetchScore(@NonNull final String quizId) {
+        String uid = null;
+        try { if (FirebaseAuth.getInstance().getCurrentUser() != null) uid = FirebaseAuth.getInstance().getCurrentUser().getUid(); } catch (Exception ignored) {}
+        if (uid == null || uid.isEmpty()) {
+            Log.w(TAG_DEBUG, "Unable to resolve uid to fetch score for quiz=" + quizId);
+            return;
+        }
+        DatabaseReference studentsRef = FirebaseDatabase.getInstance().getReference("Students");
+        studentsRef.orderByChild("uid").equalTo(uid).limitToFirst(1)
+                .addListenerForSingleValueEvent(new ValueEventListener() {
+                    @Override public void onDataChange(@NonNull DataSnapshot snapshot) {
+                        String foundStudentId = null;
+                        if (snapshot.exists()) {
+                            for (DataSnapshot ds : snapshot.getChildren()) {
+                                String sid = ds.child("studentId").getValue(String.class);
+                                if (sid != null && !sid.isEmpty()) { foundStudentId = sid; break; }
+                            }
+                        }
+                        if (foundStudentId != null) {
+                            // cache for future
+                            try { sessionManager.saveStudentId(foundStudentId); } catch (Exception ignored) {}
+                            // also set scoresStudentId so other flows use it
+                            scoresStudentId = foundStudentId;
+                            fetchScoreFromFirebase(foundStudentId, quizId);
+                        } else {
+                            Log.w(TAG_DEBUG, "Could not find studentId for uid, cannot fetch score for " + quizId);
+                        }
+                    }
+                    @Override public void onCancelled(@NonNull DatabaseError error) {
+                        Log.w(TAG_DEBUG, "student lookup cancelled: " + error.getMessage());
+                    }
+                });
+    }
+
+    // Replace your existing fetchScoreFromFirebase(...) onDataChange handling with this corrected snippet.
+
+    private void fetchScoreFromFirebase(@NonNull final String studentId, @NonNull final String quizId) {
+        DatabaseReference scoreRef = FirebaseDatabase.getInstance()
+                .getReference("QuizScores")
+                .child(studentId)
+                .child(quizId);
+
+        scoreRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override public void onDataChange(@NonNull DataSnapshot snapshot) {
+                if (snapshot.exists()) {
+                    // parse score and maxScore safely
+                    Integer scoreInt = null;
+                    try {
+                        Object sc = snapshot.child("score").getValue();
+                        if (sc instanceof Long) scoreInt = ((Long) sc).intValue();
+                        else if (sc instanceof Integer) scoreInt = (Integer) sc;
+                        else if (sc instanceof Double) scoreInt = ((Double) sc).intValue();
+                    } catch (Exception ignored) {}
+
+                    Integer maxScore = null;
+                    try {
+                        Object ms = snapshot.child("maxScore").getValue();
+                        if (ms instanceof Long) maxScore = ((Long) ms).intValue();
+                        else if (ms instanceof Integer) maxScore = (Integer) ms;
+                    } catch (Exception ignored) {}
+
+                    final Double scoreToShow = (scoreInt != null) ? scoreInt.doubleValue() : null;
+                    final Integer maxScoreFinal = maxScore; // make a final copy for the lambda
+
+                    // update UI on main thread — lambda now uses final locals
+                    runOnUiThread(() -> {
+                        if (adapter != null) {
+                            adapter.setQuizScore(quizId, scoreToShow, maxScoreFinal);
+                            adapter.setQuizTaken(quizId);
+                        }
+                    });
+
+                    Log.d(TAG_DEBUG, "Fetched server score for quiz=" + quizId + " score=" + scoreInt);
+                } else {
+                    Log.d(TAG_DEBUG, "No score found on server yet for quiz=" + quizId);
+                }
+            }
+
+            @Override public void onCancelled(@NonNull DatabaseError error) {
+                Log.w(TAG_DEBUG, "Failed to read score for " + quizId + ": " + error.getMessage());
+            }
+        });
+    }
     private void launchGalleryPicker() {
         // Runtime permission: for Android 13+ use READ_MEDIA_IMAGES; for older, READ_EXTERNAL_STORAGE
         String perm;
