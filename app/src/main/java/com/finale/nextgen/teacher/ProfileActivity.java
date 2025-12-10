@@ -1,15 +1,12 @@
 package com.finale.nextgen.teacher;
 
-
 import android.os.Bundle;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-
 
 import com.finale.nextgen.R;
 import com.google.android.material.appbar.MaterialToolbar;
@@ -19,34 +16,27 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
-
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.HashMap;
 
-
 public class ProfileActivity extends AppCompatActivity {
-
 
     private TextView tvTeacherId, tvFullName, tvEmail, tvBirthday, tvCourse, tvSubjects;
     private ImageView profileImage;
 
-
     private DatabaseReference teachersRef;
     private DatabaseReference subjectsRef;
-
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_profile);
 
-
         // Toolbar (Back button)
         MaterialToolbar topAppBar = findViewById(R.id.topAppBar);
         topAppBar.setNavigationOnClickListener(v -> finish());
-
 
         // Bind views (address/phone removed)
         tvTeacherId = findViewById(R.id.tvTeacherId);
@@ -57,13 +47,10 @@ public class ProfileActivity extends AppCompatActivity {
         tvSubjects = findViewById(R.id.tvSubjects);
         profileImage = findViewById(R.id.profileImage);
 
-
         subjectsRef = FirebaseDatabase.getInstance().getReference("Subjects");
-
 
         // Get teacherId from Intent
         String teacherId = getIntent().getStringExtra("teacherId");
-
 
         if (teacherId != null) {
             fetchTeacherData(teacherId);
@@ -72,10 +59,8 @@ public class ProfileActivity extends AppCompatActivity {
         }
     }
 
-
     private void fetchTeacherData(String teacherId) {
         teachersRef = FirebaseDatabase.getInstance().getReference("Teachers").child(teacherId);
-
 
         teachersRef.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
@@ -85,12 +70,10 @@ public class ProfileActivity extends AppCompatActivity {
                     return;
                 }
 
-
                 String fullName = snapshot.child("fullName").getValue(String.class);
                 String email = snapshot.child("email").getValue(String.class);
                 String birthday = snapshot.child("birthday").getValue(String.class);
                 String profileImageUrl = snapshot.child("profileImage").getValue(String.class);
-
 
                 // Handle courseDisplays (may be stored as a list)
                 String courseDisplay = "";
@@ -104,7 +87,6 @@ public class ProfileActivity extends AppCompatActivity {
                     courseDisplay = String.join("\n", displays);
                 }
 
-
                 // Collect assigned subject IDs (we will resolve to names)
                 List<String> assignedSubjectIds = new ArrayList<>();
                 DataSnapshot subjectsSnap = snapshot.child("assignedSubjects");
@@ -115,7 +97,6 @@ public class ProfileActivity extends AppCompatActivity {
                     }
                 }
 
-
                 // Set immediate fields (IDs / raw data)
                 if (fullName != null) tvFullName.setText(fullName);
                 if (email != null) tvEmail.setText(email);
@@ -123,10 +104,8 @@ public class ProfileActivity extends AppCompatActivity {
                 if (birthday != null) tvBirthday.setText("Birthday: " + birthday);
                 if (!courseDisplay.isEmpty()) tvCourse.setText("Course: " + courseDisplay);
 
-
                 // Resolve subject IDs -> names and set tvSubjects
                 resolveSubjectNamesAndDisplay(assignedSubjectIds);
-
 
                 // Load profile image (Base64 stored)
                 if (profileImageUrl != null && !profileImageUrl.isEmpty()) {
@@ -148,7 +127,6 @@ public class ProfileActivity extends AppCompatActivity {
                 }
             }
 
-
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
                 Toast.makeText(ProfileActivity.this, "Failed to load teacher data", Toast.LENGTH_SHORT).show();
@@ -156,13 +134,11 @@ public class ProfileActivity extends AppCompatActivity {
         });
     }
 
-
     private void resolveSubjectNamesAndDisplay(List<String> assignedIds) {
         if (assignedIds == null || assignedIds.isEmpty()) {
             tvSubjects.setText("Subjects: None");
             return;
         }
-
 
         // Fetch subjects once and build id->name map, then map IDs -> names
         subjectsRef.addListenerForSingleValueEvent(new ValueEventListener() {
@@ -175,7 +151,6 @@ public class ProfileActivity extends AppCompatActivity {
                     if (id != null && name != null) idToName.put(id, name);
                 }
 
-
                 List<String> names = new ArrayList<>();
                 for (String id : assignedIds) {
                     String name = idToName.get(id);
@@ -183,18 +158,15 @@ public class ProfileActivity extends AppCompatActivity {
                     else names.add(id); // fallback to raw id if name not found
                 }
 
-
                 String subjectsJoined = String.join(", ", names);
-                tvSubjects.setText("Subjects: " + subjectsJoined);
+                tvSubjects.setText(subjectsJoined);
             }
-
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
                 // fallback: show raw IDs if we couldn't load subject names
-                tvSubjects.setText("Subjects: " + String.join(", ", assignedIds));
+                tvSubjects.setText(String.join(", ", assignedIds));
             }
         });
     }
 }
-

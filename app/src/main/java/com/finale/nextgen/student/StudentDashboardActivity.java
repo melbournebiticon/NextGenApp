@@ -497,6 +497,8 @@
         }
 
         // --- Change Password Dialog ---
+        // Replace the existing showChangePasswordDialog() method in StudentDashboardActivity with this implementation.
+
         private void showChangePasswordDialog() {
             View view = getLayoutInflater().inflate(R.layout.dialog_change_password, null);
             EditText etOldPassword = view.findViewById(R.id.etOldPassword);
@@ -540,18 +542,42 @@
                             .addOnSuccessListener(aVoid -> user.updatePassword(newPass)
                                     .addOnSuccessListener(aVoid1 -> {
                                         String hashedNewPass = hashPassword(newPass);
-                                        String studentId = currentStudentUid;
-                                        if (studentId != null) {
-                                            studentsRef.child(studentId).child("password")
-                                                    .setValue(hashedNewPass)
-                                                    .addOnSuccessListener(aVoid2 -> {
-                                                        Toast.makeText(this, "Password updated successfully!", Toast.LENGTH_SHORT).show();
-                                                        dialog.dismiss();
-                                                    })
-                                                    .addOnFailureListener(e -> Toast.makeText(this, "Failed to update password in DB.", Toast.LENGTH_SHORT).show());
-                                        } else {
-                                            Toast.makeText(this, "Student ID missing.", Toast.LENGTH_SHORT).show();
+
+                                        // --- CORRECTED: update the existing Students node by matching uid ---
+                                        String authUid = FirebaseAuth.getInstance().getCurrentUser() != null
+                                                ? FirebaseAuth.getInstance().getCurrentUser().getUid()
+                                                : null;
+
+                                        if (authUid == null) {
+                                            Toast.makeText(StudentDashboardActivity.this, "User not found.", Toast.LENGTH_SHORT).show();
+                                            return;
                                         }
+
+                                        studentsRef.orderByChild("uid").equalTo(authUid)
+                                                .addListenerForSingleValueEvent(new ValueEventListener() {
+                                                    @Override
+                                                    public void onDataChange(@NonNull DataSnapshot snapshot) {
+                                                        if (snapshot.exists()) {
+                                                            for (DataSnapshot ds : snapshot.getChildren()) {
+                                                                // ds is Students/{correctNodeKey}
+                                                                ds.getRef().child("password").setValue(hashedNewPass)
+                                                                        .addOnSuccessListener(aVoid2 -> {
+                                                                            Toast.makeText(StudentDashboardActivity.this, "Password updated successfully!", Toast.LENGTH_SHORT).show();
+                                                                            dialog.dismiss();
+                                                                        })
+                                                                        .addOnFailureListener(e -> Toast.makeText(StudentDashboardActivity.this, "Failed to update password in DB.", Toast.LENGTH_SHORT).show());
+                                                                break; // only update the first match
+                                                            }
+                                                        } else {
+                                                            Toast.makeText(StudentDashboardActivity.this, "Student record not found to update password.", Toast.LENGTH_SHORT).show();
+                                                        }
+                                                    }
+
+                                                    @Override
+                                                    public void onCancelled(@NonNull DatabaseError error) {
+                                                        Toast.makeText(StudentDashboardActivity.this, "Failed to find student node: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                                                    }
+                                                });
                                     }))
                             .addOnFailureListener(e -> Toast.makeText(this, "Old password is incorrect or reauthentication failed.", Toast.LENGTH_SHORT).show());
                 });
