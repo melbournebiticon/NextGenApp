@@ -55,7 +55,7 @@ public class TakeExamAdapter extends RecyclerView.Adapter<TakeExamAdapter.Questi
     @NonNull
     @Override
     public QuestionViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View view = LayoutInflater.from(context).inflate(R.layout.item_student_exam, parent, false);
+        View view = LayoutInflater.from(context).inflate(R.layout.item_student_quiz, parent, false);
         return new QuestionViewHolder(view);
     }
 

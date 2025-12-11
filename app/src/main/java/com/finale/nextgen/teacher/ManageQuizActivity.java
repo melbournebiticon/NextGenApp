@@ -40,11 +40,12 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-import com.google.android.gms.tasks.Task;
-import com.google.android.gms.tasks.Tasks;
-
 /**
- * ManageQuizActivity - fixes for RecyclerView inconsistency and optimistic insert
+ * ManageQuizActivity - regenerated with scheduling validation
+ * - Prevent scheduling quizzes in the past (same-day earlier time or completely past date)
+ * - Enforce allowed time range (7:00 - 21:00)
+ * - Override dialog positive buttons to validate before dismiss
+ * - Initialize schedule text so users see the selectedDate value
  */
 public class ManageQuizActivity extends AppCompatActivity {
 
@@ -112,6 +113,7 @@ public class ManageQuizActivity extends AppCompatActivity {
                 intent.putExtra("quizYearName", quizYear);
                 intent.putExtra("quizSectionName", quizSection);
 
+                // Backwards-compatible extras used elsewhere
                 intent.putExtra("examId", quiz.getFirebaseKey());
                 intent.putExtra("examTitle", quiz.getQuizName());
                 intent.putExtra("examCourseName", quizCourse);
@@ -268,56 +270,76 @@ public class ManageQuizActivity extends AppCompatActivity {
 
         final Calendar selectedDate = Calendar.getInstance();
         SimpleDateFormat sdf = new SimpleDateFormat("MMM dd, yyyy hh:mm a", Locale.getDefault());
+
+        // Initialize schedule text so user sees the starting value
+        tvSchedule.setText(sdf.format(selectedDate.getTime()));
+
         tvSchedule.setOnClickListener(v -> {
             Calendar now = Calendar.getInstance();
             DatePickerDialog dpd = new DatePickerDialog(this, (datePicker, year, month, day) -> {
-                now.set(year, month, day);
-                showTimePickerWithRange(now, selectedDate, sdf, tvSchedule);
+                // create a date candidate for chosen date (keep current time until time chosen)
+                Calendar dateCandidate = Calendar.getInstance();
+                dateCandidate.set(year, month, day);
+                showTimePickerWithRange(dateCandidate, selectedDate, sdf, tvSchedule);
             }, now.get(Calendar.YEAR), now.get(Calendar.MONTH), now.get(Calendar.DAY_OF_MONTH));
             dpd.getDatePicker().setMinDate(System.currentTimeMillis() - 1000);
             dpd.show();
         });
 
-        new AlertDialog.Builder(this)
+        AlertDialog dialog = new AlertDialog.Builder(this)
                 .setTitle("Add Quiz")
                 .setView(dialogView)
-                .setPositiveButton("Save", (d, which) -> {
-                    String name = etQuizName.getText().toString().trim();
-                    String course = spCourse.getSelectedItem().toString();
-                    String subject = spSubject.getSelectedItem().toString();
-                    int duration = Integer.parseInt(spDuration.getSelectedItem().toString());
-                    long scheduledAt = selectedDate.getTimeInMillis();
-
-                    if (name.isEmpty() || subject.isEmpty() || course.isEmpty() || subject.equals("No subjects found for this course")) {
-                        Toast.makeText(this, "Please fill all fields properly", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-
-                    if (teacherId == null || teacherId.trim().isEmpty()) {
-                        Toast.makeText(this, "Teacher not identified. Cannot create quiz.", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-
-                    DatabaseReference quizzesRef = FirebaseDatabase.getInstance()
-                            .getReference("Quizzes").child(teacherId);
-                    String newPushKey = quizzesRef.push().getKey();
-                    if (newPushKey == null) newPushKey = String.valueOf(System.currentTimeMillis());
-
-                    Quiz newQuiz = new Quiz(name, subject, duration, scheduledAt, course, teacherId);
-                    newQuiz.setFirebaseKey(newPushKey);
-
-                    // Optimistic insert: update list and notify on main thread
-                    runOnUiThread(() -> {
-                        quizList.add(0, newQuiz);
-                        adapter.notifyItemInserted(0);
-                        recyclerView.scrollToPosition(0);
-                    });
-
-                    // Sync to Firebase in background. If it fails, remove the optimistic item.
-                    syncQuizToFirebase(newQuiz);
-                })
+                .setPositiveButton("Save", null) // override to validate
                 .setNegativeButton("Cancel", null)
-                .show();
+                .create();
+
+        dialog.show();
+
+        // Override positive button to validate scheduling rules (no past time)
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            String name = etQuizName.getText().toString().trim();
+            String course = spCourse.getSelectedItem() != null ? spCourse.getSelectedItem().toString() : "";
+            String subject = spSubject.getSelectedItem() != null ? spSubject.getSelectedItem().toString() : "";
+            String durationStr = spDuration.getSelectedItem() != null ? spDuration.getSelectedItem().toString() : "15";
+            int duration = Integer.parseInt(durationStr);
+            long scheduledAt = selectedDate.getTimeInMillis();
+
+            if (name.isEmpty() || subject.isEmpty() || course.isEmpty() || subject.equals("No subjects found for this course")) {
+                Toast.makeText(this, "Please fill all fields properly", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            if (teacherId == null || teacherId.trim().isEmpty()) {
+                Toast.makeText(this, "Teacher not identified. Cannot create quiz.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            // Validate not scheduling in the past
+            if (isDateTimeInPast(selectedDate)) {
+                Toast.makeText(this, "Cannot schedule a quiz in the past. Please pick a future date/time.", Toast.LENGTH_LONG).show();
+                return;
+            }
+
+            DatabaseReference quizzesRef = FirebaseDatabase.getInstance()
+                    .getReference("Quizzes").child(teacherId);
+            String newPushKey = quizzesRef.push().getKey();
+            if (newPushKey == null) newPushKey = String.valueOf(System.currentTimeMillis());
+
+            Quiz newQuiz = new Quiz(name, subject, duration, scheduledAt, course, teacherId);
+            newQuiz.setFirebaseKey(newPushKey);
+
+            // Optimistic insert: update list and notify on main thread
+            runOnUiThread(() -> {
+                quizList.add(0, newQuiz);
+                adapter.notifyItemInserted(0);
+                recyclerView.scrollToPosition(0);
+            });
+
+            // Sync to Firebase in background. If it fails, remove the optimistic item.
+            syncQuizToFirebase(newQuiz);
+
+            dialog.dismiss();
+        });
     }
 
     private void showEditQuizDialog(Quiz quiz) {
@@ -384,36 +406,56 @@ public class ManageQuizActivity extends AppCompatActivity {
         tvSchedule.setText(sdf.format(selectedDate.getTime()));
 
         tvSchedule.setOnClickListener(v -> {
-            Calendar now = Calendar.getInstance();
-            now.setTimeInMillis(selectedDate.getTimeInMillis());
+            Calendar dateCandidate = (Calendar) selectedDate.clone();
             DatePickerDialog dpd = new DatePickerDialog(this, (datePicker, year, month, day) -> {
-                now.set(year, month, day);
-                showTimePickerWithRange(now, selectedDate, sdf, tvSchedule);
-            }, now.get(Calendar.YEAR), now.get(Calendar.MONTH), now.get(Calendar.DAY_OF_MONTH));
+                dateCandidate.set(year, month, day);
+                showTimePickerWithRange(dateCandidate, selectedDate, sdf, tvSchedule);
+            }, selectedDate.get(Calendar.YEAR), selectedDate.get(Calendar.MONTH), selectedDate.get(Calendar.DAY_OF_MONTH));
             dpd.getDatePicker().setMinDate(System.currentTimeMillis() - 1000);
             dpd.show();
         });
 
-        new AlertDialog.Builder(this)
+        AlertDialog dialog = new AlertDialog.Builder(this)
                 .setTitle("Edit Quiz")
                 .setView(dialogView)
-                .setPositiveButton("Save", (d, which) -> {
-                    quiz.setQuizName(etQuizName.getText().toString().trim());
-                    quiz.setSection(spCourse.getSelectedItem().toString());
-                    quiz.setSubject(spSubject.getSelectedItem().toString());
-                    quiz.setDurationMinutes(Integer.parseInt(spDuration.getSelectedItem().toString()));
-                    quiz.setScheduledAt(selectedDate.getTimeInMillis());
-
-                    syncQuizToFirebase(quiz);
-                    // update local list immediately
-                    int idx = findQuizIndexByKey(quiz.getFirebaseKey());
-                    if (idx >= 0) {
-                        quizList.set(idx, quiz);
-                        runOnUiThread(() -> adapter.notifyItemChanged(idx));
-                    } else runOnUiThread(() -> adapter.notifyDataSetChanged());
-                })
+                .setPositiveButton("Save", null) // override to validate
                 .setNegativeButton("Cancel", null)
-                .show();
+                .create();
+
+        dialog.show();
+
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            String newExamName = etQuizName.getText().toString().trim();
+            String newSubject = spSubject.getSelectedItem() != null ? spSubject.getSelectedItem().toString() : "";
+            String newSection = spCourse.getSelectedItem() != null ? spCourse.getSelectedItem().toString() : "";
+
+            if (newExamName.isEmpty() || newSubject.isEmpty() || newSection.isEmpty()) {
+                Toast.makeText(ManageQuizActivity.this, "Please fill all fields properly", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            // Validate not scheduling in the past
+            if (isDateTimeInPast(selectedDate)) {
+                Toast.makeText(ManageQuizActivity.this, "Cannot schedule a quiz in the past. Please pick a future date/time.", Toast.LENGTH_LONG).show();
+                return;
+            }
+
+            quiz.setQuizName(newExamName);
+            quiz.setSubject(newSubject);
+            quiz.setSection(newSection);
+            quiz.setDurationMinutes(Integer.parseInt(spDuration.getSelectedItem().toString()));
+            quiz.setScheduledAt(selectedDate.getTimeInMillis());
+
+            syncQuizToFirebase(quiz);
+
+            int idx = findQuizIndexByKey(quiz.getFirebaseKey());
+            if (idx >= 0) {
+                quizList.set(idx, quiz);
+                runOnUiThread(() -> adapter.notifyItemChanged(idx));
+            } else runOnUiThread(() -> adapter.notifyDataSetChanged());
+
+            dialog.dismiss();
+        });
     }
 
     private void showTimePickerWithRange(Calendar dateCandidate, Calendar selectedDate, SimpleDateFormat sdf, TextView tvSchedule) {
@@ -438,6 +480,25 @@ public class ManageQuizActivity extends AppCompatActivity {
                 return;
             }
 
+            // Build a candidate datetime with user's chosen hour/minute
+            Calendar candidateWithTime = (Calendar) dateCandidate.clone();
+            candidateWithTime.set(Calendar.HOUR_OF_DAY, hour);
+            candidateWithTime.set(Calendar.MINUTE, minute);
+            candidateWithTime.set(Calendar.SECOND, 0);
+            candidateWithTime.set(Calendar.MILLISECOND, 0);
+
+            // Prevent selecting a past datetime
+            if (isDateTimeInPast(candidateWithTime)) {
+                new AlertDialog.Builder(this)
+                        .setTitle("Invalid time")
+                        .setMessage("The selected date/time is in the past. Please choose a future time.")
+                        .setPositiveButton("Pick time again", (d, w) -> showTimePickerWithRange(dateCandidate, selectedDate, sdf, tvSchedule))
+                        .setNegativeButton("Cancel", null)
+                        .show();
+                return;
+            }
+
+            // Accept the chosen time and update UI
             dateCandidate.set(Calendar.HOUR_OF_DAY, hour);
             dateCandidate.set(Calendar.MINUTE, minute);
             selectedDate.setTimeInMillis(dateCandidate.getTimeInMillis());
@@ -478,7 +539,7 @@ public class ManageQuizActivity extends AppCompatActivity {
                         if (idx >= 0) {
                             quizList.remove(idx);
                             adapter.notifyItemRemoved(idx);
-                        }
+                        } else runOnUiThread(() -> adapter.notifyDataSetChanged());
                     });
                 });
     }
@@ -571,5 +632,12 @@ public class ManageQuizActivity extends AppCompatActivity {
             loadQuizzes();
         });
     }
-}
 
+    /**
+     * Helper: returns true if the provided candidateCalendar points to a time before "now".
+     */
+    private boolean isDateTimeInPast(Calendar candidateCalendar) {
+        long now = System.currentTimeMillis();
+        return candidateCalendar.getTimeInMillis() < now;
+    }
+}

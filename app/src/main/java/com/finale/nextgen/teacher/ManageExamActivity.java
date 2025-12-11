@@ -364,13 +364,18 @@ public class ManageExamActivity extends AppCompatActivity {
         final Calendar selectedDate = Calendar.getInstance();
         final SimpleDateFormat sdf = new SimpleDateFormat("MMM dd, yyyy hh:mm a", Locale.getDefault());
 
+        // Initialize tvSchedule with readable current time (so user sees a value)
+        tvSchedule.setText(sdf.format(selectedDate.getTime()));
+
         // tvSchedule click: DatePicker then constrained time picker
         tvSchedule.setOnClickListener(v -> {
             Calendar now = Calendar.getInstance();
             DatePickerDialog dpd = new DatePickerDialog(this, (datePicker, year, month, day) -> {
-                now.set(year, month, day);
+                // create candidate date with the chosen date but keep current time as base
+                Calendar dateCandidate = Calendar.getInstance();
+                dateCandidate.set(year, month, day);
                 // enforce min date (disable past dates)
-                showTimePickerWithRange(now, selectedDate, sdf, tvSchedule);
+                showTimePickerWithRange(dateCandidate, selectedDate, sdf, tvSchedule);
             }, now.get(Calendar.YEAR), now.get(Calendar.MONTH), now.get(Calendar.DAY_OF_MONTH));
             dpd.getDatePicker().setMinDate(System.currentTimeMillis() - 1000);
             dpd.show();
@@ -432,34 +437,45 @@ public class ManageExamActivity extends AppCompatActivity {
         AlertDialog dialog = new AlertDialog.Builder(this)
                 .setTitle("Add Exam")
                 .setView(dialogView)
-                .setPositiveButton("Save", (d, which) -> {
-                    String name = etExamName.getText().toString().trim();
-                    String course = spCourse.getSelectedItem() != null ? spCourse.getSelectedItem().toString() : "";
-                    String subject = spSubject.getSelectedItem() != null ? spSubject.getSelectedItem().toString() : "";
-                    String selectedDuration = spDuration.getSelectedItem().toString();
-                    long scheduledAt = selectedDate.getTimeInMillis();
-
-                    if (name.isEmpty() || subject.isEmpty() || course.isEmpty() || subject.equals("No subjects found for this course")) {
-                        Toast.makeText(ManageExamActivity.this, "Please fill all fields properly", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-
-                    int duration = Integer.parseInt(selectedDuration.split(" ")[0]);
-
-                    new Thread(() -> {
-                        Exam newExam = new Exam(subject, name, duration, scheduledAt, course);
-                        db.examDao().insert(newExam);
-                        syncExamToFirebase(newExam);
-                        runOnUiThread(() -> {
-                            loadExams();
-                            Toast.makeText(ManageExamActivity.this, "Exam added successfully", Toast.LENGTH_SHORT).show();
-                        });
-                    }).start();
-                })
+                .setPositiveButton("Save", null) // override later to prevent auto-dismiss
                 .setNegativeButton("Cancel", null)
                 .create();
 
         dialog.show();
+
+        // Override positive button to validate scheduling rules (no past time)
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            String name = etExamName.getText().toString().trim();
+            String course = spCourse.getSelectedItem() != null ? spCourse.getSelectedItem().toString() : "";
+            String subject = spSubject.getSelectedItem() != null ? spSubject.getSelectedItem().toString() : "";
+            String selectedDuration = spDuration.getSelectedItem().toString();
+            long scheduledAt = selectedDate.getTimeInMillis();
+
+            if (name.isEmpty() || subject.isEmpty() || course.isEmpty() || subject.equals("No subjects found for this course")) {
+                Toast.makeText(ManageExamActivity.this, "Please fill all fields properly", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            // Validate not scheduling in the past
+            if (isDateTimeInPast(selectedDate)) {
+                Toast.makeText(ManageExamActivity.this, "Cannot schedule an exam in the past. Please pick a future date/time.", Toast.LENGTH_LONG).show();
+                return;
+            }
+
+            int duration = Integer.parseInt(selectedDuration.split(" ")[0]);
+
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(false); // prevent double click
+            new Thread(() -> {
+                Exam newExam = new Exam(subject, name, duration, scheduledAt, course);
+                db.examDao().insert(newExam);
+                syncExamToFirebase(newExam);
+                runOnUiThread(() -> {
+                    loadExams();
+                    Toast.makeText(ManageExamActivity.this, "Exam added successfully", Toast.LENGTH_SHORT).show();
+                    dialog.dismiss();
+                });
+            }).start();
+        });
     }
 
     // ===== SYNC EXAM TO FIREBASE (UPDATED) =====
@@ -542,6 +558,9 @@ public class ManageExamActivity extends AppCompatActivity {
         Spinner spDuration = dialogView.findViewById(R.id.spDuration);
         TextView tvSchedule = dialogView.findViewById(R.id.tvSchedule);
 
+        // Pre-fill exam name
+        etExamName.setText(exam.getExamName());
+
         // Course spinner setup (from add dialog, but simplified for edit)
         spCourse.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, courseDisplayList));
         // Simple setting of course selection based on current exam data
@@ -594,12 +613,11 @@ public class ManageExamActivity extends AppCompatActivity {
 
         // tvSchedule click: DatePicker then constrained time picker
         tvSchedule.setOnClickListener(v -> {
-            int initialHour = selectedDate.get(Calendar.HOUR_OF_DAY);
-            int initialMinute = selectedDate.get(Calendar.MINUTE);
-
+            // create a candidate date based on current selectedDate but allow changing date
             DatePickerDialog dpd = new DatePickerDialog(this, (datePicker, year, month, day) -> {
-                selectedDate.set(year, month, day);
-                showTimePickerWithRange(selectedDate, selectedDate, sdf, tvSchedule);
+                Calendar dateCandidate = (Calendar) selectedDate.clone();
+                dateCandidate.set(year, month, day);
+                showTimePickerWithRange(dateCandidate, selectedDate, sdf, tvSchedule);
             }, selectedDate.get(Calendar.YEAR), selectedDate.get(Calendar.MONTH), selectedDate.get(Calendar.DAY_OF_MONTH));
             dpd.getDatePicker().setMinDate(System.currentTimeMillis() - 1000);
             dpd.show();
@@ -608,30 +626,52 @@ public class ManageExamActivity extends AppCompatActivity {
         AlertDialog dialog = new AlertDialog.Builder(this)
                 .setTitle("Edit Exam")
                 .setView(dialogView)
-                .setPositiveButton("Save", (d, which) -> {
-                    exam.setExamName(etExamName.getText().toString().trim());
-                    exam.setSubject(spSubject.getSelectedItem().toString());
-                    exam.setSection(spCourse.getSelectedItem().toString()); // Update section
-
-                    String selectedDuration = spDuration.getSelectedItem().toString();
-                    exam.setDurationMinutes(Integer.parseInt(selectedDuration.split(" ")[0]));
-                    exam.setScheduledAt(selectedDate.getTimeInMillis());
-
-                    new Thread(() -> {
-                        db.examDao().updateExam(exam);
-                        syncExamToFirebase(exam);
-                        runOnUiThread(this::loadExams);
-                    }).start();
-                })
+                .setPositiveButton("Save", null) // override to validate
                 .setNegativeButton("Cancel", null)
                 .create();
 
         dialog.show();
+
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            String newExamName = etExamName.getText().toString().trim();
+            String newSubject = spSubject.getSelectedItem() != null ? spSubject.getSelectedItem().toString() : "";
+            String newSection = spCourse.getSelectedItem() != null ? spCourse.getSelectedItem().toString() : "";
+
+            if (newExamName.isEmpty() || newSubject.isEmpty() || newSection.isEmpty()) {
+                Toast.makeText(ManageExamActivity.this, "Please fill all fields properly", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            // Validate not scheduling in the past
+            if (isDateTimeInPast(selectedDate)) {
+                Toast.makeText(ManageExamActivity.this, "Cannot schedule an exam in the past. Please pick a future date/time.", Toast.LENGTH_LONG).show();
+                return;
+            }
+
+            exam.setExamName(newExamName);
+            exam.setSubject(newSubject);
+            exam.setSection(newSection); // Update section
+
+            String selectedDuration = spDuration.getSelectedItem().toString();
+            exam.setDurationMinutes(Integer.parseInt(selectedDuration.split(" ")[0]));
+            exam.setScheduledAt(selectedDate.getTimeInMillis());
+
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(false);
+            new Thread(() -> {
+                db.examDao().updateExam(exam);
+                syncExamToFirebase(exam);
+                runOnUiThread(() -> {
+                    loadExams();
+                    dialog.dismiss();
+                });
+            }).start();
+        });
     }
 
     /**
      * Show MaterialTimePicker and enforce allowed hour range (7..21 inclusive).
      * If user picks an invalid hour, show an alert and let them pick again.
+     * Also prevent selecting a time that is in the past for the chosen date.
      */
     private void showTimePickerWithRange(Calendar dateCandidate, Calendar selectedDate, SimpleDateFormat sdf, TextView tvSchedule) {
         MaterialTimePicker timePicker = new MaterialTimePicker.Builder()
@@ -656,6 +696,25 @@ public class ManageExamActivity extends AppCompatActivity {
                 return;
             }
 
+            // Build a temp calendar representing the chosen date + chosen time
+            Calendar candidateWithTime = (Calendar) dateCandidate.clone();
+            candidateWithTime.set(Calendar.HOUR_OF_DAY, hour);
+            candidateWithTime.set(Calendar.MINUTE, minute);
+            candidateWithTime.set(Calendar.SECOND, 0);
+            candidateWithTime.set(Calendar.MILLISECOND, 0);
+
+            // If the chosen date is today, prevent selecting a time earlier than now
+            if (isDateTimeInPast(candidateWithTime)) {
+                new AlertDialog.Builder(this)
+                        .setTitle("Invalid time")
+                        .setMessage("The selected date/time is in the past. Please choose a future time.")
+                        .setPositiveButton("Pick time again", (d, w) -> showTimePickerWithRange(dateCandidate, selectedDate, sdf, tvSchedule))
+                        .setNegativeButton("Cancel", null)
+                        .show();
+                return;
+            }
+
+            // If everything is ok, set values
             dateCandidate.set(Calendar.HOUR_OF_DAY, hour);
             dateCandidate.set(Calendar.MINUTE, minute);
             selectedDate.setTimeInMillis(dateCandidate.getTimeInMillis());
@@ -663,5 +722,13 @@ public class ManageExamActivity extends AppCompatActivity {
         });
 
         timePicker.show(getSupportFragmentManager(), "EXAM_TIME_PICKER");
+    }
+
+    /**
+     * Helper: returns true if the provided candidateCalendar points to a time before "now".
+     */
+    private boolean isDateTimeInPast(Calendar candidateCalendar) {
+        long now = System.currentTimeMillis();
+        return candidateCalendar.getTimeInMillis() < now;
     }
 }

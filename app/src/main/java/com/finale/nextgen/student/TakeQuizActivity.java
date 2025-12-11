@@ -174,7 +174,7 @@ public class TakeQuizActivity extends AppCompatActivity {
 
 
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_take_exam); // reuse same layout as exam
+        setContentView(R.layout.activity_take_quiz); // use quiz-specific layout
 
 
         if (getSupportActionBar() != null) {
@@ -183,7 +183,7 @@ public class TakeQuizActivity extends AppCompatActivity {
         }
 
 
-        tvQuizTitle = findViewById(R.id.tvExamTitle); // layout id reused
+        tvQuizTitle = findViewById(R.id.tvQuizTitle);
         rvQuestions = findViewById(R.id.rvQuestions);
         rvQuestions.setLayoutManager(new LinearLayoutManager(this));
         btnSubmit = findViewById(R.id.btnSubmitExam);

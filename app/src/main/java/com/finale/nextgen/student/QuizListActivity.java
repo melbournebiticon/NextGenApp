@@ -1985,6 +1985,17 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
                 android.util.Log.w(TAG_DEBUG, "ExamStudents listener cancelled for quiz=" + key + ": " + error.getMessage());
             }
         };
+
+        // Attach listeners (previously missing) so student presence updates arrive in real time
+        quizPresenceRefs.put(key, qRef);
+        quizPresenceListeners.put(key, qListener);
+        qRef.addValueEventListener(qListener);
+
+        DatabaseReference eRef = FirebaseDatabase.getInstance()
+                .getReference("ExamStudents").child(key).child(studentId);
+        examPresenceRefs.put(key, eRef);
+        examPresenceListeners.put(key, eListener);
+        eRef.addValueEventListener(eListener);
     }
 
 
