@@ -1242,75 +1242,76 @@ public class QuizListActivity extends AppCompatActivity implements QuizListAdapt
 
 
 
-                    if (!takenQuizIds.contains(quizId) || SHOW_ALL_ACTIVE_FOR_DEBUG) {
-                        QuizModel qm = new QuizModel();
-                        qm.setQuizId(quizId);
-                        qm.setQuizName(quizName != null ? quizName : "Quiz");
-                        qm.setTeacherName(teacherName != null ? teacherName : "");
-                        qm.setSubjectName(subjectName != null ? subjectName : "");
-                        qm.setSectionName(parsedSection != null ? parsedSection : "");
-                        qm.setCourseName(!parsedCourse.isEmpty() ? parsedCourse : courseNameRaw);
-                        qm.setScheduledAt(scheduledAt);
-                        qm.setDurationMinutes(duration != null ? duration : 0);
-                        qm.setActive(active);
+                    // Always include the quiz; show as TAKEN when score exists instead of removing it
+                    QuizModel qm = new QuizModel();
+                    qm.setQuizId(quizId);
+                    qm.setQuizName(quizName != null ? quizName : "Quiz");
+                    qm.setTeacherName(teacherName != null ? teacherName : "");
+                    qm.setSubjectName(subjectName != null ? subjectName : "");
+                    qm.setSectionName(parsedSection != null ? parsedSection : "");
+                    qm.setCourseName(!parsedCourse.isEmpty() ? parsedCourse : courseNameRaw);
+                    qm.setScheduledAt(scheduledAt);
+                    qm.setDurationMinutes(duration != null ? duration : 0);
+                    qm.setActive(active);
 
 
 
 
-                        long computedAvailableAt = 0L;
-                        if (availableAtFromDb != null && availableAtFromDb > 0) {
-                            computedAvailableAt = availableAtFromDb;
-                        } else if (availableAfterMinutes != null && availableAfterMinutes > 0 && scheduledAt > 0) {
-                            computedAvailableAt = scheduledAt + (availableAfterMinutes * 60_000L);
-                        } else if (scheduledAt > 0) {
-                            computedAvailableAt = scheduledAt;
-                        }
-                        qm.setAvailableAt(computedAvailableAt > 0 ? computedAvailableAt : 0L);
-
-
-
-
-                        qm.setSpecializationName(parsedSpec != null ? parsedSpec : "");
-                        qm.setYearName(parsedYear != null ? parsedYear : "");
-                        qm.setSectionName(parsedSection != null ? parsedSection : "");
-
-
-
-
-                        boolean alreadyTaken = takenQuizIds.contains(quizId);
-                        try {
-                            if (alreadyTaken) {
-                                // Mark the model as taken; do NOT mark 'present' just because it's taken.
-                                qm.setStatus("TAKEN");
-                                qm.setAvailable(false);
-                                qm.setPresent(false);
-                                // If QuizModel exposes setTaken(boolean), set it (reflection fallback used for safety)
-                                try {
-                                    java.lang.reflect.Method m = qm.getClass().getMethod("setTaken", boolean.class);
-                                    if (m != null) m.invoke(qm, true);
-                                } catch (NoSuchMethodException ignored) {}
-                            } else {
-                                qm.setStatus("QUIZ");
-                                qm.setAvailable(true);
-                                qm.setPresent(false); // default; presence will be updated by realtime listeners
-                            }
-                        } catch (Exception ignored) {}
-
-
-
-
-                        newList.add(qm);
-
-
-
-
-                        attachPresenceListenerForQuiz(quizId);
-
-
-
-
-                        quizIds.add(quizId);
+                    long computedAvailableAt = 0L;
+                    if (availableAtFromDb != null && availableAtFromDb > 0) {
+                        computedAvailableAt = availableAtFromDb;
+                    } else if (availableAfterMinutes != null && availableAfterMinutes > 0 && scheduledAt > 0) {
+                        computedAvailableAt = scheduledAt + (availableAfterMinutes * 60_000L);
+                    } else if (scheduledAt > 0) {
+                        computedAvailableAt = scheduledAt;
                     }
+                    qm.setAvailableAt(computedAvailableAt > 0 ? computedAvailableAt : 0L);
+
+
+
+
+                    qm.setSpecializationName(parsedSpec != null ? parsedSpec : "");
+                    qm.setYearName(parsedYear != null ? parsedYear : "");
+                    qm.setSectionName(parsedSection != null ? parsedSection : "");
+
+
+
+
+                    boolean alreadyTaken = takenQuizIds.contains(quizId);
+                    try {
+                        if (alreadyTaken) {
+                            // Mark the model as taken; do NOT mark 'present' just because it's taken.
+                            qm.setStatus("TAKEN");
+                            qm.setAvailable(false);
+                            // Mark present=true so adapter renders the TAKEN state (it keys off 'present' for taken)
+                            qm.setPresent(true);
+                            qm.setStudentPresent(true);
+                            // If QuizModel exposes setTaken(boolean), set it (reflection fallback used for safety)
+                            try {
+                                java.lang.reflect.Method m = qm.getClass().getMethod("setTaken", boolean.class);
+                                if (m != null) m.invoke(qm, true);
+                            } catch (NoSuchMethodException ignored) {}
+                        } else {
+                            qm.setStatus("QUIZ");
+                            qm.setAvailable(true);
+                            qm.setPresent(false); // default; presence will be updated by realtime listeners
+                        }
+                    } catch (Exception ignored) {}
+
+
+
+
+                    newList.add(qm);
+
+
+
+
+                    attachPresenceListenerForQuiz(quizId);
+
+
+
+
+                    quizIds.add(quizId);
                 } catch (Exception e) {
                     Log.w(TAG_DEBUG, "Error processing quiz node: " + e.getMessage());
                 }

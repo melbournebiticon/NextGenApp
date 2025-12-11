@@ -61,6 +61,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Arrays;
 
 
 /**
@@ -122,11 +123,10 @@ public class TakeQuizActivity extends AppCompatActivity {
     private final int DEDUCTION_PER_STRIKE = 1;
 
 
-    // Audio cheating variables (same concept)
+    // --- AUDIO CHEATING VARIABLES (enhanced, aligned with TakeExamActivity) ---
     private int audioCheatingCount = 0;
     private final int MAX_AUDIO_STRIKES = 5;
-    private final float FINAL_HUMAN_THRESHOLD = 0.75f;
-
+    private final float HIGH_CONFIDENCE_THRESHOLD = 0.70f;
 
     // Audio monitoring
     private MediaRecorder mediaRecorder = null;
@@ -134,11 +134,11 @@ public class TakeQuizActivity extends AppCompatActivity {
     private static final int AUDIO_DETECTION_INTERVAL = 500; // ms
     private static final int REQUEST_RECORD_AUDIO_PERMISSION = 201;
 
-
     // TFLite audio
     private AudioClassifier classifier;
     private TensorAudio tensorAudio;
     private android.media.AudioRecord audioRecord;
+    private volatile boolean isAudioMonitoringActive = false;
 
 
     private List<String> allMatchingAnswers = new ArrayList<>();
@@ -148,6 +148,35 @@ public class TakeQuizActivity extends AppCompatActivity {
 
     // offline loaded flag
     private volatile boolean offlineLoaded = false;
+
+    // Robust Calibration
+    private float ambientNoiseRms = 0f;
+    private final int CALIBRATION_FRAMES = 12; // More samples for median
+    private final int CALIBRATION_SLEEP_MS = 300;
+
+    // Dual Threshold Parameters (Classroom-Tuned)
+    private final float AMBIENT_MULTIPLIER = 3.5f; // Relative threshold
+    private final float ABS_DELTA_THRESHOLD = 0.03f; // Absolute increase required
+    private final float SNR_RATIO_THRESHOLD = 4.0f; // frameRms must be 4x ambient
+    private final float FALLBACK_MIC_LOUDNESS_THRESHOLD = 0.005f;
+
+    // Temporal Smoothing (Sliding Window)
+    private final int SLIDING_WINDOW_SIZE = 8; // Last 8 ticks
+    private final int REQUIRED_POSITIVES = 5; // Need 5/8 to advance
+    private boolean[] detectionWindow = new boolean[SLIDING_WINDOW_SIZE];
+    private int windowIndex = 0;
+
+    // Accumulation & Decay
+    private final int REQUIRED_DETECTION_MS = 4000; // 4 seconds sustained
+    private int accumulatedDetectionMs = 0;
+    private final int DECAY_ON_NO_DETECT_MS = 500; // Decay slower
+    private long lastStrikeTimestamp = 0L;
+    private final long STRIKE_RESET_MS = 30_000L; // 30 seconds
+    private final long MIN_TIME_BETWEEN_STRIKES_MS = 8_000L; // Minimum 8 seconds between strikes
+
+    // Crash Protection
+    private int classifierRestartAttempts = 0;
+    private final int MAX_CLASSIFIER_RESTARTS = 1; // Allow one restart
 
 
     // Intent-provided times (normalized)
@@ -1536,11 +1565,14 @@ public class TakeQuizActivity extends AppCompatActivity {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             return;
         }
+        if (isAudioMonitoringActive) return;
+        isAudioMonitoringActive = true;
         startAudioClassification();
     }
 
 
     private void stopAudioMonitoring() {
+        isAudioMonitoringActive = false;
         // remove audio handler callbacks
         try {
             if (audioHandler != null) audioHandler.removeCallbacksAndMessages(null);
@@ -1581,85 +1613,273 @@ public class TakeQuizActivity extends AppCompatActivity {
 
 
         audioCheatingCount = 0;
+        accumulatedDetectionMs = 0;
+        Arrays.fill(detectionWindow, false);
     }
 
 
     private void startAudioClassification() {
-        final float NEW_HIGH_CONFIDENCE_THRESHOLD = 0.6f;
-        final float MIC_LOUDNESS_THRESHOLD = 0.15f;
-
-
         try {
             AudioClassifier.AudioClassifierOptions options =
                     AudioClassifier.AudioClassifierOptions.builder()
                             .setMaxResults(1)
-                            .setScoreThreshold(NEW_HIGH_CONFIDENCE_THRESHOLD)
+                            .setScoreThreshold(HIGH_CONFIDENCE_THRESHOLD)
                             .build();
-
 
             classifier = AudioClassifier.createFromFileAndOptions(this, "model.tflite", options);
             tensorAudio = classifier.createInputTensorAudio();
             audioRecord = classifier.createAudioRecord();
             audioRecord.startRecording();
 
-
-            audioHandler.post(new Runnable() {
-                @Override public void run() {
-                    try {
-                        tensorAudio.load(audioRecord);
-                        List<Classifications> results = classifier.classify(tensorAudio);
-
-
-                        float[] audioData = tensorAudio.getTensorBuffer().getFloatArray();
-                        float maxAmplitude = 0f;
-                        for (float v : audioData) maxAmplitude = Math.max(maxAmplitude, Math.abs(v));
-
-
-                        if (!results.isEmpty()) {
-                            Classifications classification = results.get(0);
-                            if (!classification.getCategories().isEmpty()) {
-                                String label = classification.getCategories().get(0).getLabel();
-                                float confidence = classification.getCategories().get(0).getScore();
-
-
-                                Log.d("AUDIO_DEBUG", "Label=" + label + " Conf=" + confidence + " Loud=" + maxAmplitude);
-
-
-                                if ((label.equalsIgnoreCase("human") || label.equalsIgnoreCase("speech"))
-                                        && confidence >= NEW_HIGH_CONFIDENCE_THRESHOLD
-                                        && maxAmplitude >= MIC_LOUDNESS_THRESHOLD) {
-
-
-                                    audioCheatingCount++;
-                                    Log.w("AUDIO_TFLITE", "CHEATING STRIKE " + audioCheatingCount);
-
-
-                                    if (audioCheatingCount < MAX_AUDIO_STRIKES) {
-                                        runOnUiThread(() -> Toast.makeText(TakeQuizActivity.this,
-                                                "WARNING: Loud human voice detected! (" + audioCheatingCount + "/" + MAX_AUDIO_STRIKES + ")",
-                                                Toast.LENGTH_SHORT).show());
-                                    }
-
-
-                                    if (audioCheatingCount >= MAX_AUDIO_STRIKES) {
-                                        Log.e("AUDIO_TFLITE", "MAJOR CHEATING: Auto-submitting quiz!");
-                                        runOnUiThread(() -> submitQuizWithZeroScore());
-                                    }
-                                } else {
-                                    audioCheatingCount = 0;
-                                }
-                            }
-                        }
-                    } catch (Exception e) {
-                        Log.e("AUDIO_TFLITE", "Error audio classify: " + e.getMessage());
-                    }
-                    audioHandler.postDelayed(this, AUDIO_DETECTION_INTERVAL);
-                }
-            });
+            calibrateAmbientNoise();
+            startDetectionLoop();
         } catch (IOException e) {
             e.printStackTrace();
             Toast.makeText(this, "Failed to load audio model.", Toast.LENGTH_SHORT).show();
         }
+    }
+
+    private void calibrateAmbientNoise() {
+        try {
+            float[] rmsReadings = new float[CALIBRATION_FRAMES];
+            int collected = 0;
+            for (int i = 0; i < CALIBRATION_FRAMES; i++) {
+                tensorAudio.load(audioRecord);
+                float[] data = tensorAudio.getTensorBuffer().getFloatArray();
+                rmsReadings[collected++] = computeRMS(data);
+                try { Thread.sleep(CALIBRATION_SLEEP_MS); } catch (InterruptedException ignored) {}
+            }
+
+            if (collected > 0) {
+                Arrays.sort(rmsReadings, 0, collected);
+                ambientNoiseRms = rmsReadings[collected / 2];
+            }
+
+            if (ambientNoiseRms < 1e-5f) {
+                ambientNoiseRms = FALLBACK_MIC_LOUDNESS_THRESHOLD * 0.6f;
+            }
+
+            Log.d("AUDIO_TFLITE", "Calibration complete. Ambient (median): " + ambientNoiseRms);
+        } catch (Exception e) {
+            Log.w("AUDIO_TFLITE", "Calibration failed: " + e.getMessage());
+            ambientNoiseRms = FALLBACK_MIC_LOUDNESS_THRESHOLD * 0.6f;
+        }
+    }
+
+    private void startDetectionLoop() {
+        audioHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    if (classifier == null || audioRecord == null || !isAudioMonitoringActive) {
+                        Log.w("AUDIO_TFLITE", "Detection loop stopped (classifier null or stopped).");
+                        return;
+                    }
+                    runDetectionTick();
+                    if (classifier != null && audioRecord != null && isAudioMonitoringActive) {
+                        audioHandler.postDelayed(this, AUDIO_DETECTION_INTERVAL);
+                    }
+                } catch (Throwable t) {
+                    Log.e("AUDIO_TFLITE", "Detection loop error: " + t.getMessage(), t);
+                    handleClassifierCrash();
+                }
+            }
+        });
+    }
+
+    private void runDetectionTick() {
+        if (classifier == null || audioRecord == null) {
+            Log.w("AUDIO_TFLITE", "Classifier or audioRecord null in tick.");
+            return;
+        }
+
+        tensorAudio.load(audioRecord);
+        List<Classifications> results = classifier.classify(tensorAudio);
+
+        float[] audioData = tensorAudio.getTensorBuffer().getFloatArray();
+        float frameRms = computeRMS(audioData);
+
+        float relativeThreshold = Math.max(FALLBACK_MIC_LOUDNESS_THRESHOLD, ambientNoiseRms * AMBIENT_MULTIPLIER);
+        float absoluteDelta = frameRms - ambientNoiseRms;
+        float snrRatio = (ambientNoiseRms > 1e-5f) ? (frameRms / ambientNoiseRms) : 0f;
+
+        boolean detectedSpeech = false;
+        String detectedLabel = "";
+        float detectedConfidence = 0f;
+
+        if (!results.isEmpty()) {
+            Classifications cls = results.get(0);
+            if (!cls.getCategories().isEmpty()) {
+                detectedLabel = cls.getCategories().get(0).getLabel();
+                detectedConfidence = cls.getCategories().get(0).getScore();
+
+                if ((detectedLabel.equalsIgnoreCase("human") || detectedLabel.equalsIgnoreCase("speech"))
+                        && detectedConfidence >= HIGH_CONFIDENCE_THRESHOLD
+                        && frameRms >= relativeThreshold
+                        && absoluteDelta >= ABS_DELTA_THRESHOLD
+                        && snrRatio >= SNR_RATIO_THRESHOLD) {
+                    detectedSpeech = true;
+                }
+            }
+        }
+
+        detectionWindow[windowIndex] = detectedSpeech;
+        windowIndex = (windowIndex + 1) % SLIDING_WINDOW_SIZE;
+
+        int positiveCount = 0;
+        for (boolean b : detectionWindow) if (b) positiveCount++;
+
+        boolean windowTriggered = (positiveCount >= REQUIRED_POSITIVES);
+
+        if (windowTriggered) {
+            accumulatedDetectionMs += AUDIO_DETECTION_INTERVAL;
+        } else {
+            accumulatedDetectionMs = Math.max(0, accumulatedDetectionMs - DECAY_ON_NO_DETECT_MS);
+        }
+
+        long now = System.currentTimeMillis();
+        if (accumulatedDetectionMs >= REQUIRED_DETECTION_MS) {
+            long timeSinceLastStrike = now - lastStrikeTimestamp;
+            if (lastStrikeTimestamp == 0L || timeSinceLastStrike >= MIN_TIME_BETWEEN_STRIKES_MS) {
+                audioCheatingCount++;
+                lastStrikeTimestamp = now;
+                accumulatedDetectionMs = 0;
+
+                Log.w("AUDIO_TFLITE", String.format(Locale.US,
+                        "⚠️ AUDIO STRIKE #%d | Label=%s Conf=%.2f RMS=%.4f Ambient=%.4f Delta=%.4f SNR=%.2f",
+                        audioCheatingCount, detectedLabel, detectedConfidence, frameRms, ambientNoiseRms, absoluteDelta, snrRatio));
+
+                logQuizAudioEvent(detectedLabel, detectedConfidence, frameRms, ambientNoiseRms, absoluteDelta, snrRatio);
+                handleRegisteredAudioStrike(detectedLabel, detectedConfidence, frameRms);
+            } else {
+                Log.d("AUDIO_TFLITE", "Strike suppressed; need more time between strikes.");
+                accumulatedDetectionMs = 0;
+            }
+        }
+
+        if (audioCheatingCount > 0 && (now - lastStrikeTimestamp) > STRIKE_RESET_MS) {
+            Log.d("AUDIO_TFLITE", "Clearing audio strikes due to timeout.");
+            audioCheatingCount = 0;
+        }
+    }
+
+    private void handleClassifierCrash() {
+        runOnUiThread(() -> Toast.makeText(this, "Audio detector error. Restarting…", Toast.LENGTH_SHORT).show());
+        stopAudioMonitoring();
+        if (classifierRestartAttempts < MAX_CLASSIFIER_RESTARTS && !isFinishing()) {
+            classifierRestartAttempts++;
+            audioHandler.postDelayed(() -> {
+                if (!isFinishing()) startAudioMonitoring();
+            }, 1000);
+        }
+    }
+
+    private float computeRMS(float[] buffer) {
+        if (buffer == null || buffer.length == 0) return 0f;
+        double sum = 0;
+        for (float v : buffer) {
+            sum += v * v;
+        }
+        return (float) Math.sqrt(sum / buffer.length);
+    }
+
+    /**
+     * Mirror the graduated audio strike handling used in TakeExamActivity:
+     *  - Strike 1-2: warning toast
+     *  - Strike 3: -1 deduction + warning dialog
+     *  - Strike >= MAX_AUDIO_STRIKES: auto-submit (stronger if combined with switchCount >=2)
+     */
+    private void handleRegisteredAudioStrike(String label, float confidence, float frameRms) {
+        runOnUiThread(() -> {
+            if (!isActivityAlive()) return;
+
+            if (audioCheatingCount == 1 || audioCheatingCount == 2) {
+                Toast.makeText(this,
+                        "⚠️ Audio detection: possible voice detected (" + audioCheatingCount + "/" + MAX_AUDIO_STRIKES + ")",
+                        Toast.LENGTH_LONG).show();
+
+            } else if (audioCheatingCount == 3) {
+                totalDeductions += 1;
+                Toast.makeText(this,
+                        "⚠️ Multiple audio detections. -1 point deduction applied.",
+                        Toast.LENGTH_LONG).show();
+
+                try {
+                    new AlertDialog.Builder(this)
+                            .setTitle("Audio Detection Warning")
+                            .setMessage("Sustained voice has been detected multiple times.\n\n" +
+                                    "• 1 point has been deducted.\n" +
+                                    "• Further detections may result in quiz submission.\n" +
+                                    "• Events are logged for teacher review.")
+                            .setPositiveButton("Understood", null)
+                            .setCancelable(false)
+                            .show();
+                } catch (Exception e) {
+                    Log.w("AUDIO_TFLITE", "Could not show warning dialog", e);
+                }
+
+            } else if (audioCheatingCount >= MAX_AUDIO_STRIKES) {
+                // If combined with navigation violations, treat as stronger evidence
+                if (switchCount >= 2) {
+                    Toast.makeText(this,
+                            "CHEATING DETECTED: Multiple audio + navigation violations. Auto-submitting.",
+                            Toast.LENGTH_LONG).show();
+                    try {
+                        new AlertDialog.Builder(this)
+                                .setTitle("Quiz Auto-Submission")
+                                .setMessage("Multiple cheating indicators detected:\n" +
+                                        "• Audio detections: " + audioCheatingCount + "\n" +
+                                        "• Navigation violations: " + switchCount + "\n\n" +
+                                        "The quiz will be submitted now.")
+                                .setPositiveButton("OK", (d, w) -> submitQuizWithZeroScore())
+                                .setCancelable(false)
+                                .show();
+                    } catch (Exception e) {
+                        submitQuizWithZeroScore();
+                    }
+                } else {
+                    Toast.makeText(this,
+                            "Audio cheating detected repeatedly. Auto-submitting quiz.",
+                            Toast.LENGTH_LONG).show();
+                    submitQuizWithZeroScore();
+                }
+            }
+        });
+    }
+
+    /**
+     * Log audio events to Firebase for teacher review (expanded).
+     */
+    private void logQuizAudioEvent(String label, float confidence, float frameRms, float ambient, float absoluteDelta, float snrRatio) {
+        String studentId = com.finale.nextgen.SessionManager.getStudentId(this);
+        if ((studentId == null || studentId.isEmpty()) && currentStudentUid != null) {
+            // best-effort resolve via UID is omitted for brevity; skip if unavailable
+            return;
+        }
+        if (studentId == null || studentId.isEmpty() || quizId == null || quizId.isEmpty()) return;
+
+        DatabaseReference logRef = FirebaseDatabase.getInstance()
+                .getReference("QuizAudioLogs")
+                .child(quizId)
+                .child(studentId)
+                .child("events")
+                .push();
+
+        Map<String, Object> event = new HashMap<>();
+        event.put("timestamp", System.currentTimeMillis());
+        event.put("label", label);
+        event.put("confidence", confidence);
+        event.put("frameRms", frameRms);
+        event.put("ambientRms", ambient);
+        event.put("absoluteDelta", absoluteDelta);
+        event.put("snrRatio", snrRatio);
+        event.put("strikeNumber", audioCheatingCount);
+        event.put("deviceModel", android.os.Build.MODEL);
+        event.put("androidVersion", android.os.Build.VERSION.SDK_INT);
+
+        logRef.setValue(event)
+                .addOnFailureListener(e ->
+                        Log.w("AUDIO_TFLITE", "Failed to log audio event: " + e.getMessage()));
     }
 
 
