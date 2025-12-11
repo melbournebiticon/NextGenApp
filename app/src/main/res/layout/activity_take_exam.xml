@@ -85,29 +85,8 @@
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintBottom_toTopOf="@id/btnSubmitExam"
-                tools:listitem="@layout/item_student_exam" />
-
-            <!-- Persistent Submit button anchored to the bottom of the CardView -->
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnSubmitExam"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="12dp"
-                android:layout_marginEnd="12dp"
-                android:layout_marginBottom="12dp"
-                android:contentDescription="@string/submit_quiz"
-                android:text="Submit Quiz"
-                android:textAllCaps="false"
-                android:textColor="@android:color/white"
-                app:cornerRadius="20dp"
-                app:backgroundTint="@color/dark_blue_700"
-                app:iconTint="@android:color/white"
-                app:iconPadding="8dp"
-                android:elevation="6dp"
                 app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent" />
+                tools:listitem="@layout/item_student_exam" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>
     </androidx.cardview.widget.CardView>

@@ -79,11 +79,10 @@ public class TakeExamActivity extends AppCompatActivity {
     private int totalDeductions = 0;
     private final int DEDUCTION_PER_STRIKE = 1;
 
-    // --- START: FINAL AUDIO CHEATING VARIABLES ---
+    // --- AUDIO CHEATING VARIABLES (Enhanced for Classroom) ---
     private int audioCheatingCount = 0;
-    private final int MAX_AUDIO_STRIKES = 5; // 5 x 0.5s = 2.5 seconds of detected voice
-    private final float FINAL_HUMAN_THRESHOLD = 0.75f; // Threshold for Speech/Human detection
-    // --- END: FINAL AUDIO CHEATING VARIABLES ---
+    private final int MAX_AUDIO_STRIKES = 5; // Strikes before escalation
+    private final float HIGH_CONFIDENCE_THRESHOLD = 0.70f; // Raised for classroom
 
     // Audio Detection
     private MediaRecorder mediaRecorder = null;
@@ -94,8 +93,8 @@ public class TakeExamActivity extends AppCompatActivity {
     // TFLite Audio
     private AudioClassifier classifier;
     private TensorAudio tensorAudio;
-
     private android.media.AudioRecord audioRecord;
+    private volatile boolean isAudioMonitoringActive = false;
 
     private List<String> allMatchingAnswers = new ArrayList<>();
     private boolean isShowingRules = false;
@@ -104,17 +103,40 @@ public class TakeExamActivity extends AppCompatActivity {
     // NEW: set to true when we successfully loaded offline data on startup
     private volatile boolean offlineLoaded = false;
 
+    // Robust Calibration
     private float ambientNoiseRms = 0f;
-    private final int CALIBRATION_FRAMES = 8;            // stable ambient estimate
+    private final int CALIBRATION_FRAMES = 12; // More samples for median
     private final int CALIBRATION_SLEEP_MS = 300;
-    private final float AMBIENT_MULTIPLIER = 3.5f;       // ambient * multiplier => threshold
-    private final float FALLBACK_MIC_LOUDNESS_THRESHOLD = 0.005f; // lowered floor (tuned from logs)
-    private final float HIGH_CONFIDENCE_THRESHOLD = 0.65f;
-    private final int REQUIRED_DETECTION_MS = 3000;      // 3s cumulative required
+
+    // Dual Threshold Parameters (Classroom-Tuned)
+    private final float AMBIENT_MULTIPLIER = 3.5f; // Relative threshold
+    private final float ABS_DELTA_THRESHOLD = 0.03f; // Absolute increase required (30mV equivalent)
+    private final float SNR_RATIO_THRESHOLD = 4.0f; // frameRms must be 4x ambient
+    private final float FALLBACK_MIC_LOUDNESS_THRESHOLD = 0.005f;
+
+    // Temporal Smoothing (Sliding Window)
+    private final int SLIDING_WINDOW_SIZE = 8; // Last 8 ticks
+    private final int REQUIRED_POSITIVES = 5; // Need 5/8 to advance
+    private boolean[] detectionWindow = new boolean[SLIDING_WINDOW_SIZE];
+    private int windowIndex = 0;
+
+    // Accumulation & Decay
+    private final int REQUIRED_DETECTION_MS = 4000; // 4 seconds sustained
     private int accumulatedDetectionMs = 0;
-    private final int DECAY_ON_NO_DETECT_MS = 500;
+    private final int DECAY_ON_NO_DETECT_MS = 500; // Decay slower
     private long lastStrikeTimestamp = 0L;
-    private final long STRIKE_RESET_MS = 12_000L;
+    private final long STRIKE_RESET_MS = 30_000L; // 30 seconds
+    private final long MIN_TIME_BETWEEN_STRIKES_MS = 8_000L; // Minimum 8 seconds between strikes
+
+    // Crash Protection
+    private int classifierRestartAttempts = 0;
+    private final int MAX_CLASSIFIER_RESTARTS = 1; // Allow one restart
+
+    // Teacher Override
+    private boolean teacherSpeakMode = false;
+    private long teacherSpeakModeEndTime = 0L;
+    private final long TEACHER_SPEAK_PAUSE_MS = 45_000L; // 45 seconds
+    private DatabaseReference teacherSpeakRef;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -328,6 +350,7 @@ public class TakeExamActivity extends AppCompatActivity {
                             for(DataSnapshot ds : snapshot.getChildren()){
                                 String studentId = ds.child("studentId").getValue(String.class);
                                 listenForExamReset(studentId);
+                                listenForTeacherSpeak(studentId);
                             }
                         }
                     }
@@ -1146,15 +1169,41 @@ public class TakeExamActivity extends AppCompatActivity {
     // ----------- AUDIO MONITORING WITH HUMAN VOICE DETECTION -------------
     private void startAudioMonitoring() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            Log.w("AUDIO_TFLITE", "Cannot start audio monitoring: no permission");
             return;
         }
+        
+        // Prevent multiple concurrent starts
+        if (isAudioMonitoringActive) {
+            Log.d("AUDIO_TFLITE", "Audio monitoring already active, skipping start request.");
+            return;
+        }
+        
+        isAudioMonitoringActive = true;
         startAudioClassification();
     }
 
 
     private void stopAudioMonitoring() {
+        if (!isAudioMonitoringActive) {
+            Log.d("AUDIO_TFLITE", "Audio monitoring already stopped, skipping stop request.");
+            return;
+        }
+        
+        Log.d("AUDIO_TFLITE", "Stopping audio monitoring...");
+        isAudioMonitoringActive = false;
+        
         // Stop scheduled detection callbacks
         audioHandler.removeCallbacksAndMessages(null);
+
+        // Remove teacher speak listener
+        if (teacherSpeakRef != null) {
+            try {
+                teacherSpeakRef.removeEventListener((ValueEventListener) null);
+            } catch (Exception ignored) {}
+            teacherSpeakRef = null;
+        }
+        teacherSpeakMode = false;
 
         // Stop & release AudioRecord if created by classifier
         try {
@@ -1162,6 +1211,7 @@ public class TakeExamActivity extends AppCompatActivity {
                 try { audioRecord.stop(); } catch (Exception ignored) {}
                 try { audioRecord.release(); } catch (Exception ignored) {}
                 audioRecord = null;
+                Log.d("AUDIO_TFLITE", "AudioRecord stopped and released.");
             }
         } catch (Exception e) {
             Log.w("AUDIO_TFLITE", "Error stopping/releasing audioRecord: " + e.getMessage());
@@ -1178,12 +1228,13 @@ public class TakeExamActivity extends AppCompatActivity {
         if (classifier != null) {
             try { classifier.close(); } catch (Exception ignored) {}
             classifier = null;
+            Log.d("AUDIO_TFLITE", "Classifier closed.");
         }
 
         // Reset detection state so next start is fresh
         accumulatedDetectionMs = 0;
         lastStrikeTimestamp = 0L;
-        audioCheatingCount = 0; // reset strikes during testing; adjust if you want persistence across pause/resume
+        // Keep audioCheatingCount persistent across pause/resume so strikes accumulate
         Log.d("AUDIO_TFLITE", "Audio monitoring stopped and state reset.");
     }
 
@@ -1191,13 +1242,20 @@ public class TakeExamActivity extends AppCompatActivity {
     // ... (other unchanged imports and code)
 
     private void startAudioClassification() {
-        // Abort if permission missing
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             Log.w("AUDIO_TFLITE", "No RECORD_AUDIO permission; cannot start audio classification.");
+            isAudioMonitoringActive = false;
+            return;
+        }
+
+        // Prevent multiple simultaneous starts
+        if (classifier != null || audioRecord != null) {
+            Log.d("AUDIO_TFLITE", "Audio classification already running, skipping start.");
             return;
         }
 
         try {
+            Log.d("AUDIO_TFLITE", "Starting audio classification...");
             AudioClassifier.AudioClassifierOptions options =
                     AudioClassifier.AudioClassifierOptions.builder()
                             .setMaxResults(1)
@@ -1206,139 +1264,224 @@ public class TakeExamActivity extends AppCompatActivity {
 
             classifier = AudioClassifier.createFromFileAndOptions(this, "model.tflite", options);
             tensorAudio = classifier.createInputTensorAudio();
+            Log.d("AUDIO_TFLITE", "Classifier created successfully.");
 
-            // Reset runtime detection state before starting
+            // Reset state
             accumulatedDetectionMs = 0;
             lastStrikeTimestamp = 0L;
-            // audioCheatingCount = 0; // uncomment if you want to clear previous strikes on every start
+            detectionWindow = new boolean[SLIDING_WINDOW_SIZE];
+            windowIndex = 0;
 
-            // Create and start audioRecord safely
+            // Create audioRecord safely
             try {
                 audioRecord = classifier.createAudioRecord();
                 audioRecord.startRecording();
+                Log.d("AUDIO_TFLITE", "AudioRecord created and started successfully.");
             } catch (Exception e) {
                 Log.e("AUDIO_TFLITE", "Failed to create/start audioRecord: " + e.getMessage());
                 try { classifier.close(); } catch (Exception ignored) {}
                 classifier = null;
                 audioRecord = null;
+                isAudioMonitoringActive = false;
                 Toast.makeText(this, "Audio monitoring unavailable on this device.", Toast.LENGTH_SHORT).show();
                 return;
             }
 
-            // Run calibration + detection in background thread
+            // Background calibration + detection
             new Thread(() -> {
-                try {
-                    float sumRms = 0f;
-                    int samples = 0;
-                    for (int i = 0; i < CALIBRATION_FRAMES; i++) {
-                        if (audioRecord == null) break;
-                        tensorAudio.load(audioRecord);
-                        float[] data = tensorAudio.getTensorBuffer().getFloatArray();
-                        float rms = computeRMS(data);
-                        sumRms += rms;
-                        samples++;
-                        try { Thread.sleep(CALIBRATION_SLEEP_MS); } catch (InterruptedException ignored) {}
-                    }
-                    ambientNoiseRms = samples > 0 ? (sumRms / samples) : 0f;
-                    if (ambientNoiseRms < 1e-5f) ambientNoiseRms = FALLBACK_MIC_LOUDNESS_THRESHOLD * 0.6f;
-                    Log.d("AUDIO_TFLITE", "Ambient RMS calibrated: " + ambientNoiseRms);
-                } catch (Exception e) {
-                    Log.w("AUDIO_TFLITE", "Calibration failed, using fallback: " + e.getMessage());
-                    ambientNoiseRms = FALLBACK_MIC_LOUDNESS_THRESHOLD * 0.6f;
-                }
-
-                // Post detection loop on handler for periodic scheduling
-                audioHandler.post(new Runnable() {
-                    @Override
-                    public void run() {
-                        try {
-                            if (classifier == null || audioRecord == null) {
-                                Log.w("AUDIO_TFLITE", "Classifier or audioRecord null; stopping detection loop.");
-                                return;
-                            }
-
-                            tensorAudio.load(audioRecord);
-                            List<Classifications> results = classifier.classify(tensorAudio);
-
-                            // Use RMS as amplitude metric for robustness
-                            float[] audioData = tensorAudio.getTensorBuffer().getFloatArray();
-                            float frameRms = computeRMS(audioData);
-
-                            float adaptiveAmpThreshold = Math.max(FALLBACK_MIC_LOUDNESS_THRESHOLD, ambientNoiseRms * AMBIENT_MULTIPLIER);
-
-                            boolean detectedSpeech = false;
-                            String detectedLabel = "";
-                            float detectedConfidence = 0f;
-
-                            if (!results.isEmpty()) {
-                                Classifications cls = results.get(0);
-                                if (!cls.getCategories().isEmpty()) {
-                                    detectedLabel = cls.getCategories().get(0).getLabel();
-                                    detectedConfidence = cls.getCategories().get(0).getScore();
-                                    if ((detectedLabel.equalsIgnoreCase("human") || detectedLabel.equalsIgnoreCase("speech"))
-                                            && detectedConfidence >= HIGH_CONFIDENCE_THRESHOLD
-                                            && frameRms >= adaptiveAmpThreshold) {
-                                        detectedSpeech = true;
-                                    }
-                                }
-                            }
-
-                            long now = System.currentTimeMillis();
-
-                            Log.d("AUDIO_TFLITE", "Label=" + detectedLabel +
-                                    " Conf=" + detectedConfidence +
-                                    " RMS=" + frameRms +
-                                    " Ambient=" + ambientNoiseRms +
-                                    " Threshold=" + adaptiveAmpThreshold +
-                                    " AccumMs=" + accumulatedDetectionMs +
-                                    " Strikes=" + audioCheatingCount);
-
-                            if (detectedSpeech) {
-                                accumulatedDetectionMs += AUDIO_DETECTION_INTERVAL;
-                            } else {
-                                accumulatedDetectionMs = Math.max(0, accumulatedDetectionMs - DECAY_ON_NO_DETECT_MS);
-                            }
-
-                            if (accumulatedDetectionMs >= REQUIRED_DETECTION_MS) {
-                                // Register a detection event (strike) for logging/testing.
-                                audioCheatingCount++;
-                                lastStrikeTimestamp = now;
-                                accumulatedDetectionMs = 0; // reset cumulative window after counting a strike
-
-                                Log.w("AUDIO_TFLITE", "DETECTION STRIKE " + audioCheatingCount +
-                                        " Label=" + detectedLabel + " Conf=" + detectedConfidence + " RMS=" + frameRms);
-
-                                // IMPORTANT: do NOT auto-submit here while testing detection.
-                                // Optionally call your handler to escalate (once you're ready):
-                                // handleRegisteredAudioStrike(detectedLabel, detectedConfidence, frameRms);
-
-                                // Local soft feedback for testing only:
-                                final int strikesNow = audioCheatingCount;
-                                runOnUiThread(() -> {
-                                    Toast.makeText(TakeExamActivity.this,
-                                            "Audio detection logged (" + strikesNow + ") — teacher will review.",
-                                            Toast.LENGTH_SHORT).show();
-                                });
-                            }
-
-                            // Clear strikes if timeout passed (so isolated incidents don't persist)
-                            if (audioCheatingCount > 0 && (now - lastStrikeTimestamp) > STRIKE_RESET_MS) {
-                                Log.d("AUDIO_TFLITE", "Clearing audio strikes due to timeout");
-                                audioCheatingCount = 0;
-                            }
-
-                        } catch (Exception e) {
-                            Log.e("AUDIO_TFLITE", "Error during detection loop: " + e.getMessage());
-                        }
-                        // schedule next tick
-                        audioHandler.postDelayed(this, AUDIO_DETECTION_INTERVAL);
-                    }
-                });
+                performRobustCalibration();
+                startDetectionLoop();
             }).start();
 
         } catch (IOException e) {
             Log.e("AUDIO_TFLITE", "Failed to create classifier: " + e.getMessage());
+            isAudioMonitoringActive = false;
             Toast.makeText(this, "Failed to load audio model.", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void performRobustCalibration() {
+        try {
+            float[] rmsReadings = new float[CALIBRATION_FRAMES];
+            int collected = 0;
+
+            for (int i = 0; i < CALIBRATION_FRAMES; i++) {
+                if (audioRecord == null) break;
+                tensorAudio.load(audioRecord);
+                float[] data = tensorAudio.getTensorBuffer().getFloatArray();
+                rmsReadings[collected++] = computeRMS(data);
+                try { Thread.sleep(CALIBRATION_SLEEP_MS); } catch (InterruptedException ignored) {}
+            }
+
+            if (collected > 0) {
+                // Use median (more robust than mean)
+                java.util.Arrays.sort(rmsReadings, 0, collected);
+                ambientNoiseRms = rmsReadings[collected / 2];
+            }
+
+            if (ambientNoiseRms < 1e-5f) {
+                ambientNoiseRms = FALLBACK_MIC_LOUDNESS_THRESHOLD * 0.6f;
+            }
+
+            Log.d("AUDIO_TFLITE", "Robust calibration complete. Ambient (median): " + ambientNoiseRms);
+        } catch (Exception e) {
+            Log.w("AUDIO_TFLITE", "Calibration failed: " + e.getMessage());
+            ambientNoiseRms = FALLBACK_MIC_LOUDNESS_THRESHOLD * 0.6f;
+        }
+    }
+
+    private void startDetectionLoop() {
+        audioHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    // Check if classifier is still valid before running tick
+                    if (classifier == null || audioRecord == null) {
+                        Log.w("AUDIO_TFLITE", "Classifier or audioRecord null; stopping detection loop.");
+                        return; // Stop scheduling more ticks
+                    }
+                    
+                    runDetectionTick();
+                    
+                    // Only schedule next tick if classifier is still valid
+                    if (classifier != null && audioRecord != null) {
+                        audioHandler.postDelayed(this, AUDIO_DETECTION_INTERVAL);
+                    }
+                } catch (Throwable t) {
+                    // Catch native crashes (SIGABRT, etc.)
+                    Log.e("AUDIO_TFLITE", "FATAL ERROR in detection loop: " + t.getMessage(), t);
+                    handleClassifierCrash();
+                    return; // Stop this loop
+                }
+            }
+        });
+    }
+
+    private void runDetectionTick() {
+        if (classifier == null || audioRecord == null) {
+            Log.w("AUDIO_TFLITE", "Classifier or audioRecord null in tick.");
+            return;
+        }
+
+        // Check teacher speak mode
+        long now = System.currentTimeMillis();
+        if (teacherSpeakMode && now < teacherSpeakModeEndTime) {
+            Log.d("AUDIO_TFLITE", "Detection paused (teacher speaking)");
+            return; // Skip detection this tick
+        } else if (teacherSpeakMode && now >= teacherSpeakModeEndTime) {
+            teacherSpeakMode = false; // Auto-expire
+        }
+
+        // Load audio buffer
+        tensorAudio.load(audioRecord);
+        List<Classifications> results = classifier.classify(tensorAudio);
+
+        float[] audioData = tensorAudio.getTensorBuffer().getFloatArray();
+        float frameRms = computeRMS(audioData);
+
+        // Adaptive threshold (relative)
+        float relativeThreshold = Math.max(FALLBACK_MIC_LOUDNESS_THRESHOLD, ambientNoiseRms * AMBIENT_MULTIPLIER);
+
+        // Dual checks
+        float absoluteDelta = frameRms - ambientNoiseRms;
+        float snrRatio = (ambientNoiseRms > 1e-5f) ? (frameRms / ambientNoiseRms) : 0f;
+
+        boolean detectedSpeech = false;
+        String detectedLabel = "";
+        float detectedConfidence = 0f;
+
+        if (!results.isEmpty()) {
+            Classifications cls = results.get(0);
+            if (!cls.getCategories().isEmpty()) {
+                detectedLabel = cls.getCategories().get(0).getLabel();
+                detectedConfidence = cls.getCategories().get(0).getScore();
+
+                // Speech detection: label match + confidence + dual amplitude checks
+                if ((detectedLabel.equalsIgnoreCase("human") || detectedLabel.equalsIgnoreCase("speech"))
+                        && detectedConfidence >= HIGH_CONFIDENCE_THRESHOLD
+                        && frameRms >= relativeThreshold
+                        && absoluteDelta >= ABS_DELTA_THRESHOLD
+                        && snrRatio >= SNR_RATIO_THRESHOLD) {
+                    detectedSpeech = true;
+                }
+            }
+        }
+
+        // Sliding window smoothing
+        detectionWindow[windowIndex] = detectedSpeech;
+        windowIndex = (windowIndex + 1) % SLIDING_WINDOW_SIZE;
+
+        int positiveCount = 0;
+        for (boolean b : detectionWindow) if (b) positiveCount++;
+
+        boolean windowTriggered = (positiveCount >= REQUIRED_POSITIVES);
+
+        // Log comprehensive diagnostics
+        Log.d("AUDIO_TFLITE", String.format(Locale.US,
+                "Label=%s Conf=%.2f RMS=%.4f Ambient=%.4f Delta=%.4f SNR=%.2f RelThresh=%.4f Window=%d/%d AccumMs=%d Strikes=%d",
+                detectedLabel, detectedConfidence, frameRms, ambientNoiseRms, absoluteDelta, snrRatio,
+                relativeThreshold, positiveCount, REQUIRED_POSITIVES, accumulatedDetectionMs, audioCheatingCount));
+
+        // Accumulate or decay
+        if (windowTriggered) {
+            accumulatedDetectionMs += AUDIO_DETECTION_INTERVAL;
+        } else {
+            accumulatedDetectionMs = Math.max(0, accumulatedDetectionMs - DECAY_ON_NO_DETECT_MS);
+        }
+
+        // Register strike when threshold reached AND minimum time gap has passed
+        if (accumulatedDetectionMs >= REQUIRED_DETECTION_MS) {
+            long timeSinceLastStrike = now - lastStrikeTimestamp;
+            
+            // Only register strike if enough time has passed since last one
+            if (lastStrikeTimestamp == 0L || timeSinceLastStrike >= MIN_TIME_BETWEEN_STRIKES_MS) {
+                audioCheatingCount++;
+                lastStrikeTimestamp = now;
+                accumulatedDetectionMs = 0; // Reset window
+
+                Log.w("AUDIO_TFLITE", String.format(Locale.US,
+                        "⚠️ AUDIO STRIKE #%d | Label=%s Conf=%.2f RMS=%.4f Ambient=%.4f Delta=%.4f SNR=%.2f",
+                        audioCheatingCount, detectedLabel, detectedConfidence, frameRms, ambientNoiseRms, absoluteDelta, snrRatio));
+
+                // Log to Firebase
+                logAudioEventToFirebase(detectedLabel, detectedConfidence, frameRms, ambientNoiseRms, absoluteDelta, snrRatio);
+
+                // Handle strike (warnings, deductions, escalation)
+                handleRegisteredAudioStrike(detectedLabel, detectedConfidence, frameRms);
+            } else {
+                // Too soon after last strike - ignore but log
+                Log.d("AUDIO_TFLITE", "Strike suppressed (only " + (timeSinceLastStrike/1000) + "s since last strike, need " + (MIN_TIME_BETWEEN_STRIKES_MS/1000) + "s)");
+                accumulatedDetectionMs = 0; // Still reset accumulation
+            }
+        }
+
+        // Reset strikes after timeout
+        if (audioCheatingCount > 0 && (now - lastStrikeTimestamp) > STRIKE_RESET_MS) {
+            Log.d("AUDIO_TFLITE", "Clearing audio strikes due to timeout (" + (STRIKE_RESET_MS/1000) + "s)");
+            audioCheatingCount = 0;
+        }
+    }
+
+    private void handleClassifierCrash() {
+        runOnUiThread(() -> Toast.makeText(this, "Audio detector encountered an error.", Toast.LENGTH_SHORT).show());
+
+        // Clean up safely
+        Log.e("AUDIO_TFLITE", "Classifier crashed, cleaning up...");
+        isAudioMonitoringActive = false; // Reset flag before stopping
+        stopAudioMonitoring();
+
+        // Attempt one restart if not exceeded
+        if (classifierRestartAttempts < MAX_CLASSIFIER_RESTARTS) {
+            classifierRestartAttempts++;
+            Log.w("AUDIO_TFLITE", "Attempting classifier restart (" + classifierRestartAttempts + "/" + MAX_CLASSIFIER_RESTARTS + ")");
+            audioHandler.postDelayed(() -> {
+                if (!isFinishing()) {
+                    Log.d("AUDIO_TFLITE", "Restarting audio monitoring after crash...");
+                    startAudioMonitoring();
+                }
+            }, 2000); // Wait 2s before restart
+        } else {
+            Log.e("AUDIO_TFLITE", "Max classifier restarts reached. Audio monitoring disabled.");
         }
     }
 
@@ -1351,6 +1494,282 @@ public class TakeExamActivity extends AppCompatActivity {
         }
         double meanSq = sumSq / buffer.length;
         return (float) Math.sqrt(meanSq);
+    }
+
+    private void logAudioEventToFirebase(String label, float confidence, float frameRms,
+                                         float ambient, float delta, float snr) {
+        String localStudentId = com.finale.nextgen.SessionManager.getStudentId(this);
+        if (localStudentId == null || localStudentId.isEmpty()) return;
+
+        DatabaseReference logRef = FirebaseDatabase.getInstance()
+                .getReference("ExamAudioLogs")
+                .child(examId)
+                .child(localStudentId)
+                .child("events")
+                .push();
+
+        java.util.HashMap<String, Object> eventData = new java.util.HashMap<>();
+        eventData.put("timestamp", System.currentTimeMillis());
+        eventData.put("label", label);
+        eventData.put("confidence", confidence);
+        eventData.put("frameRms", frameRms);
+        eventData.put("ambientRms", ambient);
+        eventData.put("absoluteDelta", delta);
+        eventData.put("snrRatio", snr);
+        eventData.put("strikeNumber", audioCheatingCount);
+        eventData.put("deviceModel", android.os.Build.MODEL);
+        eventData.put("androidVersion", android.os.Build.VERSION.SDK_INT);
+        eventData.put("accumulatedMs", accumulatedDetectionMs);
+        
+        // Generate interpretation and category based on metrics
+        String category = generateCategory(delta, frameRms, ambient, snr);
+        String interpretation = generateInterpretation(delta, frameRms, ambient, snr, confidence, accumulatedDetectionMs);
+        int suspicionLevel = calculateSuspicionLevel(delta, frameRms, ambient, snr, confidence);
+        
+        eventData.put("category", category);
+        eventData.put("interpretation", interpretation);
+        eventData.put("suspicionLevel", suspicionLevel);
+        
+        // Add contextual information about what likely happened
+        String audioContext = generateAudioContext(category, suspicionLevel, confidence, snr);
+        eventData.put("audioContext", audioContext);
+        
+        // Transcription placeholder (real transcription requires SpeechRecognizer - see guide)
+        String transcription = generateTranscriptionPlaceholder(suspicionLevel, category);
+        eventData.put("transcription", transcription);
+
+        logRef.setValue(eventData).addOnFailureListener(e ->
+                Log.w("AUDIO_TFLITE", "Failed to log audio event: " + e.getMessage()));
+    }
+    
+    private String generateCategory(float delta, float frameRms, float ambient, float snr) {
+        if (delta > 0.08f && frameRms > 0.15f) {
+            return "Very Close Speech";
+        } else if (delta > 0.05f && frameRms > 0.08f) {
+            return "Nearby Conversation";
+        } else if (delta > 0.03f && frameRms > 0.04f) {
+            return "Moderate Distance Speech";
+        } else if (frameRms > ambient * 3) {
+            return "Distant Speech/Announcement";
+        } else {
+            return "Ambient Noise";
+        }
+    }
+    
+    private String generateInterpretation(float delta, float frameRms, float ambient, float snr, float confidence, int accumMs) {
+        StringBuilder sb = new StringBuilder();
+        
+        // Proximity
+        if (delta > 0.08f && frameRms > 0.15f) {
+            sb.append("📍 Very close to device (within 1-2 feet). ");
+        } else if (delta > 0.05f && frameRms > 0.08f) {
+            sb.append("📍 Nearby speech detected (2-4 feet away). ");
+        } else if (delta > 0.03f && frameRms > 0.04f) {
+            sb.append("📍 Moderate distance speech (4-8 feet). ");
+        } else if (frameRms > ambient * 3) {
+            sb.append("📍 Distant speech or classroom announcement. ");
+        }
+        
+        // Signal clarity
+        if (snr > 20f) {
+            sb.append("Very clear audio signal. ");
+        } else if (snr > 10f) {
+            sb.append("Clear audio above background noise. ");
+        } else if (snr > 4f) {
+            sb.append("Audio slightly above background. ");
+        } else {
+            sb.append("Audio barely above background (possible false positive). ");
+        }
+        
+        // Duration
+        if (accumMs >= 4000) {
+            sb.append("Sustained for 4+ seconds. ");
+        } else if (accumMs >= 2000) {
+            sb.append("Sustained for 2-4 seconds. ");
+        }
+        
+        // Confidence
+        if (confidence > 0.9f) {
+            sb.append("Model very confident it's human speech.");
+        } else if (confidence > 0.75f) {
+            sb.append("Model confident it's human speech.");
+        } else {
+            sb.append("Model moderately confident.");
+        }
+        
+        return sb.toString();
+    }
+    
+    private int calculateSuspicionLevel(float delta, float frameRms, float ambient, float snr, float confidence) {
+        int level = 3; // Start at moderate
+        
+        // Very close speech is highly suspicious
+        if (delta > 0.08f && frameRms > 0.15f) {
+            level = 5;
+        } else if (delta > 0.05f && frameRms > 0.08f) {
+            level = 4;
+        } else if (delta > 0.03f && frameRms > 0.04f) {
+            level = 3;
+        } else {
+            level = 2; // Distant or ambient
+        }
+        
+        // Adjust based on SNR
+        if (snr < 6f) {
+            level = Math.max(1, level - 1); // Reduce suspicion for low SNR
+        }
+        
+        // Adjust based on confidence
+        if (confidence < 0.75f) {
+            level = Math.max(1, level - 1); // Reduce suspicion for low confidence
+        }
+        
+        return level;
+    }
+    
+    private String generateAudioContext(String category, int suspicionLevel, float confidence, float snr) {
+        StringBuilder sb = new StringBuilder();
+        
+        if (suspicionLevel >= 4) {
+            sb.append("⚠️ High suspicion event. ");
+            sb.append("Audio characteristics consistent with nearby human conversation. ");
+        } else if (suspicionLevel == 3) {
+            sb.append("⚠️ Moderate suspicion. ");
+            sb.append("Could be student speech or environmental noise. ");
+        } else {
+            sb.append("ℹ️ Low suspicion. ");
+            sb.append("Likely environmental noise or distant speech. ");
+        }
+        
+        if (category.contains("Very Close") || category.contains("Nearby")) {
+            sb.append("Proximity analysis indicates source was close to device (within 4 feet). ");
+        } else if (category.contains("Moderate")) {
+            sb.append("Proximity analysis indicates moderate distance (4-8 feet). ");
+        } else {
+            sb.append("Proximity analysis indicates distant source (8+ feet). ");
+        }
+        
+        if (confidence > 0.85f && snr > 15f) {
+            sb.append("High confidence human speech with clear signal.");
+        } else if (confidence > 0.75f) {
+            sb.append("Confident detection of human speech.");
+        } else {
+            sb.append("Moderate confidence - could be other sounds.");
+        }
+        
+        return sb.toString();
+    }
+    
+    private String generateTranscriptionPlaceholder(int suspicionLevel, String category) {
+        // Note: Real transcription requires Android SpeechRecognizer or Google Cloud STT
+        // This provides contextual information instead
+        
+        if (suspicionLevel >= 4) {
+            return "[Speech detected - transcription not available. Pattern suggests nearby conversation. Teacher should review context and interview student if needed.]";
+        } else if (suspicionLevel == 3) {
+            return "[Speech detected at moderate distance - transcription unreliable. Could be legitimate environmental noise or student communication.]";
+        } else {
+            return "[Distant audio detected - likely classroom announcement, teacher instruction, or environmental noise. Transcription not feasible at this distance.]";
+        }
+    }
+
+    private void handleRegisteredAudioStrike(String label, float confidence, float frameRms) {
+        runOnUiThread(() -> {
+            if (!isActivityAlive()) return;
+
+            // Progressive response based on strike count
+            if (audioCheatingCount == 1 || audioCheatingCount == 2) {
+                // First two strikes: soft warning only
+                Toast.makeText(this,
+                        "⚠️ Audio detection: possible voice detected (" + audioCheatingCount + "/" + MAX_AUDIO_STRIKES + ")",
+                        Toast.LENGTH_LONG).show();
+
+            } else if (audioCheatingCount == 3) {
+                // Third strike: warning + small deduction
+                totalDeductions += 1;
+                Toast.makeText(this,
+                        "⚠️ Multiple audio detections. -1 point deduction applied.",
+                        Toast.LENGTH_LONG).show();
+
+                try {
+                    new AlertDialog.Builder(this)
+                            .setTitle("Audio Detection Warning")
+                            .setMessage("Sustained voice has been detected multiple times.\n\n" +
+                                    "• 1 point has been deducted.\n" +
+                                    "• Further detections may result in exam submission.\n" +
+                                    "• All events are logged for teacher review.")
+                            .setPositiveButton("Understood", null)
+                            .setCancelable(false)
+                            .show();
+                } catch (Exception e) {
+                    Log.w("AUDIO_TFLITE", "Could not show warning dialog", e);
+                }
+
+            } else if (audioCheatingCount >= MAX_AUDIO_STRIKES) {
+                // Max strikes reached: check combined evidence
+                if (switchCount >= 2) {
+                    // Combined evidence: audio + navigation violations → auto-submit
+                    Toast.makeText(this,
+                            "CHEATING DETECTED: Multiple audio + navigation violations. Auto-submitting.",
+                            Toast.LENGTH_LONG).show();
+
+                    try {
+                        new AlertDialog.Builder(this)
+                                .setTitle("Exam Auto-Submission")
+                                .setMessage("Multiple cheating indicators detected:\n" +
+                                        "• " + audioCheatingCount + " audio strikes\n" +
+                                        "• " + switchCount + " navigation violations\n\n" +
+                                        "Your exam will be submitted with zero score.")
+                                .setPositiveButton("OK", (dialog, which) -> submitExamWithZeroScore())
+                                .setCancelable(false)
+                                .show();
+                    } catch (Exception e) {
+                        submitExamWithZeroScore();
+                    }
+                } else {
+                    // Audio-only strikes: deduct more points but don't auto-submit (let teacher review)
+                    totalDeductions += 2;
+                    Toast.makeText(this,
+                            "⚠️ Excessive audio detections. -2 additional points. Teacher will review.",
+                            Toast.LENGTH_LONG).show();
+
+                    Log.w("AUDIO_TFLITE", "Max audio strikes reached but insufficient combined evidence. Logging for teacher review.");
+                }
+            }
+        });
+    }
+
+    private void listenForTeacherSpeak(String studentId) {
+        teacherSpeakRef = FirebaseDatabase.getInstance()
+                .getReference("ExamStudents")
+                .child(examId)
+                .child(studentId)
+                .child("teacherSpeak");
+
+        teacherSpeakRef.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                Boolean flag = snapshot.getValue(Boolean.class);
+                if (flag != null && flag) {
+                    teacherSpeakMode = true;
+                    teacherSpeakModeEndTime = System.currentTimeMillis() + TEACHER_SPEAK_PAUSE_MS;
+                    Log.d("AUDIO_TFLITE", "Teacher speak mode activated for " + (TEACHER_SPEAK_PAUSE_MS/1000) + "s");
+                    runOnUiThread(() -> Toast.makeText(TakeExamActivity.this,
+                            "Audio detection paused (teacher speaking)", Toast.LENGTH_SHORT).show());
+
+                    // Auto-reset flag after timeout
+                    audioHandler.postDelayed(() -> {
+                        teacherSpeakRef.setValue(false);
+                        teacherSpeakMode = false;
+                    }, TEACHER_SPEAK_PAUSE_MS);
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                Log.w("AUDIO_TFLITE", "Teacher speak listener cancelled: " + error.getMessage());
+            }
+        });
     }
 
 

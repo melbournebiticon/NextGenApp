@@ -1,5 +1,7 @@
 package com.finale.nextgen.teacher;
 
+import android.content.Context;
+import android.content.Intent;
 import android.graphics.Color;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -78,6 +80,16 @@ public class StudentExamAdapter extends RecyclerView.Adapter<StudentExamAdapter.
 
             resetStudentFirebase(student);
         });
+
+        // --- AUDIO LOGS BUTTON ---
+        holder.btnViewAudioLogs.setOnClickListener(v -> {
+            Context context = v.getContext();
+            Intent intent = new Intent(context, AudioLogsActivity.class);
+            intent.putExtra("examId", examId);
+            intent.putExtra("studentId", student.getStudentId());
+            intent.putExtra("studentName", student.getFullName());
+            context.startActivity(intent);
+        });
     }
 
     @Override
@@ -142,7 +154,7 @@ public class StudentExamAdapter extends RecyclerView.Adapter<StudentExamAdapter.
     // ------------------------------------------------------------------------
     public static class ViewHolder extends RecyclerView.ViewHolder {
         TextView tvStudentName, tvStudentId, tvCourseInfo, tvCounter;
-        Button btnReset, btnMarkPresent;
+        Button btnReset, btnMarkPresent, btnViewAudioLogs;
 
         public ViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -152,7 +164,7 @@ public class StudentExamAdapter extends RecyclerView.Adapter<StudentExamAdapter.
             btnReset = itemView.findViewById(R.id.btnReset);
             btnMarkPresent = itemView.findViewById(R.id.btnMarkPresent);
             tvStudentId = itemView.findViewById(R.id.tvStudentId);
-
+            btnViewAudioLogs = itemView.findViewById(R.id.btnViewAudioLogs);
         }
     }
 }

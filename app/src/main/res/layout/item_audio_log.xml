@@ -1,0 +1,404 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="12dp"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="4dp"
+    app:cardBackgroundColor="@android:color/white">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- Header Row: Strike # and Timestamp -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="12dp">
+
+            <TextView
+                android:id="@+id/tvStrikeNumber"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Strike #1"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="@color/dark_blue_900"
+                android:background="@drawable/counter_badge_bg"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:paddingTop="6dp"
+                android:paddingBottom="6dp"/>
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1"/>
+
+            <TextView
+                android:id="@+id/tvTimestamp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Dec 11, 2025 15:02:17"
+                android:textSize="12sp"
+                android:textColor="@color/dark_blue_500"/>
+        </LinearLayout>
+
+        <!-- NEW: Suspicion Level Card (Most Important!) -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            app:cardCornerRadius="8dp"
+            app:cardElevation="2dp"
+            app:cardBackgroundColor="#FFF3E0">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="12dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="🎯 ASSESSMENT"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/dark_blue_700"
+                    android:layout_marginBottom="6dp"/>
+
+                <TextView
+                    android:id="@+id/tvSuspicionLevel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="High - Suspicious"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="#FF9800"
+                    android:layout_marginBottom="8dp"/>
+
+                <TextView
+                    android:id="@+id/tvCategory"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Nearby Conversation"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/dark_blue_900"
+                    android:layout_marginBottom="8dp"/>
+
+                <TextView
+                    android:id="@+id/tvInterpretation"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="📍 Nearby speech detected (2-4 feet away). Clear audio above background noise. Sustained for 4+ seconds. Model confident it's human speech."
+                    android:textSize="13sp"
+                    android:textColor="@color/dark_blue_700"
+                    android:lineSpacingExtra="2dp"/>
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+        <!-- NEW: Transcription Card -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            app:cardCornerRadius="8dp"
+            app:cardElevation="2dp"
+            app:cardBackgroundColor="#E3F2FD">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="12dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="💬 WHAT WAS DETECTED"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/dark_blue_700"
+                    android:layout_marginBottom="6dp"/>
+
+                <TextView
+                    android:id="@+id/tvTranscription"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="[Speech detected - transcription not available]"
+                    android:textSize="13sp"
+                    android:textColor="@color/dark_blue_900"
+                    android:textStyle="italic"
+                    android:lineSpacingExtra="2dp"
+                    android:layout_marginBottom="8dp"/>
+
+                <TextView
+                    android:id="@+id/tvAudioContext"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="⚠️ High suspicion event. Audio characteristics consistent with nearby human conversation."
+                    android:textSize="12sp"
+                    android:textColor="@color/dark_blue_700"
+                    android:lineSpacingExtra="2dp"/>
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+        <!-- Detection Info Row -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="12dp">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Detected Label"
+                    android:textSize="11sp"
+                    android:textColor="@color/dark_blue_500"
+                    android:textStyle="italic"/>
+
+                <TextView
+                    android:id="@+id/tvLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Speech"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/dark_blue_900"/>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="end">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Confidence"
+                    android:textSize="11sp"
+                    android:textColor="@color/dark_blue_500"
+                    android:textStyle="italic"/>
+
+                <TextView
+                    android:id="@+id/tvConfidence"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="85.00%"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/teal_700"/>
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Divider -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#E0E0E0"
+            android:layout_marginBottom="12dp"/>
+
+        <!-- Audio Metrics Grid -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Audio Metrics"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:textColor="@color/dark_blue_700"
+                android:layout_marginBottom="8dp"/>
+
+            <!-- Row 1: Frame RMS and Ambient RMS -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="8dp">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:layout_marginEnd="8dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Frame RMS"
+                        android:textSize="11sp"
+                        android:textColor="@color/dark_blue_500"/>
+
+                    <TextView
+                        android:id="@+id/tvFrameRms"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0.1234"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/dark_blue_900"/>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Ambient RMS"
+                        android:textSize="11sp"
+                        android:textColor="@color/dark_blue_500"/>
+
+                    <TextView
+                        android:id="@+id/tvAmbientRms"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0.0035"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/dark_blue_900"/>
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Row 2: Delta and SNR -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="8dp">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:layout_marginEnd="8dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Abs. Delta"
+                        android:textSize="11sp"
+                        android:textColor="@color/dark_blue_500"/>
+
+                    <TextView
+                        android:id="@+id/tvDelta"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0.1199"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/dark_blue_900"/>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="SNR Ratio"
+                        android:textSize="11sp"
+                        android:textColor="@color/dark_blue_500"/>
+
+                    <TextView
+                        android:id="@+id/tvSnr"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="35.26"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/dark_blue_900"/>
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Row 3: Accumulated Time -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="8dp">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Accumulated MS"
+                        android:textSize="11sp"
+                        android:textColor="@color/dark_blue_500"/>
+
+                    <TextView
+                        android:id="@+id/tvAccumulated"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="2500 ms"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/dark_blue_900"/>
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Device Info -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="#F5F5F5"
+            android:padding="8dp"
+            android:layout_marginTop="8dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Device Information"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:textColor="@color/dark_blue_700"
+                android:layout_marginBottom="4dp"/>
+
+            <TextView
+                android:id="@+id/tvDevice"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Samsung Galaxy S21 (Android 13)"
+                android:textSize="11sp"
+                android:textColor="@color/dark_blue_500"/>
+        </LinearLayout>
+
+    </LinearLayout>
+</androidx.cardview.widget.CardView>
+

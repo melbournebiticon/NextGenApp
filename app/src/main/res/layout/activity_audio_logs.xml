@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/surface"
+    tools:context=".teacher.AudioLogsActivity">
+
+    <!-- Header Card -->
+    <androidx.cardview.widget.CardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="16dp"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="4dp"
+        app:cardBackgroundColor="@color/dark_blue_700">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Audio Detection Logs"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:textColor="@android:color/white"
+                android:layout_marginBottom="8dp"/>
+
+            <TextView
+                android:id="@+id/tvStudentInfo"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Student: Loading..."
+                android:textSize="14sp"
+                android:textColor="@android:color/white"
+                android:layout_marginBottom="4dp"/>
+
+            <TextView
+                android:id="@+id/tvLogCount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Total Strikes: 0"
+                android:textSize="14sp"
+                android:textColor="@color/teal_700"
+                android:textStyle="bold"/>
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <!-- Recommendation Card (Most Important!) -->
+    <androidx.cardview.widget.CardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="16dp"
+        app:cardCornerRadius="8dp"
+        app:cardElevation="4dp"
+        app:cardBackgroundColor="#FFF3E0">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="14dp">
+
+            <TextView
+                android:id="@+id/tvRecommendation"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="📋 TEACHER RECOMMENDATION:\n\nAnalyzing patterns..."
+                android:textSize="13sp"
+                android:textColor="@color/dark_blue_900"
+                android:lineSpacingExtra="3dp"
+                android:fontFamily="sans-serif-medium"/>
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <!-- Legend Card -->
+    <androidx.cardview.widget.CardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="16dp"
+        app:cardCornerRadius="8dp"
+        app:cardElevation="2dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="12dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="📊 Legend"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="@color/dark_blue_700"
+                android:layout_marginBottom="6dp"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="• RMS: Root Mean Square (audio amplitude)\n• Delta: Increase from ambient noise\n• SNR: Signal-to-Noise Ratio (frameRMS ÷ ambient)\n• Confidence: ML model certainty"
+                android:textSize="11sp"
+                android:textColor="@color/dark_blue_500"
+                android:lineSpacingExtra="2dp"/>
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <!-- Logs RecyclerView -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerAudioLogs"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="16dp"
+        tools:listitem="@layout/item_audio_log"/>
+
+    <!-- No Logs Message -->
+    <TextView
+        android:id="@+id/tvNoLogs"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:text="No audio detection logs found.\nThis student has no recorded audio strikes."
+        android:textSize="16sp"
+        android:textColor="@color/dark_blue_500"
+        android:textAlignment="center"
+        android:padding="32dp"
+        android:visibility="gone"/>
+
+</LinearLayout>
+
