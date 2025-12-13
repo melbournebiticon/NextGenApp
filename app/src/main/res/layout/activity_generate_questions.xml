@@ -26,12 +26,13 @@
     <ScrollView
         android:id="@+id/mainScroll"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
+        android:layout_height="0dp"
         android:padding="16dp"
+        android:fillViewport="true"
         app:layout_constraintTop_toBottomOf="@id/topBar"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toTopOf="@id/questionsCard">
+        app:layout_constraintBottom_toTopOf="@id/btnSaveQuestion">
 
         <LinearLayout
             android:orientation="vertical"
@@ -240,26 +241,10 @@
                     android:layout_height="wrap_content"/>
             </LinearLayout>
 
-            <!-- Save Questions Button -->
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnSaveQuestion"
-                style="@style/Widget.MaterialComponents.Button"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Save Questions"
-                android:textAllCaps="false"
-                android:textStyle="bold"
-                android:icon="@drawable/ic_save"
-                app:iconPadding="8dp"
-                android:iconTint="@android:color/white"
-                android:backgroundTint="@color/teal_700"
-                android:textColor="@android:color/white"
-                android:layout_marginVertical="8dp"
-                app:cornerRadius="12dp"/>
         </LinearLayout>
     </ScrollView>
 
-    <!-- RecyclerView for Questions, with improved shadow/elevation and preview listitem -->
+    <!-- RecyclerView for Questions, placed above the bottom Save bar -->
     <androidx.cardview.widget.CardView
         android:id="@+id/questionsCard"
         android:layout_width="0dp"
@@ -268,8 +253,8 @@
         app:cardCornerRadius="12dp"
         app:cardBackgroundColor="@android:color/white"
         app:cardElevation="4dp"
-        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintTop_toBottomOf="@id/mainScroll"
+        app:layout_constraintBottom_toTopOf="@id/btnSaveQuestion"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
@@ -281,7 +266,30 @@
             tools:listitem="@layout/item_question"/>
     </androidx.cardview.widget.CardView>
 
-    <!-- Floating Action Button for import questions -->
+    <!-- Save Questions Button (anchored to bottom; stays visible and won't be covered) -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnSaveQuestion"
+        style="@style/Widget.MaterialComponents.Button"
+        android:layout_width="0dp"
+        android:layout_height="56dp"
+        android:text="Save Questions"
+        android:textAllCaps="false"
+        android:textStyle="bold"
+        android:icon="@drawable/ic_save"
+        app:iconPadding="8dp"
+        android:iconTint="@android:color/white"
+        android:backgroundTint="@color/teal_700"
+        android:textColor="@android:color/white"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="12dp"
+        app:cornerRadius="12dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:elevation="8dp" />
+
+    <!-- Floating Action Button for import questions, positioned above the Save button so it doesn't overlap -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fabImportQuestions"
         android:layout_width="wrap_content"
@@ -290,9 +298,11 @@
         app:backgroundTint="@color/dark_blue_700"
         app:srcCompat="@drawable/ic_upload"
         app:tint="@android:color/white"
-        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        android:layout_margin="16dp"/>
+        app:layout_constraintBottom_toTopOf="@id/btnSaveQuestion"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="12dp"
+        android:translationZ="10dp"/>
 
     <!-- Design-time dialog preview -->
     <include

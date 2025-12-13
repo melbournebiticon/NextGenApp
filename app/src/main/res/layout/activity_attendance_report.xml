@@ -29,6 +29,34 @@
         android:padding="16dp"
         android:layout_weight="1">
 
+        <!-- Report title + last updated -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="8dp">
+
+            <TextView
+                android:id="@+id/tvReportTitle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Section: BSCS 2A — Attendance Report"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="@color/dark_blue_700" />
+
+            <TextView
+                android:id="@+id/tvLastUpdated"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Last updated: —"
+                android:textSize="12sp"
+                android:textColor="#666"
+                android:paddingStart="8dp" />
+        </LinearLayout>
+
         <!-- Header Card with observable HSV -->
         <androidx.cardview.widget.CardView
             android:layout_width="match_parent"
@@ -125,7 +153,7 @@
             </com.finale.nextgen.teacher.ObservableHorizontalScrollView>
         </androidx.cardview.widget.CardView>
 
-        <!-- Controls: Calendar toggle + Compute Class Average -->
+        <!-- Controls: Calendar toggle + Compute Class Average + Export -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -145,7 +173,7 @@
                 android:padding="8dp" />
 
             <View
-                android:layout_width="12dp"
+                android:layout_width="8dp"
                 android:layout_height="1dp" />
 
             <Button
@@ -154,6 +182,20 @@
                 android:layout_height="40dp"
                 android:text="Compute Class Average"
                 android:background="@drawable/card_round"
+                android:textColor="@android:color/white"
+                android:textStyle="bold" />
+
+            <View
+                android:layout_width="8dp"
+                android:layout_height="1dp" />
+
+            <!-- Export button (small) -->
+            <Button
+                android:id="@+id/btnExport"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:text="Export"
+                android:backgroundTint="@color/green"
                 android:textColor="@android:color/white"
                 android:textStyle="bold" />
         </LinearLayout>
@@ -174,7 +216,8 @@
             android:text="Attendance goes here"
             android:textColor="#444"
             android:padding="8dp" />
-        <!-- RecyclerView -->
+
+        <!-- Date info (bound to tvDateInfo in code) -->
         <TextView
             android:id="@+id/tvDateInfo"
             android:layout_width="match_parent"
@@ -183,6 +226,7 @@
             android:text=""
             android:textColor="#444" />
 
+        <!-- RecyclerView -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/attendanceRecyclerView"
             android:layout_width="match_parent"
