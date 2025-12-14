@@ -1627,6 +1627,11 @@ public class TakeQuizActivity extends AppCompatActivity {
                             .build();
 
             classifier = AudioClassifier.createFromFileAndOptions(this, "model.tflite", options);
+            if (classifier == null) {
+                Log.e(TAG, "Failed to initialize the Audio Classifier.");
+            } else {
+                Log.d(TAG, "Audio Classifier initialized successfully.");
+            }
             tensorAudio = classifier.createInputTensorAudio();
             audioRecord = classifier.createAudioRecord();
             audioRecord.startRecording();
@@ -1713,6 +1718,7 @@ public class TakeQuizActivity extends AppCompatActivity {
                 detectedLabel = cls.getCategories().get(0).getLabel();
                 detectedConfidence = cls.getCategories().get(0).getScore();
 
+                // Check if detection is speech and meets thresholds
                 if ((detectedLabel.equalsIgnoreCase("human") || detectedLabel.equalsIgnoreCase("speech"))
                         && detectedConfidence >= HIGH_CONFIDENCE_THRESHOLD
                         && frameRms >= relativeThreshold
@@ -1723,6 +1729,14 @@ public class TakeQuizActivity extends AppCompatActivity {
             }
         }
 
+        // Add the log statement here for detailed debugging
+        Log.d("AUDIO_TFLITE", String.format(
+                Locale.US,
+                "Detected Label: %s | Confidence: %.2f | Frame RMS: %.4f | Ambient RMS: %.4f | Delta: %.4f | SNR: %.2f",
+                detectedLabel, detectedConfidence, frameRms, ambientNoiseRms, absoluteDelta, snrRatio
+        ));
+
+        // Sliding window
         detectionWindow[windowIndex] = detectedSpeech;
         windowIndex = (windowIndex + 1) % SLIDING_WINDOW_SIZE;
 
